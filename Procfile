@@ -1,1 +1,1 @@
-web: gunicorn simple_mobile_app:app --host=0.0.0.0 --port=$PORT
+web: gunicorn simple_mobile_app:app --bind=0.0.0.0:$PORT
