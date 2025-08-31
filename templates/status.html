@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}システム状況 - 北海道フェリー予測システム{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2>📊 システム状況</h2>
+        <p class="text-muted">データ蓄積状況と予測精度の確認</p>
+    </div>
+</div>
+
+<div id="loading" class="text-center">
+    <div class="spinner-border" role="status">
+        <span class="visually-hidden">読み込み中...</span>
+    </div>
+    <p>システム状況を取得中...</p>
+</div>
+
+<div id="status-container">
+    <!-- システム状況がここに読み込まれます -->
+</div>
+
+<script>
+function loadStatus() {
+    document.getElementById('loading').style.display = 'block';
+    
+    fetch('/api/status')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loading').style.display = 'none';
+            
+            if (data.success) {
+                displayStatus(data);
+            } else {
+                document.getElementById('status-container').innerHTML = 
+                    '<div class="alert alert-danger">システム状況の取得に失敗しました</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('status-container').innerHTML = 
+                '<div class="alert alert-danger">ネットワークエラーが発生しました</div>';
+        });
+}
+
+function displayStatus(data) {
+    const container = document.getElementById('status-container');
+    
+    const progress = (data.data_status.current_count / data.data_status.max_count) * 100;
+    
+    let html = `
+        <!-- データ収集状況 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">📈 データ収集状況</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>収集データ数:</strong> ${data.data_status.current_count}件 / ${data.data_status.max_count}件</p>
+                        <div class="progress mb-3">
+                            <div class="progress-bar" style="width: ${progress}%">${progress.toFixed(1)}%</div>
+                        </div>
+                        <p><strong>状態:</strong> <span class="badge bg-${getStatusBadgeColor(data.data_status.status)}">${data.data_status.message}</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>最終更新:</strong> ${new Date(data.data_status.last_updated).toLocaleString('ja-JP')}</p>
+                        <p><strong>自動停止:</strong> ${data.data_status.auto_stop_enabled ? '✅ 有効' : '❌ 無効'}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 予測システム状況 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">🤖 予測システム状況</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>予測段階:</strong> ${data.prediction_params.stage}</p>
+                        <p><strong>予測手法:</strong> ${data.prediction_params.prediction_method}</p>
+                        <p><strong>信頼度:</strong> ${Math.round(data.prediction_params.confidence_base * 100)}%</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>段階進捗:</strong> ${Math.round(data.prediction_params.progress * 100)}%</p>
+                        <p><strong>適応調整回数:</strong> ${data.prediction_params.adaptation_count}回</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 適応レポート
+    if (data.adaptation_report && !data.adaptation_report.error) {
+        html += `
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">⚙️ 適応システムレポート</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>システム成熟度:</strong> ${data.adaptation_report.system_maturity}</p>
+                            <p><strong>信頼度レベル:</strong> ${data.adaptation_report.confidence_level}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>段階進捗:</strong> ${data.adaptation_report.stage_progress}</p>
+                        </div>
+                    </div>
+                    
+                    ${data.adaptation_report.recommendations ? `
+                    <h6>📋 推奨事項</h6>
+                    <ul>
+                        ${data.adaptation_report.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                    </ul>
+                    ` : ''}
+                    
+                    ${data.adaptation_report.threshold_changes && data.adaptation_report.threshold_changes.length > 0 ? `
+                    <h6>🔧 閾値調整履歴</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>条件</th>
+                                    <th>レベル</th>
+                                    <th>変更率</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.adaptation_report.threshold_changes.slice(0, 5).map(change => `
+                                <tr>
+                                    <td>${change.condition}</td>
+                                    <td>${change.level}</td>
+                                    <td>${change.change_percent > 0 ? '+' : ''}${change.change_percent.toFixed(1)}%</td>
+                                </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+
+function getStatusBadgeColor(status) {
+    const colors = {
+        'COMPLETED': 'success',
+        'NEAR_COMPLETION': 'warning',
+        'LEARNING_ACTIVE': 'info',
+        'COLLECTING': 'primary',
+        'NOT_STARTED': 'secondary'
+    };
+    return colors[status] || 'secondary';
+}
+
+// 初回読み込み
+loadStatus();
+
+// 30秒ごとに自動更新
+setInterval(loadStatus, 30000);
+</script>
+{% endblock %}

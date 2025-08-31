@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="jumbotron bg-primary text-white p-4 rounded mb-4">
+            <h1 class="display-4">🚢 北海道フェリー予測システム</h1>
+            <p class="lead">稚内⇔利尻島・礼文島の運航予報をお届けします</p>
+            <hr class="my-4">
+            <p>気象条件を分析し、7日間の運航予報を提供。データ蓄積により予測精度が向上します。</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">📅 7日間予報</h5>
+                <p class="card-text">各航路・各便の詳細な運航予報を確認できます。</p>
+                <a href="{{ url_for('forecast_page') }}" class="btn btn-primary">予報を見る</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">📊 システム状況</h5>
+                <p class="card-text">データ蓄積状況と予測精度を確認できます。</p>
+                <a href="{{ url_for('status_page') }}" class="btn btn-success">状況を見る</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">🚀 システム特徴</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <h6>⚡ 段階的精度向上</h6>
+                        <small class="text-muted">データ蓄積に応じて自動的に予測精度が向上</small>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <h6>🤖 適応的学習</h6>
+                        <small class="text-muted">実績データから自動的に予測基準を調整</small>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <h6>❄️ 冬季特化</h6>
+                        <small class="text-muted">流氷・降雪・低温など冬季条件に特化</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="system-status" class="mt-4">
+    <!-- システム状況がここに読み込まれます -->
+</div>
+
+<script>
+// システム状況を取得して表示
+fetch('/api/status')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const statusHtml = `
+                <div class="alert alert-info">
+                    <h6>📊 現在のシステム状況</h6>
+                    <p><strong>予測段階:</strong> ${data.prediction_params.stage}</p>
+                    <p><strong>データ数:</strong> ${data.data_status.current_count}件</p>
+                    <p><strong>信頼度:</strong> ${Math.round(data.prediction_params.confidence_base * 100)}%</p>
+                </div>
+            `;
+            document.getElementById('system-status').innerHTML = statusHtml;
+        }
+    })
+    .catch(error => console.error('Error:', error));
+</script>
+{% endblock %}

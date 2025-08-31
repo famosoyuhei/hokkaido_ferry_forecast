@@ -1,0 +1,28 @@
+{
+  "webhook_urls": {
+    "main": null,
+    "alerts": null,
+    "reports": null
+  },
+  "notification_settings": {
+    "enabled": false,
+    "risk_notifications": true,
+    "cancellation_alerts": true,
+    "data_milestones": true,
+    "daily_summary": true,
+    "weekly_report": false
+  },
+  "message_format": {
+    "use_embeds": true,
+    "use_mentions": false,
+    "mention_role_id": null,
+    "color_scheme": {
+      "low": 65280,
+      "medium": 16776960,
+      "high": 16744448,
+      "critical": 16711680
+    }
+  },
+  "created_at": "2025-08-31T08:03:06.634155",
+  "updated_at": "2025-08-31T08:03:06.634160"
+}
