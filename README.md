@@ -1,95 +1,56 @@
-# 北海道フェリー欠航予報システム
-Hokkaido Ferry Cancellation Forecast System
+# Hokkaido Ferry Forecast System
 
-稚内-利尻島間、その他北海道周辺フェリー航路の欠航リスクを早期から予報するシステムです。
-特に冬季の厳しい気象条件に対応した高精度予報を提供します。
+Real-time ferry cancellation prediction system for Hokkaido islands (Rishiri & Rebun).
 
-## 主要機能
+## Features
 
-### 早期予報システム
-- 72時間前からの段階的欠航リスク予報
-- 冬季特化予報（11月-3月に重点）
-- リアルタイム気象監視と予報更新
+- Real-time ferry status monitoring from Heartland Ferry
+- Seasonal timetable integration 
+- Weather-based cancellation prediction
+- Flight data integration (Rishiri Airport)
+- 24/7 cloud-based data collection
 
-### 対象航路
-- 稚内 ⇔ 鴛泊（利尻島）
-- 稚内 ⇔ 沓形（利尻島）
-- 稚内 ⇔ 香深（礼文島）
-- その他北海道離島航路（拡張予定）
+## Data Sources
 
-### 予報要素
-- **風速・風向**: 海上風15m/s以上の欠航リスク
-- **波高予報**: 3m以上の高波警戒
-- **視界予報**: 濃霧・降雪による視界不良
-- **気温予報**: 船体凍結リスク評価
-- **流氷情報**: 冬季流氷接近予報（2-3月）
+- **Ferry Status**: https://heartlandferry.jp/status/
+- **Timetables**: https://heartlandferry.jp/timetable/
+- **Flight Data**: FlightAware API
+- **Weather**: Integrated weather analysis
 
-## 技術仕様
+## Deployment
 
-### 予報技術
-- 利尻島昆布予報システムの高度予測エンジンを活用
-- 多源気象データ統合（JMA・Open-Meteo・海上保安庁）
-- 機械学習による欠航パターン学習
-- アンサンブル予測による信頼度評価
+This system runs on Railway for 24/7 operation:
 
-### システム構成
-```
-core/               # コア予報エンジン
-models/             # 予測モデル（冬季特化含む）
-apis/               # 外部データAPI統合
-web/                # Webアプリケーション
-mobile/             # モバイル対応・PWA
-```
+1. Automatic data collection every day at 6:00 AM JST
+2. PostgreSQL database for reliable data storage
+3. Real-time status monitoring and predictions
 
-## 冬季特化機能
+## Routes Covered
 
-北海道の厳しい冬季条件に特化した予報機能：
+- Wakkanai ↔ Rishiri Island
+- Wakkanai ↔ Rebun Island  
+- Rishiri Island ↔ Rebun Island
 
-### 降雪・吹雪予報
-- 時間降雪量10cm以上の運航影響予測
-- 地吹雪による視界悪化リスク
-- 港湾施設への積雪影響評価
+## Technology Stack
 
-### 流氷監視
-- オホーツク海流氷南下監視
-- 利尻・礼文島周辺への流氷接近予報
-- 海氷密度と航路安全性評価
+- **Backend**: Python 3.11
+- **Database**: PostgreSQL (Railway)
+- **Web Scraping**: BeautifulSoup4, Requests
+- **Scheduling**: Railway Cron Jobs
+- **API**: FlightAware AeroAPI
 
-### 厳寒対策
-- 船体凍結リスク（-10°C以下）
-- 港湾設備凍結による接岸困難予測
-- 乗客安全確保のための気温管理
+## Environment Variables
 
-## 開発・運用
+- `FLIGHTAWARE_API_KEY`: FlightAware API key for flight data
+- `DATABASE_URL`: PostgreSQL connection (auto-provided by Railway)
 
-### 環境構築
+## Local Development
+
 ```bash
-cd hokkaido_ferry_forecast
 pip install -r requirements.txt
-python config/setup_database.py
+python cloud_ferry_collector.py
 ```
 
-### 実行
-```bash
-# 開発環境
-python web/app.py
+## License
 
-# 予報更新（定期実行）
-python core/forecast_updater.py
-```
-
-### データソース
-- 気象庁海上予報
-- 海上保安庁海象情報
-- フェリー会社運航データ（API連携）
-- 利尻島気象観測データ
-
-## 利用対象
-
-- **一般利用者**: フェリー利用計画のための欠航リスク確認
-- **観光業者**: ツアー催行判断支援
-- **物流業者**: 貨物輸送スケジュール管理
-- **地元住民**: 生活交通の計画立案
-- **フェリー会社**: 運航判断支援情報
-
-冬季の北海道離島交通の安全性と計画性向上を目指します。
+Private project for Hokkaido ferry prediction research.

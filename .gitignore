@@ -4,27 +4,24 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual Environment
+env/
 venv/
 ENV/
-env/
-.venv/
+env.bak/
+venv.bak/
+
+# Database files (keep local data private)
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+logs/
 
 # IDE
 .vscode/
@@ -36,13 +33,9 @@ env/
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-logs/
+# Windows Task Scheduler files (local only)
+*.bat
 
 # Temporary files
 *.tmp
 temp/
-
-# Local data (keep structure but ignore sensitive data)
-data/ferry_cancellation_log_old.csv

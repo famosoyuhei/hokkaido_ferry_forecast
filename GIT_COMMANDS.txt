@@ -1,0 +1,23 @@
+# Git Commands for Repository Setup
+
+# 1. Initialize git repository (if not already done)
+git init
+
+# 2. Add all files
+git add .
+
+# 3. Create initial commit
+git commit -m "Initial commit: Hokkaido Ferry Forecast System for Railway deployment"
+
+# 4. Add GitHub repository (replace with your actual repo URL)
+git remote add origin https://github.com/YOUR_USERNAME/hokkaido-ferry-forecast.git
+
+# 5. Push to GitHub
+git push -u origin main
+
+# Alternative if you get permission denied:
+git push -u origin main --force
+
+# Check status
+git status
+git log --oneline

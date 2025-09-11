@@ -1,0 +1,11 @@
+{
+  "api_key": "QEgHk9GkswfERfjg2ujDosuP2Ss60sXs",
+  "setup_date": "2025-01-14T09:30:00",
+  "plan_type": "Personal",
+  "monthly_limit": 5.00,
+  "endpoints": {
+    "base_url": "https://aeroapi.flightaware.com/aeroapi",
+    "airports": "https://aeroapi.flightaware.com/aeroapi/airports",
+    "flights": "https://aeroapi.flightaware.com/aeroapi/flights"
+  }
+}
