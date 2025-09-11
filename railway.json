@@ -6,5 +6,14 @@
   },
   "deploy": {
     "startCommand": "python cloud_ferry_collector.py"
+  },
+  "cron": {
+    "ferry_collection": {
+      "command": "python cloud_ferry_collector.py",
+      "schedule": "0 6 * * *"
+    }
+  },
+  "variables": {
+    "FLIGHTAWARE_API_KEY": "QEgHk9GkswfERfjg2ujDosuP2Ss60sXs"
   }
 }
