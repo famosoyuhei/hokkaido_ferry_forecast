@@ -1,2 +1,1 @@
-web: python cloud_ferry_collector.py
-worker: python scheduled_collector.py
+web: python ferry_web_app.py
