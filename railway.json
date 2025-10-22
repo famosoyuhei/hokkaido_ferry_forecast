@@ -10,27 +10,27 @@
   "cron": {
     "ferry_collection": {
       "command": "python improved_ferry_collector.py",
-      "schedule": "0 6 * * *"
+      "schedule": "0 21 * * *"
     },
     "forecast_collection_morning": {
       "command": "python weather_forecast_collector.py",
-      "schedule": "0 5 * * *"
+      "schedule": "0 20 * * *"
     },
     "forecast_collection_midday": {
       "command": "python weather_forecast_collector.py",
-      "schedule": "0 11 * * *"
+      "schedule": "0 2 * * *"
     },
     "forecast_collection_evening": {
       "command": "python weather_forecast_collector.py",
-      "schedule": "0 17 * * *"
+      "schedule": "0 8 * * *"
     },
     "forecast_collection_night": {
       "command": "python weather_forecast_collector.py",
-      "schedule": "0 23 * * *"
+      "schedule": "0 14 * * *"
     },
     "notification_morning": {
       "command": "python notification_service.py",
-      "schedule": "30 6 * * *"
+      "schedule": "30 21 * * *"
     }
   },
   "variables": {
