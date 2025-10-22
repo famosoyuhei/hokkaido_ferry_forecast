@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>北海道フェリー予報 - 7日間運航予測</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="稚内⇔利尻・礼文島フェリー運航の7日間欠航リスク予測。気象庁データに基づく信頼性の高い予報をスマホで確認。">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="フェリー予報">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .header h1 {
+            font-size: 2em;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .status-badge.danger {
+            background: #ff4757;
+            color: white;
+        }
+
+        .status-badge.warning {
+            background: #ffa502;
+            color: white;
+        }
+
+        .status-badge.success {
+            background: #26de81;
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .forecast-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .day-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            position: relative;
+        }
+
+        .day-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .day-card .date {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+
+        .day-card .risk-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .risk-HIGH {
+            background: #ff4757;
+            color: white;
+        }
+
+        .risk-MEDIUM {
+            background: #ffa502;
+            color: white;
+        }
+
+        .risk-LOW {
+            background: #26de81;
+            color: white;
+        }
+
+        .risk-MINIMAL {
+            background: #ecf0f1;
+            color: #7f8c8d;
+        }
+
+        .weather-info {
+            font-size: 0.85em;
+            color: #555;
+            margin-top: 10px;
+        }
+
+        .weather-info div {
+            margin: 5px 0;
+        }
+
+        .section-title {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin: 30px 0 15px 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .section-title h2 {
+            color: #2c3e50;
+            font-size: 1.3em;
+        }
+
+        .route-list {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .route-item {
+            padding: 15px;
+            border-bottom: 1px solid #ecf0f1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .route-item:last-child {
+            border-bottom: none;
+        }
+
+        .route-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .route-risk {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            font-size: 0.9em;
+        }
+
+        .update-time {
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .forecast-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚢 北海道フェリー運航予報</h1>
+            <p>稚内 ⇔ 利尻・礼文島　7日間欠航リスク予測</p>
+            <span class="status-badge {{ status_class }}">{{ status }}</span>
+        </div>
+
+        <div class="update-time">
+            最終更新: {{ current_time }} | データ: JMA + Open-Meteo
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>📊 予報日数</h3>
+                <div class="value">{{ stats.forecast_days }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>⚠️ 高リスク日</h3>
+                <div class="value">{{ stats.high_risk_days }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>🌊 気象データ</h3>
+                <div class="value">{{ stats.weather_records }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>🗓️ データ期間</h3>
+                <div class="value">{{ stats.weather_days }}日</div>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <h2>📅 7日間予報</h2>
+        </div>
+
+        <div class="forecast-grid">
+            {% for day in forecast %}
+            <div class="day-card">
+                <div class="date">{{ day.date }}</div>
+                <div class="risk-badge risk-{{ day.max_risk }}">
+                    {% if day.max_risk == 'HIGH' %}🔴{% elif day.max_risk == 'MEDIUM' %}🟡{% elif day.max_risk == 'LOW' %}🟢{% else %}⚪{% endif %}
+                    {{ day.max_risk }}
+                </div>
+                <div class="weather-info">
+                    {% for risk in day.risks %}
+                    <div><strong>リスク:</strong> {{ risk.score|round|int }}/100</div>
+                    <div>💨 {{ risk.wind|round(1) }} m/s</div>
+                    {% if risk.wave %}
+                    <div>🌊 {{ risk.wave|round(1) }} m</div>
+                    {% endif %}
+                    {% if risk.visibility %}
+                    <div>👁️ {{ risk.visibility|round(1) }} km</div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="section-title">
+            <h2>🛳️ 航路別予報（本日）</h2>
+        </div>
+
+        <div class="route-list">
+            {% for route in today_routes %}
+            <div class="route-item">
+                <div>
+                    <div class="route-name">{{ route.route_name }}</div>
+                    <div class="weather-info">
+                        風速 {{ route.wind|round(1) }}m/s
+                        {% if route.wave %} | 波高 {{ route.wave|round(1) }}m{% endif %}
+                        {% if route.visibility %} | 視界 {{ route.visibility|round(1) }}km{% endif %}
+                    </div>
+                </div>
+                <div class="route-risk">
+                    <span class="risk-badge risk-{{ route.risk_level }}">
+                        {% if route.risk_level == 'HIGH' %}🔴{% elif route.risk_level == 'MEDIUM' %}🟡{% elif route.risk_level == 'LOW' %}🟢{% else %}⚪{% endif %}
+                        {{ route.risk_level }}
+                    </span>
+                    <span style="color: #7f8c8d;">{{ route.risk_score|round|int }}/100</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="footer">
+            <p>データソース: 気象庁 (JMA) + Open-Meteo</p>
+            <p>更新頻度: 1日4回 (05:00, 11:00, 17:00, 23:00 JST)</p>
+            <p style="margin-top: 10px;">⚠️ この予報は参考情報です。実際の運航状況は<a href="https://heartlandferry.jp/status/" style="color: white; text-decoration: underline;">公式サイト</a>でご確認ください。</p>
+        </div>
+    </div>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        // Register service worker for offline functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker registered successfully:', registration.scope);
+
+                        // Check for updates every hour
+                        setInterval(() => {
+                            registration.update();
+                        }, 60 * 60 * 1000);
+                    })
+                    .catch((error) => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+
+        // Install prompt handling
+        let deferredPrompt;
+        const installButton = document.createElement('button');
+        installButton.innerHTML = '📱 ホーム画面に追加';
+        installButton.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 0.9em;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            cursor: pointer;
+            z-index: 1000;
+            display: none;
+            animation: pulse 2s infinite;
+        `;
+
+        // Add pulse animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent automatic prompt
+            e.preventDefault();
+            deferredPrompt = e;
+
+            // Show install button
+            document.body.appendChild(installButton);
+            installButton.style.display = 'block';
+
+            installButton.addEventListener('click', async () => {
+                installButton.style.display = 'none';
+
+                // Show install prompt
+                deferredPrompt.prompt();
+
+                // Wait for user response
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`Install prompt outcome: ${outcome}`);
+
+                deferredPrompt = null;
+            });
+        });
+
+        // Hide install button if app is already installed
+        window.addEventListener('appinstalled', () => {
+            installButton.style.display = 'none';
+            console.log('PWA installed successfully');
+        });
+
+        // Background sync for fresh data
+        if ('serviceWorker' in navigator && 'sync' in ServiceWorkerRegistration.prototype) {
+            navigator.serviceWorker.ready.then((registration) => {
+                // Sync when page becomes visible
+                document.addEventListener('visibilitychange', () => {
+                    if (!document.hidden) {
+                        registration.sync.register('sync-forecast')
+                            .then(() => console.log('Background sync registered'))
+                            .catch((err) => console.log('Background sync failed:', err));
+                    }
+                });
+            });
+        }
+
+        // Auto-refresh data every 30 minutes
+        setInterval(() => {
+            if (!document.hidden) {
+                console.log('Auto-refreshing data...');
+                location.reload();
+            }
+        }, 30 * 60 * 1000);
+
+        // Add scroll anchors for shortcuts
+        window.addEventListener('load', () => {
+            const hash = window.location.hash;
+            if (hash === '#today') {
+                document.querySelector('.route-list')?.scrollIntoView({ behavior: 'smooth' });
+            } else if (hash === '#forecast') {
+                document.querySelector('.forecast-grid')?.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    </script>
+</body>
+</html>

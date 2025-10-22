@@ -5,12 +5,32 @@
     ]
   },
   "deploy": {
-    "startCommand": "python cloud_ferry_collector.py"
+    "startCommand": "python ferry_web_app.py"
   },
   "cron": {
     "ferry_collection": {
-      "command": "python cloud_ferry_collector.py",
+      "command": "python improved_ferry_collector.py",
       "schedule": "0 6 * * *"
+    },
+    "forecast_collection_morning": {
+      "command": "python weather_forecast_collector.py",
+      "schedule": "0 5 * * *"
+    },
+    "forecast_collection_midday": {
+      "command": "python weather_forecast_collector.py",
+      "schedule": "0 11 * * *"
+    },
+    "forecast_collection_evening": {
+      "command": "python weather_forecast_collector.py",
+      "schedule": "0 17 * * *"
+    },
+    "forecast_collection_night": {
+      "command": "python weather_forecast_collector.py",
+      "schedule": "0 23 * * *"
+    },
+    "notification_morning": {
+      "command": "python notification_service.py",
+      "schedule": "30 6 * * *"
     }
   },
   "variables": {
