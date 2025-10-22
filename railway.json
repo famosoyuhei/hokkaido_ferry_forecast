@@ -5,7 +5,7 @@
     ]
   },
   "deploy": {
-    "startCommand": "python ferry_web_app.py"
+    "startCommand": "gunicorn --bind 0.0.0.0:$PORT forecast_dashboard:app"
   },
   "cron": {
     "ferry_collection": {
