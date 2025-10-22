@@ -38,8 +38,10 @@ class WeatherForecastCollector:
             'rebun': {'lat': 45.300, 'lon': 141.040, 'name': '礼文'}
         }
 
-        # Database
-        self.db_file = "ferry_weather_forecast.db"
+        # Database - use volume path if available
+        import os
+        data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')
+        self.db_file = os.path.join(data_dir, "ferry_weather_forecast.db")
         self.init_database()
 
         # Headers
