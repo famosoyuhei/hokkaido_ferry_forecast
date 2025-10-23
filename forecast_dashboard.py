@@ -214,13 +214,71 @@ class ForecastDashboard:
 
         conn.close()
 
-        return {
+        # Get accuracy metrics
+        accuracy_stats = self.get_accuracy_stats()
+
+        stats = {
             'weather_records': weather_count,
             'weather_days': weather_days,
             'forecast_days': cancel_days,
             'high_risk_days': high_risk_days,
             'last_updated': last_collection
         }
+
+        # Add accuracy metrics if available
+        if accuracy_stats:
+            stats.update(accuracy_stats)
+
+        return stats
+
+    def get_accuracy_stats(self):
+        """Get accuracy statistics from accuracy database"""
+
+        import os
+        data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')
+        actual_db = os.path.join(data_dir, "ferry_actual_operations.db")
+
+        # Check if accuracy database exists
+        if not Path(actual_db).exists():
+            return None
+
+        try:
+            conn = sqlite3.connect(actual_db)
+            cursor = conn.cursor()
+
+            # Get last 30 days accuracy
+            cursor.execute('''
+                SELECT
+                    COUNT(*) as days,
+                    AVG(accuracy_rate) as avg_accuracy,
+                    AVG(precision) as avg_precision,
+                    AVG(recall) as avg_recall,
+                    SUM(total_predictions) as total_pred,
+                    SUM(correct_predictions) as total_correct
+                FROM accuracy_summary
+                WHERE date >= date('now', '-30 days')
+            ''')
+
+            row = cursor.fetchone()
+            conn.close()
+
+            if not row or row[0] == 0:
+                return None
+
+            days, avg_acc, avg_prec, avg_rec, total_pred, total_correct = row
+
+            return {
+                'accuracy_days_tracked': days,
+                'accuracy_rate': avg_acc,
+                'accuracy_precision': avg_prec,
+                'accuracy_recall': avg_rec,
+                'accuracy_total_predictions': total_pred,
+                'accuracy_total_correct': total_correct
+            }
+
+        except Exception as e:
+            print(f"[WARNING] Could not get accuracy stats: {e}")
+            return None
 
 # Initialize dashboard
 dashboard = ForecastDashboard()

@@ -28,6 +28,10 @@
       "command": "python weather_forecast_collector.py",
       "schedule": "0 14 * * *"
     },
+    "accuracy_tracking": {
+      "command": "python accuracy_tracker.py",
+      "schedule": "0 22 * * *"
+    },
     "notification_morning": {
       "command": "python notification_service.py",
       "schedule": "30 21 * * *"

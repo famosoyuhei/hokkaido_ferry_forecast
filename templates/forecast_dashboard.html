@@ -265,6 +265,35 @@
             </div>
         </div>
 
+        {% if stats.accuracy_rate %}
+        <div class="section-title">
+            <h2>📈 予測精度（過去30日間）</h2>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>🎯 予測精度</h3>
+                <div class="value">{{ "%.1f"|format(stats.accuracy_rate * 100) }}%</div>
+                <div class="label">的中率</div>
+            </div>
+            <div class="stat-card">
+                <h3>✅ 正解数</h3>
+                <div class="value">{{ stats.accuracy_total_correct }}/{{ stats.accuracy_total_predictions }}</div>
+                <div class="label">予測</div>
+            </div>
+            <div class="stat-card">
+                <h3>📊 適合率</h3>
+                <div class="value">{{ "%.1f"|format(stats.accuracy_precision * 100) }}%</div>
+                <div class="label">Precision</div>
+            </div>
+            <div class="stat-card">
+                <h3>🔍 再現率</h3>
+                <div class="value">{{ "%.1f"|format(stats.accuracy_recall * 100) }}%</div>
+                <div class="label">Recall</div>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="section-title">
             <h2>📅 7日間予報</h2>
         </div>
