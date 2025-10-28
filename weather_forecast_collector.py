@@ -452,12 +452,19 @@ class WeatherForecastCollector:
         risk_score = 0
         risk_factors = []
 
-        # Wind speed risk
-        if wind_speed >= 25:
-            risk_score += 40
+        # Wind speed risk (improved scale)
+        # Extreme winds alone warrant HIGH risk
+        if wind_speed >= 35:
+            risk_score += 70
+            risk_factors.append(f"Extreme wind ({wind_speed:.1f} m/s)")
+        elif wind_speed >= 30:
+            risk_score += 60
+            risk_factors.append(f"Very dangerous wind ({wind_speed:.1f} m/s)")
+        elif wind_speed >= 25:
+            risk_score += 50
             risk_factors.append(f"Very strong wind ({wind_speed:.1f} m/s)")
         elif wind_speed >= 20:
-            risk_score += 30
+            risk_score += 35
             risk_factors.append(f"Strong wind ({wind_speed:.1f} m/s)")
         elif wind_speed >= 15:
             risk_score += 20
