@@ -1,0 +1,32 @@
+
+================================================================================
+PREDICTION ACCURACY IMPROVEMENT REPORT
+================================================================================
+Generated: 2025-12-14 17:10:42
+
+OVERALL STATUS
+================================================================================
+Total Prediction-Actual Matches: 6
+Data Collection Period: 30 days
+
+CURRENT PERFORMANCE METRICS
+================================================================================
+Accuracy:  83.3%
+Precision: 100.0%
+Recall:    83.3%
+F1-Score:  0.909
+
+Prediction Errors:
+  Mean Absolute Error: 34.96
+  Root Mean Squared Error: 39.42
+
+Calibration Score: 0.0%
+
+CURRENT RISK THRESHOLDS
+================================================================================
+Wind Speed:  15.0 m/s
+Wave Height: 3.0 m
+Visibility:  1.0 km
+Temperature: -10.0 °C
+
+================================================================================

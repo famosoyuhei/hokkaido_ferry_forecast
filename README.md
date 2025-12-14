@@ -4,7 +4,18 @@ Real-time ferry cancellation prediction system for Hokkaido islands (Rishiri & R
 
 📱 **NEW: Smartphone App Available!** Install as a Progressive Web App (PWA) on iOS/Android - see [PWA Guide](PWA_SMARTPHONE_APP_GUIDE.md)
 
-## 🎉 Latest Updates (2025-10-22)
+🎯 **NEW: Accuracy Improvement System!** Automated prediction-actual matching and continuous model refinement - see [Accuracy System Guide](README_ACCURACY_SYSTEM.md)
+
+## 🎉 Latest Updates (2025-12-14)
+
+### 🎯 Prediction Accuracy Improvement System - NEW!
+- **Automated Matching**: Links predictions with actual ferry operations
+- **Continuous Learning**: Automatically adjusts risk thresholds based on performance
+- **Real-time Monitoring**: Web dashboard for accuracy metrics and trends
+- **Performance Tracking**: Precision, Recall, F1-Score, and Calibration metrics
+- **Daily Automation**: Runs automatically via Railway cron jobs
+
+## Previous Updates (2025-10-22)
 
 ### 📱 Smartphone App (PWA) - NEW!
 - **Progressive Web App**: Install on iPhone/Android home screen
@@ -47,11 +58,13 @@ Real-time ferry cancellation prediction system for Hokkaido islands (Rishiri & R
 
 ## Features
 
-- Real-time ferry status monitoring from Heartland Ferry
-- Seasonal timetable integration
-- Weather-based cancellation prediction with actual meteorological data
-- Flight data integration (Rishiri Airport)
-- 24/7 cloud-based data collection
+- **7-Day Weather Forecasts**: JMA + Open-Meteo dual-source predictions
+- **Real-time Monitoring**: Heartland Ferry status tracking
+- **Accuracy Improvement**: Automated prediction-actual matching and model refinement
+- **Web Dashboard**: Real-time accuracy metrics and performance trends
+- **Smartphone App**: PWA for iOS/Android
+- **Notification System**: Discord and LINE integration
+- **24/7 Automation**: Railway cron jobs for continuous operation
 
 ## Data Sources
 
@@ -86,6 +99,30 @@ This system runs on Railway for 24/7 operation:
 
 - `FLIGHTAWARE_API_KEY`: FlightAware API key for flight data
 - `DATABASE_URL`: PostgreSQL connection (auto-provided by Railway)
+
+## Quick Start Guides
+
+### Accuracy Improvement System
+```bash
+# Quick test
+python quick_test.py
+
+# Start full system with dashboard
+start_accuracy_system.bat
+
+# Or manual steps:
+python automated_improvement_runner.py  # Run improvement cycle
+python accuracy_dashboard.py            # Start dashboard at :5001
+```
+
+See [README_ACCURACY_SYSTEM.md](README_ACCURACY_SYSTEM.md) for detailed documentation.
+
+### Smartphone App
+```bash
+start_mobile_app.bat  # Access at http://localhost:5000
+```
+
+See [README_Mobile.md](README_Mobile.md) for details.
 
 ## Data Collection Scripts
 
