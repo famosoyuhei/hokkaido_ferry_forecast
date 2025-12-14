@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python analyze_accuracy.py:*)",
+      "Bash(python accuracy_tracker.py:*)",
+      "Bash(sqlite3:*)",
+      "Bash(python:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
