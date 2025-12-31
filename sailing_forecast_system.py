@@ -408,8 +408,71 @@ class SailingForecastSystem:
                 'month_day_end': '09-30'
             },
 
-            # TODO: 香深→稚内（礼文島→稚内）は一部利尻経由便があるため、所要時間が異なります
-            # 現在は直行便のみ対応
+            # 香深→稚内（礼文島→稚内）冬季・早春 (1/1-4/27)
+            {
+                'route': 'kafuka_wakkanai',
+                'sailings': [
+                    ('09:00', '10:55'),  # 直行便
+                    ('14:10', '16:05'),  # 直行便
+                    ('17:05', '19:00'),  # 直行便
+                ],
+                'season_pattern': 'winter',
+                'month_day_start': '01-01',
+                'month_day_end': '04-27'
+            },
+            # 香深→稚内 春 (4/28-5/31)
+            {
+                'route': 'kafuka_wakkanai',
+                'sailings': [
+                    ('08:55', '10:50'),  # 直行便
+                    ('10:10', '13:00'),  # 利尻経由
+                    ('13:25', '16:15'),  # 利尻経由
+                    ('14:45', '16:40'),  # 直行便
+                    ('17:05', '19:00'),  # 直行便
+                ],
+                'season_pattern': 'spring',
+                'month_day_start': '04-28',
+                'month_day_end': '05-31'
+            },
+            # 香深→稚内 夏季 (6/1-9/30)
+            {
+                'route': 'kafuka_wakkanai',
+                'sailings': [
+                    ('08:55', '10:50'),
+                    ('14:20', '16:15'),
+                    ('14:50', '16:45'),
+                    ('17:10', '19:05'),
+                ],
+                'season_pattern': 'summer',
+                'month_day_start': '06-01',
+                'month_day_end': '09-30'
+            },
+            # 香深→稚内 秋 (10/1-10/31)
+            {
+                'route': 'kafuka_wakkanai',
+                'sailings': [
+                    ('08:55', '10:50'),
+                    ('10:10', '13:00'),  # 利尻経由
+                    ('13:25', '16:15'),  # 利尻経由
+                    ('14:45', '16:40'),
+                    ('17:05', '19:00'),
+                ],
+                'season_pattern': 'autumn',
+                'month_day_start': '10-01',
+                'month_day_end': '10-31'
+            },
+            # 香深→稚内 晩秋 (11/1-12/31)
+            {
+                'route': 'kafuka_wakkanai',
+                'sailings': [
+                    ('09:00', '10:55'),
+                    ('14:10', '16:05'),
+                    ('17:05', '19:00'),
+                ],
+                'season_pattern': 'late_autumn',
+                'month_day_start': '11-01',
+                'month_day_end': '12-31'
+            },
         ]
 
         # 年度ごとにデータを生成
