@@ -23,7 +23,8 @@ class ForecastDashboard:
     def __init__(self):
         # Use /data volume if available (Railway persistent storage)
         import os
-        data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')
+        # Support both RAILWAY_VOLUME_MOUNT_PATH and RAILWAY_VOLUME_MOUNT
+        data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
         self.db_file = os.path.join(data_dir, "ferry_weather_forecast.db")
 
     def get_7day_forecast(self):
