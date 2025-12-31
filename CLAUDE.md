@@ -471,6 +471,117 @@ railway run python improved_ferry_collector.py
 
 ---
 
+### 🔥 重大な問題: データベースが更新されない（2026-01-01解決済み）
+
+**症状**:
+- `/admin/collect-data`で成功するが、`/api/stats`が古いまま
+- Volumeにデータを保存しても再デプロイで消える
+
+**根本原因**:
+GitHubに`ferry_weather_forecast.db`がコミットされていた。
+
+**問題の詳細**:
+1. `.gitignore`に`*.db`があっても、**既にコミット済みのファイルは除外されない**
+2. デプロイ時の処理順序：
+   ```
+   ① GitHubから全ファイルをクローン（古いDBを含む）
+   ② カレントディレクトリに展開
+   ③ Volumeを/dataにマウント
+   ④ アプリ起動時、/dataに古いDBがコピーされる or 上書きされる
+   ```
+3. 結果：Volumeの新しいデータが古いDBで上書きされる
+
+**解決方法**:
+```bash
+# GitHubからDBファイルを削除（追跡のみ削除、ローカルファイルは残る）
+git rm --cached ferry_weather_forecast.db
+
+# コミット＆プッシュ
+git commit -m "Remove database file from Git (use Railway Volume instead)"
+git push
+```
+
+**確認方法**:
+```bash
+# Gitで管理されているDBファイルを確認
+git ls-files | grep -i "\.db$"
+
+# 何も表示されなければOK
+```
+
+**予防策**:
+- 新しいDBファイルを作成する際は、`.gitignore`に含まれているか確認
+- `git status`でステージングされていないか確認
+- Volumeを使う場合は、DBファイルをGitに含めない
+
+---
+
+### 問題4: Railway環境変数が設定できない（Git Bash問題）
+
+**症状**:
+`RAILWAY_VOLUME_MOUNT_PATH=/data`と設定したのに`C:/Program Files/Git/data`になる
+
+**原因**:
+Git Bashが自動的にパスを変換してしまう
+
+**解決策**:
+```bash
+# ダブルスラッシュを使う
+railway variables --set "RAILWAY_VOLUME_MOUNT_PATH=//data" -s hokkaido-ferry-forecast
+
+# または Railway管理画面で直接設定
+```
+
+---
+
+### 問題5: workerサービスが勝手に再起動
+
+**症状**:
+削除したはずのworkerサービスが何度も起動する
+
+**原因**:
+`railway.json`の`cron`セクションが残っていると、Railwayが自動的にworkerサービスを作成する可能性がある
+
+**解決策**:
+1. Railway管理画面で完全削除
+2. 確認画面で「apply destructive changes」と入力
+3. `railway.json`の`cron`セクションを削除するか、別の方法でCronを設定
+
+---
+
+### 問題6: `/data`ディレクトリにアクセスできない
+
+**症状**:
+`sqlite3.OperationalError: unable to open database file`
+
+**原因**:
+- Volumeがマウントされていない
+- `/data`ディレクトリの権限がない
+
+**解決策**:
+1. デバッグエンドポイントで確認：
+   ```
+   https://web-production-a628.up.railway.app/admin/env
+   ```
+   確認項目：
+   - `data_dir_exists`: true
+   - `data_dir_writable`: true
+   - `data_dir_contents`: ["ferry_weather_forecast.db", ...]
+
+2. Volumeが存在しない場合：
+   - Railway → Create → Volume
+   - Volume名: `ferry-data`
+   - Mount to service: `hokkaido-ferry-forecast`
+   - Mount path: `/data`
+
+3. 環境変数の確認：
+   ```bash
+   railway variables -s hokkaido-ferry-forecast
+   ```
+   `RAILWAY_VOLUME_MOUNT_PATH=/data`が設定されているか確認
+
+---
+
 ## 📊 リスク計算ロジック
 
 ### アルゴリズム
@@ -615,28 +726,46 @@ git push
 
 ---
 
-## ✅ 最近の変更（2025-12-31）
+## ✅ 最近の変更（2026-01-01）
 
-1. **セキュリティ強化**
+### Railway本番環境セットアップ完了
+
+1. **Railwayへの統一**
+   - RenderからRailwayに本番環境を移行
+   - 理由：Volume、Cron Jobs、常時起動が無料で使える
+   - Renderは永続ディスク($3/月) + Cron($7/月) = $10/月かかる
+
+2. **Volume設定**
+   - Mount Path: `/data`
+   - 環境変数: `RAILWAY_VOLUME_MOUNT_PATH=/data`
+   - データベースを永続化
+
+3. **重要な修正：GitHubからDBファイルを削除**
+   - 問題：`ferry_weather_forecast.db`がGit管理されていた
+   - 影響：デプロイごとに古いDBで上書きされ、Volumeの新データが消える
+   - 解決：`git rm --cached ferry_weather_forecast.db`で削除
+   - 現在：Volumeのみでデータ管理
+
+4. **セキュリティ強化**
    - FlightAware APIキーを`railway.json`から削除
    - `railway_local.json`に移動（gitignore追加）
    - `.env.example`と`API_KEY_MANAGEMENT.md`を作成
 
-2. **コード整理**
+5. **コード整理**
    - 67個のレガシースクリプトをアーカイブ
    - 本番ファイルを7個に集約
 
-3. **データベース統合**
+6. **データベース統合**
    - 11個のDBを3個に統合
    - 8個のレガシーDBをバックアップ
 
-4. **ドキュメント整備**
+7. **ドキュメント整備**
    - このCLAUDE.mdを作成
    - DATABASE_CLEANUP_SUMMARY.mdを作成
 
 ---
 
-**最終更新日**: 2025-12-31
+**最終更新日**: 2026-01-01
 **メンテナー**: 利尻島フェリー予報プロジェクト
 **ライセンス**: Private（商用利用）
 
