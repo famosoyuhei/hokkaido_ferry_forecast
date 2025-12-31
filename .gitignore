@@ -19,6 +19,11 @@ venv.bak/
 .env
 .env.local
 
+# API Keys and Secrets (never commit these)
+*_secret.json
+*_config.json
+railway_local.json
+
 # Logs
 *.log
 logs/

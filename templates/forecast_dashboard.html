@@ -375,6 +375,109 @@
             });
         }
 
+        // Notification button
+        const notificationButton = document.createElement('button');
+        notificationButton.innerHTML = '🔔 通知をオンにする';
+        notificationButton.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+            display: none;
+            transition: transform 0.2s;
+        `;
+
+        notificationButton.addEventListener('mouseenter', () => {
+            notificationButton.style.transform = 'scale(1.05)';
+        });
+
+        notificationButton.addEventListener('mouseleave', () => {
+            notificationButton.style.transform = 'scale(1)';
+        });
+
+        notificationButton.addEventListener('click', async () => {
+            try {
+                const permission = await Notification.requestPermission();
+
+                if (permission === 'granted') {
+                    console.log('Notification permission granted');
+                    notificationButton.innerHTML = '✅ 通知オン';
+
+                    // Subscribe to push notifications
+                    const registration = await navigator.serviceWorker.ready;
+                    const subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array('{{ vapid_public_key }}')
+                    });
+
+                    // Send subscription to server
+                    await fetch('/api/subscribe', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(subscription)
+                    });
+
+                    // Hide button after 3 seconds
+                    setTimeout(() => {
+                        notificationButton.style.display = 'none';
+                    }, 3000);
+
+                    // Show test notification
+                    new Notification('🚢 フェリー予報', {
+                        body: '通知が有効になりました！高リスク日をお知らせします。',
+                        icon: '/static/icon-192.png'
+                    });
+                } else {
+                    notificationButton.innerHTML = '❌ 通知が拒否されました';
+                }
+            } catch (error) {
+                console.error('Notification subscription failed:', error);
+                notificationButton.innerHTML = '⚠️ エラーが発生しました';
+            }
+        });
+
+        // Helper function for VAPID key conversion
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/\-/g, '+')
+                .replace(/_/g, '/');
+
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        // Check notification support and permission
+        if ('Notification' in window && 'serviceWorker' in navigator) {
+            if (Notification.permission === 'default') {
+                document.body.appendChild(notificationButton);
+                notificationButton.style.display = 'block';
+            } else if (Notification.permission === 'granted') {
+                notificationButton.innerHTML = '✅ 通知オン';
+                document.body.appendChild(notificationButton);
+                notificationButton.style.display = 'block';
+                setTimeout(() => {
+                    notificationButton.style.display = 'none';
+                }, 3000);
+            }
+        }
+
         // Install prompt handling
         let deferredPrompt;
         const installButton = document.createElement('button');

@@ -1,5 +1,5 @@
 // Ferry Forecast PWA Service Worker
-const CACHE_NAME = 'ferry-forecast-v1';
+const CACHE_NAME = 'ferry-forecast-v2';
 const RUNTIME_CACHE = 'ferry-forecast-runtime';
 
 // Assets to cache on install

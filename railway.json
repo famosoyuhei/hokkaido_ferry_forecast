@@ -41,7 +41,5 @@
       "schedule": "30 21 * * *"
     }
   },
-  "variables": {
-    "FLIGHTAWARE_API_KEY": "QEgHk9GkswfERfjg2ujDosuP2Ss60sXs"
-  }
+  "variables": {}
 }
