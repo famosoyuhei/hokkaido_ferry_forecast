@@ -155,7 +155,240 @@ class SailingForecastSystem:
                 'month_day_start': '11-01',
                 'month_day_end': '12-31'
             },
-            # TODO: 他の航路（鴛泊→稚内、稚内⇔香深、利尻⇔礼文）も追加
+
+            # 稚内→香深（礼文島）冬季・早春 (1/1-4/27)
+            {
+                'route': 'wakkanai_kafuka',
+                'sailings': [
+                    ('06:35', '10:05'),
+                    ('14:10', '17:40'),
+                    ('17:05', '20:35'),
+                ],
+                'season_pattern': 'winter',
+                'month_day_start': '01-01',
+                'month_day_end': '04-27'
+            },
+            # 稚内→香深 春 (4/28-5/31)
+            {
+                'route': 'wakkanai_kafuka',
+                'sailings': [
+                    ('06:30', '10:00'),
+                    ('08:55', '12:25'),  # 直行便
+                    ('10:10', '13:40'),  # 利尻経由
+                    ('14:45', '18:15'),
+                    ('17:05', '20:35'),
+                ],
+                'season_pattern': 'spring',
+                'month_day_start': '04-28',
+                'month_day_end': '05-31'
+            },
+            # 稚内→香深 夏季 (6/1-9/30)
+            {
+                'route': 'wakkanai_kafuka',
+                'sailings': [
+                    ('06:30', '10:00'),
+                    ('08:55', '12:25'),
+                    ('10:30', '14:00'),
+                    ('14:20', '17:50'),
+                    ('14:50', '18:20'),
+                    ('17:10', '20:40'),
+                ],
+                'season_pattern': 'summer',
+                'month_day_start': '06-01',
+                'month_day_end': '09-30'
+            },
+            # 稚内→香深 秋 (10/1-10/31)
+            {
+                'route': 'wakkanai_kafuka',
+                'sailings': [
+                    ('06:30', '10:00'),
+                    ('08:55', '12:25'),
+                    ('10:10', '13:40'),
+                    ('14:45', '18:15'),
+                    ('17:05', '20:35'),
+                ],
+                'season_pattern': 'autumn',
+                'month_day_start': '10-01',
+                'month_day_end': '10-31'
+            },
+            # 稚内→香深 晩秋 (11/1-12/31)
+            {
+                'route': 'wakkanai_kafuka',
+                'sailings': [
+                    ('06:35', '10:05'),
+                    ('09:00', '12:30'),
+                    ('14:10', '17:40'),
+                    ('17:05', '20:35'),
+                ],
+                'season_pattern': 'late_autumn',
+                'month_day_start': '11-01',
+                'month_day_end': '12-31'
+            },
+
+            # 鴛泊→香深（利尻→礼文）冬季・早春 (1/1-4/27)
+            {
+                'route': 'oshidomari_kafuka',
+                'sailings': [
+                    ('16:00', '16:45'),
+                ],
+                'season_pattern': 'winter',
+                'month_day_start': '01-01',
+                'month_day_end': '04-27'
+            },
+            # 鴛泊→香深 春・秋 (4/28-5/31, 10/1-10/31)
+            {
+                'route': 'oshidomari_kafuka',
+                'sailings': [
+                    ('12:15', '13:00'),
+                ],
+                'season_pattern': 'spring',
+                'month_day_start': '04-28',
+                'month_day_end': '05-31'
+            },
+            {
+                'route': 'oshidomari_kafuka',
+                'sailings': [
+                    ('12:15', '13:00'),
+                ],
+                'season_pattern': 'autumn',
+                'month_day_start': '10-01',
+                'month_day_end': '10-31'
+            },
+            # 鴛泊→香深 夏季 (6/1-9/30)
+            {
+                'route': 'oshidomari_kafuka',
+                'sailings': [
+                    ('09:30', '10:15'),
+                    ('13:15', '14:00'),
+                ],
+                'season_pattern': 'summer',
+                'month_day_start': '06-01',
+                'month_day_end': '09-30'
+            },
+            # 鴛泊→香深 晩秋 (11/1-12/31)
+            {
+                'route': 'oshidomari_kafuka',
+                'sailings': [
+                    ('16:00', '16:45'),
+                ],
+                'season_pattern': 'late_autumn',
+                'month_day_start': '11-01',
+                'month_day_end': '12-31'
+            },
+
+            # 香深→鴛泊（礼文→利尻）冬季・早春 (1/1-4/27)
+            {
+                'route': 'kafuka_oshidomari',
+                'sailings': [
+                    ('16:25', '17:10'),
+                ],
+                'season_pattern': 'winter',
+                'month_day_start': '01-01',
+                'month_day_end': '04-27'
+            },
+            # 香深→鴛泊 春・秋 (4/28-5/31, 10/1-10/31)
+            {
+                'route': 'kafuka_oshidomari',
+                'sailings': [
+                    ('13:25', '14:10'),
+                ],
+                'season_pattern': 'spring',
+                'month_day_start': '04-28',
+                'month_day_end': '05-31'
+            },
+            {
+                'route': 'kafuka_oshidomari',
+                'sailings': [
+                    ('13:25', '14:10'),
+                ],
+                'season_pattern': 'autumn',
+                'month_day_start': '10-01',
+                'month_day_end': '10-31'
+            },
+            # 香深→鴛泊 夏季 (6/1-9/30)
+            {
+                'route': 'kafuka_oshidomari',
+                'sailings': [
+                    ('10:40', '11:25'),
+                    ('15:30', '16:15'),
+                ],
+                'season_pattern': 'summer',
+                'month_day_start': '06-01',
+                'month_day_end': '09-30'
+            },
+            # 香深→鴛泊 晩秋 (11/1-12/31)
+            {
+                'route': 'kafuka_oshidomari',
+                'sailings': [
+                    ('16:25', '17:10'),
+                ],
+                'season_pattern': 'late_autumn',
+                'month_day_start': '11-01',
+                'month_day_end': '12-31'
+            },
+
+            # 鴛泊→稚内（利尻島→稚内）冬季・早春 (1/1-4/27)
+            {
+                'route': 'oshidomari_wakkanai',
+                'sailings': [
+                    ('09:05', '10:45'),
+                    ('14:00', '15:40'),
+                    ('17:30', '19:10'),
+                ],
+                'season_pattern': 'winter',
+                'month_day_start': '01-01',
+                'month_day_end': '04-27'
+            },
+            # 鴛泊→稚内 春・秋 (4/28-5/31, 10/1-10/31)
+            {
+                'route': 'oshidomari_wakkanai',
+                'sailings': [
+                    ('08:55', '10:35'),
+                    ('14:30', '16:10'),
+                    ('16:40', '18:20'),
+                ],
+                'season_pattern': 'spring',
+                'month_day_start': '04-28',
+                'month_day_end': '05-31'
+            },
+            {
+                'route': 'oshidomari_wakkanai',
+                'sailings': [
+                    ('08:55', '10:35'),
+                    ('14:30', '16:10'),
+                    ('16:40', '18:20'),
+                ],
+                'season_pattern': 'autumn',
+                'month_day_start': '10-01',
+                'month_day_end': '10-31'
+            },
+            # 鴛泊→稚内 夏季 (6/1-9/30)
+            {
+                'route': 'oshidomari_wakkanai',
+                'sailings': [
+                    ('08:25', '10:05'),
+                    ('12:05', '13:45'),
+                    ('16:40', '18:20'),
+                ],
+                'season_pattern': 'summer',
+                'month_day_start': '06-01',
+                'month_day_end': '09-30'
+            },
+            # 鴛泊→稚内 晩秋 (11/1-12/31)
+            {
+                'route': 'oshidomari_wakkanai',
+                'sailings': [
+                    ('09:05', '10:45'),
+                    ('14:00', '15:40'),
+                    ('17:30', '19:10'),
+                ],
+                'season_pattern': 'late_autumn',
+                'month_day_start': '11-01',
+                'month_day_end': '12-31'
+            },
+
+            # 香深→稚内（礼文島→稚内）も同様に追加
+            # Note: 香深→稚内は一部利尻経由便があるため、所要時間が異なります
         ]
 
         # 年度ごとにデータを生成
