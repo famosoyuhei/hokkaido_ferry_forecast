@@ -336,6 +336,39 @@ def api_stats():
     """API endpoint for statistics"""
     return jsonify(dashboard.get_statistics())
 
+@app.route('/admin/collect-data')
+def admin_collect_data():
+    """Admin endpoint to trigger data collection"""
+    import subprocess
+    import os
+
+    # Get the data directory
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+
+    try:
+        # Run weather forecast collector
+        result = subprocess.run(
+            ['python', 'weather_forecast_collector.py'],
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minutes timeout
+        )
+
+        return jsonify({
+            'status': 'success' if result.returncode == 0 else 'error',
+            'stdout': result.stdout,
+            'stderr': result.stderr,
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/manifest.json')
 def manifest():
     """Serve PWA manifest"""
