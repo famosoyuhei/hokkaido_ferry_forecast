@@ -340,10 +340,16 @@ def api_stats():
 def admin_env():
     """Admin endpoint to check environment variables"""
     import os
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
     return jsonify({
         'RAILWAY_VOLUME_MOUNT_PATH': os.environ.get('RAILWAY_VOLUME_MOUNT_PATH'),
         'RAILWAY_VOLUME_MOUNT': os.environ.get('RAILWAY_VOLUME_MOUNT'),
         'PORT': os.environ.get('PORT'),
+        'data_dir': data_dir,
+        'data_dir_exists': os.path.exists(data_dir),
+        'data_dir_is_dir': os.path.isdir(data_dir) if os.path.exists(data_dir) else False,
+        'data_dir_writable': os.access(data_dir, os.W_OK) if os.path.exists(data_dir) else False,
+        'data_dir_contents': os.listdir(data_dir) if os.path.exists(data_dir) and os.path.isdir(data_dir) else [],
         'all_env_keys': sorted([k for k in os.environ.keys() if 'RAILWAY' in k])
     })
 
