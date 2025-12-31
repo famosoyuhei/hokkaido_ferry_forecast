@@ -336,6 +336,17 @@ def api_stats():
     """API endpoint for statistics"""
     return jsonify(dashboard.get_statistics())
 
+@app.route('/admin/env')
+def admin_env():
+    """Admin endpoint to check environment variables"""
+    import os
+    return jsonify({
+        'RAILWAY_VOLUME_MOUNT_PATH': os.environ.get('RAILWAY_VOLUME_MOUNT_PATH'),
+        'RAILWAY_VOLUME_MOUNT': os.environ.get('RAILWAY_VOLUME_MOUNT'),
+        'PORT': os.environ.get('PORT'),
+        'all_env_keys': sorted([k for k in os.environ.keys() if 'RAILWAY' in k])
+    })
+
 @app.route('/admin/collect-data')
 def admin_collect_data():
     """Admin endpoint to trigger data collection"""
