@@ -387,8 +387,29 @@ class SailingForecastSystem:
                 'month_day_end': '12-31'
             },
 
-            # 香深→稚内（礼文島→稚内）も同様に追加
-            # Note: 香深→稚内は一部利尻経由便があるため、所要時間が異なります
+            # 沓形→香深（利尻沓形→礼文）夏季限定 (6/1-9/30)
+            {
+                'route': 'kutsugata_kafuka',
+                'sailings': [
+                    ('14:25', '15:05'),  # 約40分
+                ],
+                'season_pattern': 'summer',
+                'month_day_start': '06-01',
+                'month_day_end': '09-30'
+            },
+            # 香深→沓形（礼文→利尻沓形）夏季限定 (6/1-9/30)
+            {
+                'route': 'kafuka_kutsugata',
+                'sailings': [
+                    ('12:50', '13:30'),  # 約40分
+                ],
+                'season_pattern': 'summer',
+                'month_day_start': '06-01',
+                'month_day_end': '09-30'
+            },
+
+            # TODO: 香深→稚内（礼文島→稚内）は一部利尻経由便があるため、所要時間が異なります
+            # 現在は直行便のみ対応
         ]
 
         # 年度ごとにデータを生成
