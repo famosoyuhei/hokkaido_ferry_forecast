@@ -136,13 +136,12 @@ class SailingForecastSystem:
                 'month_day_start': '10-01',
                 'month_day_end': '10-31'
             },
-            # 晩秋 (11/1-12/31)
+            # 晩秋 (11/1-12/31) - 冬季と同じダイヤ
             {
                 'route': 'wakkanai_oshidomari',
                 'sailings': [
                     ('06:55', '08:35'),
                     ('14:00', '15:40'),
-                    ('17:30', '19:10'),
                 ],
                 'season_pattern': 'late_autumn',
                 'month_day_start': '11-01',
@@ -203,14 +202,12 @@ class SailingForecastSystem:
                 'month_day_start': '10-01',
                 'month_day_end': '10-31'
             },
-            # 稚内→香深 晩秋 (11/1-12/31)
+            # 稚内→香深 晩秋 (11/1-12/31) - 冬季と同じダイヤ
             {
                 'route': 'wakkanai_kafuka',
                 'sailings': [
                     ('06:35', '10:05'),
-                    ('09:00', '12:30'),
                     ('14:10', '17:40'),
-                    ('17:05', '20:35'),
                 ],
                 'season_pattern': 'late_autumn',
                 'month_day_start': '11-01',
@@ -450,13 +447,12 @@ class SailingForecastSystem:
                 'month_day_start': '10-01',
                 'month_day_end': '10-31'
             },
-            # 香深→稚内 晩秋 (11/1-12/31)
+            # 香深→稚内 晩秋 (11/1-12/31) - 冬季と同じダイヤ
             {
                 'route': 'kafuka_wakkanai',
                 'sailings': [
                     ('09:00', '10:55'),
                     ('14:10', '16:05'),
-                    ('17:05', '19:00'),
                 ],
                 'season_pattern': 'late_autumn',
                 'month_day_start': '11-01',
