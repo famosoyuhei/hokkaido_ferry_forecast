@@ -32,6 +32,10 @@
       "command": "python accuracy_tracker.py",
       "schedule": "0 22 * * *"
     },
+    "operation_accuracy": {
+      "command": "python operation_accuracy_calculator.py",
+      "schedule": "15 22 * * *"
+    },
     "accuracy_improvement": {
       "command": "python automated_improvement_runner.py",
       "schedule": "30 22 * * *"
