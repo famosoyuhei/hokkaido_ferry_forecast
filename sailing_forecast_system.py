@@ -653,11 +653,10 @@ class SailingForecastSystem:
                     forecast_date, departure_hour
                 )
 
-                if risk_level == 'UNKNOWN':
-                    continue
-
                 # Recommended action
-                if risk_level == 'HIGH':
+                if risk_level == 'UNKNOWN':
+                    action = "📊 気象データ不足 - 次回データ収集をお待ちください"
+                elif risk_level == 'HIGH':
                     action = "❌ 欠航の可能性が高い - 代替日を検討"
                 elif risk_level == 'MEDIUM':
                     action = "⚠️ 欠航リスクあり - 天気予報を注視"

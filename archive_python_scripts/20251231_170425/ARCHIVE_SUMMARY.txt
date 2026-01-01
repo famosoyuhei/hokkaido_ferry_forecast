@@ -1,0 +1,103 @@
+Python Scripts Archive Summary
+======================================================================
+Archived on: 2025-12-31 17:04:25
+Total archived: 67 files
+
+Files kept in production:
+  - accuracy_tracker.py
+  - forecast_dashboard.py
+  - generate_pwa_icons.py
+  - improved_ferry_collector.py
+  - notification_service.py
+  - push_notification_service.py
+  - weather_forecast_collector.py
+
+======================================================================
+Archived files by category:
+======================================================================
+
+Notification Systems (Legacy) (5 files):
+  - discord_notification_system.py
+  - discord_setup_guide.py
+  - line_notification_system.py
+  - line_setup_guide.py
+  - notification_system.py
+
+Mobile Apps (Legacy) (4 files):
+  - ferry_web_app.py
+  - mobile_app.py
+  - mobile_web_app.py
+  - simple_mobile_app.py
+
+Prediction Systems (Legacy) (9 files):
+  - adaptive_prediction_system.py
+  - advanced_ml_models.py
+  - final_integrated_prediction.py
+  - final_integrated_prediction_en.py
+  - initial_flight_prediction_model.py
+  - prediction_data_integration.py
+  - realtime_integrated_system.py
+  - run_prediction_system.py
+  - streamlit_test.py
+
+Flight Tracking (8 files):
+  - aviation_weather_apis.py
+  - collect_flight_data.py
+  - collect_recent_flights.py
+  - flightaware_integration.py
+  - flightaware_setup_guide.py
+  - september_1_flight_analysis.py
+  - test_flightaware_api.py
+  - view_flight_data.py
+
+Testing/Verification (11 files):
+  - analyze_accuracy.py
+  - analyze_python_scripts.py
+  - check_data_accumulation_status.py
+  - check_databases.py
+  - check_ferry_data.py
+  - check_real_data_collection.py
+  - check_timetable_system.py
+  - test_api_connection.py
+  - test_automation.py
+  - verify_automation_success.py
+  - view_real_ferry_data.py
+
+Setup Guides (3 files):
+  - cloud_migration_guide.py
+  - interactive_api_setup.py
+  - setup_monitoring.py
+
+Data Collection (Legacy) (6 files):
+  - cloud_ferry_collector.py
+  - collect_ferry_data_now.py
+  - data_collection_manager.py
+  - ferry_data_collector.py
+  - heartland_ferry_scraper.py
+  - start_data_collection.py
+
+Temporary/Debug (5 files):
+  - cleanup_databases.py
+  - cleanup_python_scripts.py
+  - debug_api_request.py
+  - migrate_actual_operations.py
+  - system_integration_demo.py
+
+Other (16 files):
+  - accuracy_analysis_system.py
+  - billing_protection_system.py
+  - enhanced_ferry_forecast.py
+  - ferry_forecast_ui.py
+  - ferry_monitoring_system.py
+  - ferry_timetable_system.py
+  - generate_forecast_data.py
+  - initialize_ferry_data.py
+  - jma_weather_verification.py
+  - prepare_for_github.py
+  - september_1_verification.py
+  - set_api_key.py
+  - summer_data_analysis_plan.py
+  - unified_transport_dashboard.py
+  - update_railway_config.py
+  - winter_weather_system.py
+

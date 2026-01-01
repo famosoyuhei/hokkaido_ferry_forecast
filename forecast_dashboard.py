@@ -336,6 +336,64 @@ def api_stats():
     """API endpoint for statistics"""
     return jsonify(dashboard.get_statistics())
 
+@app.route('/api/sailings')
+def api_sailings():
+    """API endpoint for sailing-by-sailing forecasts"""
+    import os
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+    db_file = os.path.join(data_dir, "ferry_weather_forecast.db")
+
+    # Get date parameter (default: today)
+    date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+
+    # Get sailing forecasts for the specified date
+    cursor.execute('''
+        SELECT
+            forecast_date,
+            route,
+            departure_time,
+            arrival_time,
+            risk_level,
+            risk_score,
+            wind_forecast,
+            wave_forecast,
+            visibility_forecast,
+            temperature_forecast,
+            risk_factors,
+            recommended_action
+        FROM sailing_forecast
+        WHERE forecast_date = ?
+        ORDER BY departure_time
+    ''', (date_str,))
+
+    sailings = []
+    for row in cursor.fetchall():
+        sailings.append({
+            'date': row[0],
+            'route': row[1],
+            'departure': row[2],
+            'arrival': row[3],
+            'risk_level': row[4],
+            'risk_score': row[5],
+            'wind': row[6],
+            'wave': row[7],
+            'visibility': row[8],
+            'temperature': row[9],
+            'risk_factors': row[10],
+            'recommended_action': row[11]
+        })
+
+    conn.close()
+
+    return jsonify({
+        'date': date_str,
+        'total_sailings': len(sailings),
+        'sailings': sailings
+    })
+
 @app.route('/admin/env')
 def admin_env():
     """Admin endpoint to check environment variables"""
