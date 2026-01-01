@@ -105,10 +105,8 @@ class SailingForecastSystem:
                 'route': 'wakkanai_oshidomari',
                 'sailings': [
                     ('06:45', '08:25'),
-                    ('08:55', '10:35'),
                     ('10:10', '11:50'),
-                    ('14:35', '16:15'),
-                    ('16:40', '18:20'),
+                    ('14:30', '16:10'),
                 ],
                 'season_pattern': 'spring',
                 'month_day_start': '04-28',
@@ -119,9 +117,7 @@ class SailingForecastSystem:
                 'route': 'wakkanai_oshidomari',
                 'sailings': [
                     ('07:15', '08:55'),
-                    ('08:25', '10:05'),
                     ('11:15', '12:55'),
-                    ('12:05', '13:45'),
                     ('16:40', '18:20'),
                 ],
                 'season_pattern': 'summer',
@@ -133,10 +129,8 @@ class SailingForecastSystem:
                 'route': 'wakkanai_oshidomari',
                 'sailings': [
                     ('06:45', '08:25'),
-                    ('08:55', '10:35'),
                     ('10:10', '11:50'),
-                    ('14:35', '16:15'),
-                    ('16:40', '18:20'),
+                    ('14:30', '16:10'),
                 ],
                 'season_pattern': 'autumn',
                 'month_day_start': '10-01',
@@ -330,7 +324,7 @@ class SailingForecastSystem:
                 'route': 'oshidomari_wakkanai',
                 'sailings': [
                     ('09:05', '10:45'),
-                    ('14:00', '15:40'),
+                    ('17:30', '19:10'),
                 ],
                 'season_pattern': 'winter',
                 'month_day_start': '01-01',
@@ -341,7 +335,7 @@ class SailingForecastSystem:
                 'route': 'oshidomari_wakkanai',
                 'sailings': [
                     ('08:55', '10:35'),
-                    ('14:30', '16:10'),
+                    ('14:35', '16:15'),
                     ('16:40', '18:20'),
                 ],
                 'season_pattern': 'spring',
@@ -352,7 +346,7 @@ class SailingForecastSystem:
                 'route': 'oshidomari_wakkanai',
                 'sailings': [
                     ('08:55', '10:35'),
-                    ('14:30', '16:10'),
+                    ('14:35', '16:15'),
                     ('16:40', '18:20'),
                 ],
                 'season_pattern': 'autumn',
@@ -376,7 +370,6 @@ class SailingForecastSystem:
                 'route': 'oshidomari_wakkanai',
                 'sailings': [
                     ('09:05', '10:45'),
-                    ('14:00', '15:40'),
                     ('17:30', '19:10'),
                 ],
                 'season_pattern': 'late_autumn',
