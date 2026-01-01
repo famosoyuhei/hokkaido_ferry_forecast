@@ -95,7 +95,6 @@ class SailingForecastSystem:
                 'sailings': [
                     ('06:55', '08:35'),
                     ('14:00', '15:40'),
-                    ('17:30', '19:10'),
                 ],
                 'season_pattern': 'winter',
                 'month_day_start': '01-01',
@@ -162,7 +161,6 @@ class SailingForecastSystem:
                 'sailings': [
                     ('06:35', '10:05'),
                     ('14:10', '17:40'),
-                    ('17:05', '20:35'),
                 ],
                 'season_pattern': 'winter',
                 'month_day_start': '01-01',
@@ -333,7 +331,6 @@ class SailingForecastSystem:
                 'sailings': [
                     ('09:05', '10:45'),
                     ('14:00', '15:40'),
-                    ('17:30', '19:10'),
                 ],
                 'season_pattern': 'winter',
                 'month_day_start': '01-01',
@@ -414,7 +411,6 @@ class SailingForecastSystem:
                 'sailings': [
                     ('09:00', '10:55'),  # 直行便
                     ('14:10', '16:05'),  # 直行便
-                    ('17:05', '19:00'),  # 直行便
                 ],
                 'season_pattern': 'winter',
                 'month_day_start': '01-01',
