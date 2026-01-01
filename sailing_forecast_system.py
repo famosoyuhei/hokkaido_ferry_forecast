@@ -524,38 +524,110 @@ class SailingForecastSystem:
         conn.close()
         return sailings
 
-    def calculate_sailing_risk(self, forecast_date: str, departure_hour: int) -> Tuple[str, float, Dict]:
+    def calculate_sailing_risk(self, forecast_date: str, route: str, departure_time: str, arrival_time: str) -> Tuple[str, float, Dict]:
         """
-        Calculate risk for a specific sailing time
+        Calculate risk for a specific sailing considering departure, arrival, and sailing duration
+
+        Args:
+            forecast_date: Date of sailing (YYYY-MM-DD)
+            route: Route name (e.g., 'wakkanai_oshidomari')
+            departure_time: Departure time (HH:MM)
+            arrival_time: Arrival time (HH:MM)
 
         Returns: (risk_level, risk_score, weather_data)
         """
+        # Map routes to locations (using Japanese names matching weather_forecast.location)
+        ROUTE_LOCATIONS = {
+            'wakkanai_oshidomari': {'departure': '稚内', 'arrival': '利尻'},
+            'wakkanai_kafuka': {'departure': '稚内', 'arrival': '礼文'},
+            'oshidomari_wakkanai': {'departure': '利尻', 'arrival': '稚内'},
+            'oshidomari_kafuka': {'departure': '利尻', 'arrival': '礼文'},
+            'kafuka_wakkanai': {'departure': '礼文', 'arrival': '稚内'},
+            'kafuka_oshidomari': {'departure': '礼文', 'arrival': '利尻'},
+            'kutsugata_kafuka': {'departure': '利尻', 'arrival': '礼文'},  # Kutsugata treated as Rishiri
+            'kafuka_kutsugata': {'departure': '礼文', 'arrival': '利尻'},
+        }
+
+        if route not in ROUTE_LOCATIONS:
+            return 'UNKNOWN', 0, {}
+
+        departure_loc = ROUTE_LOCATIONS[route]['departure']
+        arrival_loc = ROUTE_LOCATIONS[route]['arrival']
+
+        departure_hour = int(departure_time.split(':')[0])
+        arrival_hour = int(arrival_time.split(':')[0])
+
         conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
 
-        # Get weather forecast around departure time (±2 hours)
+        # 1. Departure point conditions (出港地の気象条件 - use ±2 hour window)
         cursor.execute('''
             SELECT
                 AVG(COALESCE(wind_speed_max, wind_speed_numeric)) as wind_speed,
                 AVG(wave_height_max) as wave_height,
-                AVG(visibility) as visibility,
-                AVG(temperature) as temperature
+                AVG(visibility) as visibility
             FROM weather_forecast
             WHERE forecast_date = ?
-            AND CAST(strftime('%H', forecast_hour) AS INTEGER) BETWEEN ? AND ?
-            HAVING wind_speed IS NOT NULL OR wave_height IS NOT NULL
-        ''', (forecast_date, max(0, departure_hour - 2), min(23, departure_hour + 2)))
+            AND location = ?
+            AND ABS(forecast_hour - ?) <= 2
+        ''', (forecast_date, departure_loc, departure_hour))
 
-        result = cursor.fetchone()
+        departure_weather = cursor.fetchone()
+
+        # 2. Arrival point conditions (入港地の気象条件 - use ±2 hour window)
+        cursor.execute('''
+            SELECT
+                AVG(COALESCE(wind_speed_max, wind_speed_numeric)) as wind_speed,
+                AVG(wave_height_max) as wave_height,
+                AVG(visibility) as visibility
+            FROM weather_forecast
+            WHERE forecast_date = ?
+            AND location = ?
+            AND ABS(forecast_hour - ?) <= 2
+        ''', (forecast_date, arrival_loc, arrival_hour))
+
+        arrival_weather = cursor.fetchone()
+
+        # 3. En-route conditions (航行中の気象条件 - all hours between departure and arrival)
+        cursor.execute('''
+            SELECT
+                MAX(COALESCE(wind_speed_max, wind_speed_numeric)) as max_wind_speed,
+                MAX(wave_height_max) as max_wave_height,
+                MIN(visibility) as min_visibility,
+                AVG(temperature) as avg_temperature
+            FROM weather_forecast
+            WHERE forecast_date = ?
+            AND location IN (?, ?)
+            AND forecast_hour BETWEEN ? AND ?
+        ''', (forecast_date, departure_loc, arrival_loc, departure_hour, arrival_hour))
+
+        enroute_weather = cursor.fetchone()
         conn.close()
 
-        if not result or (result[0] is None and result[1] is None):
-            # No data available
+        # Combine all conditions - use worst case scenario
+        if not departure_weather or not arrival_weather or not enroute_weather:
             return 'UNKNOWN', 0, {}
 
-        wind_speed, wave_height, visibility, temperature = result
-        wind_speed = wind_speed if wind_speed else 10.0
-        wave_height = wave_height if wave_height else 1.5
+        # Extract values with fallbacks
+        wind_speed = max(
+            departure_weather[0] or 0,
+            arrival_weather[0] or 0,
+            enroute_weather[0] or 0
+        ) or 10.0
+
+        wave_height = max(
+            departure_weather[1] or 0,
+            arrival_weather[1] or 0,
+            enroute_weather[1] or 0
+        ) or 1.5
+
+        visibility = min(
+            departure_weather[2] or 999,
+            arrival_weather[2] or 999,
+            enroute_weather[2] or 999
+        ) if any([departure_weather[2], arrival_weather[2], enroute_weather[2]]) else None
+
+        temperature = enroute_weather[3]
 
         # Calculate risk score (same logic as daily forecast)
         risk_score = 0
@@ -634,12 +706,12 @@ class SailingForecastSystem:
             sailings = self.get_sailings_for_date(forecast_date)
 
             for sailing in sailings:
-                # Parse departure hour
-                departure_hour = int(sailing['departure_time'].split(':')[0])
-
-                # Calculate risk
+                # Calculate risk using comprehensive route-based analysis
                 risk_level, risk_score, weather_data = self.calculate_sailing_risk(
-                    forecast_date, departure_hour
+                    forecast_date,
+                    sailing['route'],
+                    sailing['departure_time'],
+                    sailing['arrival_time']
                 )
 
                 # Recommended action
