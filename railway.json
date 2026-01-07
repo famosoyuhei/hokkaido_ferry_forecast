@@ -36,8 +36,8 @@
       "command": "python operation_accuracy_calculator.py",
       "schedule": "15 22 * * *"
     },
-    "accuracy_improvement": {
-      "command": "python automated_improvement_runner.py",
+    "ml_threshold_optimization": {
+      "command": "python auto_threshold_adjuster.py",
       "schedule": "30 22 * * *"
     },
     "notification_morning": {
