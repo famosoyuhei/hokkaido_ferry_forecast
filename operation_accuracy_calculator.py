@@ -22,6 +22,72 @@ class OperationAccuracyCalculator:
         self.forecast_db = os.path.join(data_dir, "ferry_weather_forecast.db")
         self.actual_db = os.path.join(data_dir, "heartland_ferry_real_data.db")
 
+    def init_tables(self):
+        """Initialize accuracy tracking tables if they don't exist"""
+
+        conn = sqlite3.connect(self.forecast_db)
+        cursor = conn.cursor()
+
+        # Operation Accuracy Table (individual sailing predictions)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS operation_accuracy (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                operation_date DATE NOT NULL,
+                route TEXT NOT NULL,
+                departure_time TEXT NOT NULL,
+
+                -- Predicted values
+                predicted_risk_level TEXT,
+                predicted_risk_score REAL,
+                predicted_wind REAL,
+                predicted_wave REAL,
+                predicted_visibility REAL,
+
+                -- Actual values
+                actual_status TEXT,
+
+                -- Accuracy
+                correct_prediction BOOLEAN,
+                prediction_type TEXT,
+
+                -- Metadata
+                forecast_generated_at TEXT,
+                actual_collected_at TEXT,
+
+                UNIQUE(operation_date, route, departure_time)
+            )
+        ''')
+
+        # Daily Accuracy Summary Table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS daily_accuracy_summary (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                summary_date DATE NOT NULL UNIQUE,
+
+                total_predictions INTEGER DEFAULT 0,
+                correct_predictions INTEGER DEFAULT 0,
+                accuracy_rate REAL DEFAULT 0,
+
+                -- Detailed metrics
+                precision REAL DEFAULT 0,
+                recall REAL DEFAULT 0,
+                f1_score REAL DEFAULT 0,
+
+                -- Confusion matrix
+                true_positives INTEGER DEFAULT 0,
+                true_negatives INTEGER DEFAULT 0,
+                false_positives INTEGER DEFAULT 0,
+                false_negatives INTEGER DEFAULT 0,
+
+                calculated_at TEXT NOT NULL
+            )
+        ''')
+
+        conn.commit()
+        conn.close()
+
+        print("[OK] Operation accuracy tables initialized")
+
     def calculate_daily_accuracy(self, date: str) -> Dict:
         """
         Calculate operation forecast accuracy for a specific date
@@ -169,6 +235,10 @@ if __name__ == "__main__":
     print("=" * 80)
 
     calculator = OperationAccuracyCalculator()
+
+    # Initialize tables
+    print("\n[INFO] Initializing accuracy tracking tables...")
+    calculator.init_tables()
 
     # Calculate for yesterday
     yesterday = (datetime.now() - timedelta(days=1)).date().isoformat()

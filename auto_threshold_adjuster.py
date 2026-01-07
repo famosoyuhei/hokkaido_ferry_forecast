@@ -5,13 +5,16 @@ Automatic Threshold Adjuster
 Applies ML-optimized thresholds to the risk calculation system
 """
 
-import sys
-import io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-
 import sqlite3
 import os
 from datetime import datetime
+import sys
+import io
+
+# Set UTF-8 encoding for output
+if not isinstance(sys.stdout, io.TextIOWrapper):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 from ml_threshold_optimizer import MLThresholdOptimizer
 
 class AutoThresholdAdjuster:

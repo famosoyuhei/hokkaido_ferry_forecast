@@ -325,6 +325,10 @@ if __name__ == "__main__":
 
     tracker = DualAccuracyTracker()
 
+    # Initialize tables
+    print("\n[INFO] Initializing weather accuracy tracking table...")
+    tracker.init_accuracy_tables()
+
     # Calculate accuracy for yesterday
     yesterday = (datetime.now() - timedelta(days=1)).date().isoformat()
 
