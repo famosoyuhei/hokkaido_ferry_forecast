@@ -444,6 +444,69 @@ def admin_collect_data():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/admin/init-accuracy-tables')
+def admin_init_accuracy_tables():
+    """Admin endpoint to initialize accuracy tracking tables"""
+    import os
+    import subprocess
+
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+
+    try:
+        # Run all initialization scripts
+        results = {}
+
+        scripts = [
+            'operation_accuracy_calculator.py',
+            'dual_accuracy_tracker.py',
+            'auto_threshold_adjuster.py'
+        ]
+
+        for script in scripts:
+            result = subprocess.run(
+                ['python', script],
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+
+            results[script] = {
+                'status': 'success' if result.returncode == 0 else 'error',
+                'returncode': result.returncode,
+                'stdout': result.stdout[-500:] if result.stdout else '',  # Last 500 chars
+                'stderr': result.stderr[-500:] if result.stderr else ''
+            }
+
+        # Check if tables were created
+        conn = sqlite3.connect(os.path.join(data_dir, "ferry_weather_forecast.db"))
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT name FROM sqlite_master
+            WHERE type='table'
+            AND (name LIKE '%accuracy%' OR name LIKE '%threshold%')
+            ORDER BY name
+        """)
+
+        tables = [row[0] for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({
+            'status': 'success',
+            'tables_created': tables,
+            'scripts_run': results,
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/manifest.json')
 def manifest():
     """Serve PWA manifest"""
