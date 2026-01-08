@@ -457,6 +457,7 @@ def admin_init_accuracy_tables():
         results = {}
 
         scripts = [
+            'sailing_forecast_system.py',  # Initialize sailing forecast first
             'operation_accuracy_calculator.py',
             'dual_accuracy_tracker.py',
             'auto_threshold_adjuster.py'
