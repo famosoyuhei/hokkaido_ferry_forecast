@@ -444,6 +444,80 @@ def admin_collect_data():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/admin/collect-ferry-data')
+def admin_collect_ferry_data():
+    """Admin endpoint to collect actual ferry operations data"""
+    import subprocess
+    import os
+
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+
+    try:
+        result = subprocess.run(
+            ['python', 'improved_ferry_collector.py'],
+            capture_output=True,
+            text=True,
+            timeout=300
+        )
+
+        return jsonify({
+            'status': 'success' if result.returncode == 0 else 'error',
+            'stdout': result.stdout[-1000:] if result.stdout else '',
+            'stderr': result.stderr[-1000:] if result.stderr else '',
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/admin/run-accuracy-tracking')
+def admin_run_accuracy_tracking():
+    """Admin endpoint to run all accuracy tracking scripts"""
+    import subprocess
+    import os
+
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+
+    try:
+        results = {}
+
+        scripts = [
+            'operation_accuracy_calculator.py',
+            'dual_accuracy_tracker.py',
+            'auto_threshold_adjuster.py'
+        ]
+
+        for script in scripts:
+            result = subprocess.run(
+                ['python', script],
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+
+            results[script] = {
+                'status': 'success' if result.returncode == 0 else 'error',
+                'returncode': result.returncode
+            }
+
+        return jsonify({
+            'status': 'success',
+            'scripts_run': results,
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/admin/init-accuracy-tables')
 def admin_init_accuracy_tables():
     """Admin endpoint to initialize accuracy tracking tables"""

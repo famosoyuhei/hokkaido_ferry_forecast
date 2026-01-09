@@ -1,0 +1,35 @@
+name: Scheduled Data Collection
+
+on:
+  schedule:
+    # Weather forecast collection (4 times daily)
+    - cron: '0 20 * * *'  # 05:00 JST (UTC+9)
+    - cron: '0 2 * * *'   # 11:00 JST
+    - cron: '0 8 * * *'   # 17:00 JST
+    - cron: '0 14 * * *'  # 23:00 JST
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  collect-weather-data:
+    runs-on: ubuntu-latest
+    name: Collect Weather Forecast Data
+
+    steps:
+      - name: Trigger weather forecast collection
+        run: |
+          echo "Triggering weather forecast collection..."
+          response=$(curl -s -w "\n%{http_code}" https://web-production-a628.up.railway.app/admin/collect-data)
+          http_code=$(echo "$response" | tail -n 1)
+          body=$(echo "$response" | head -n -1)
+
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
+
+          if [ "$http_code" != "200" ]; then
+            echo "❌ Weather forecast collection failed"
+            exit 1
+          fi
+
+          echo "✅ Weather forecast collection successful"

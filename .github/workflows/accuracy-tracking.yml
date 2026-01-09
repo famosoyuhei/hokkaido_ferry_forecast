@@ -1,0 +1,32 @@
+name: Accuracy Tracking
+
+on:
+  schedule:
+    # Run accuracy tracking daily at 22:00 UTC (07:00 JST)
+    - cron: '0 22 * * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  run-accuracy-tracking:
+    runs-on: ubuntu-latest
+    name: Run Accuracy Tracking Scripts
+
+    steps:
+      - name: Trigger accuracy tracking
+        run: |
+          echo "Triggering accuracy tracking scripts..."
+          response=$(curl -s -w "\n%{http_code}" https://web-production-a628.up.railway.app/admin/run-accuracy-tracking)
+          http_code=$(echo "$response" | tail -n 1)
+          body=$(echo "$response" | head -n -1)
+
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
+
+          if [ "$http_code" != "200" ]; then
+            echo "❌ Accuracy tracking failed"
+            exit 1
+          fi
+
+          echo "✅ Accuracy tracking successful"
