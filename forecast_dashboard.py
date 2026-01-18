@@ -306,10 +306,17 @@ def index():
         status = "✅ 良好"
         status_class = "success"
 
+    # Get today's max risk level
+    today_max_risk = 'MINIMAL'
+    if today_routes:
+        risk_priority = {'HIGH': 4, 'MEDIUM': 3, 'LOW': 2, 'MINIMAL': 1}
+        today_max_risk = max(today_routes, key=lambda r: risk_priority.get(r['risk_level'], 0))['risk_level']
+
     return render_template('forecast_dashboard.html',
                          forecast=forecast,
                          today_detail=today_detail,
                          today_routes=today_routes,
+                         today_max_risk=today_max_risk,
                          stats=stats,
                          status=status,
                          status_class=status_class,

@@ -28,10 +28,11 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px;
             color: #333;
-            padding: 20px;
         }
 
         .container {
@@ -39,46 +40,281 @@
             margin: 0 auto;
         }
 
+        /* ヘッダー */
         .header {
             background: white;
-            border-radius: 15px;
-            padding: 30px;
+            border-radius: 20px;
+            padding: 25px;
             margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            text-align: center;
         }
 
         .header h1 {
-            font-size: 2em;
+            font-size: 1.8em;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .header .subtitle {
+            color: #7f8c8d;
+            font-size: 1em;
+            margin-bottom: 15px;
+        }
+
+        .update-info {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 15px;
+        }
+
+        /* リスク説明カード */
+        .risk-guide {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .risk-guide h3 {
+            font-size: 1.1em;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .risk-levels {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        .risk-level-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .risk-icon {
+            font-size: 1.8em;
+            min-width: 35px;
+            text-align: center;
+        }
+
+        .risk-text {
+            flex: 1;
+        }
+
+        .risk-text .level {
+            font-weight: bold;
+            font-size: 0.95em;
+            margin-bottom: 2px;
+        }
+
+        .risk-text .desc {
+            font-size: 0.8em;
+            color: #7f8c8d;
+        }
+
+        /* 今日の予報（最重要） */
+        .today-forecast {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(245, 87, 108, 0.3);
+            color: white;
+        }
+
+        .today-forecast h2 {
+            font-size: 1.4em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .today-status {
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .today-status .main-message {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .today-status .sub-message {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        .today-routes {
+            display: grid;
+            gap: 12px;
+        }
+
+        .today-route-card {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        .today-route-card:hover {
+            transform: translateX(5px);
+            background: rgba(255,255,255,0.25);
+        }
+
+        .route-info {
+            flex: 1;
+        }
+
+        .route-name-large {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .route-weather {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .route-risk-badge {
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1em;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .risk-HIGH { background: #ff4757; color: white; }
+        .risk-MEDIUM { background: #ffa502; color: white; }
+        .risk-LOW { background: #26de81; color: white; }
+        .risk-MINIMAL { background: white; color: #667eea; }
+
+        /* 7日間予報 */
+        .section-title {
+            background: white;
+            padding: 18px 25px;
+            border-radius: 15px;
+            margin: 25px 0 15px 0;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .section-title h2 {
+            color: #2c3e50;
+            font-size: 1.3em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .forecast-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+        }
+
+        .forecast-grid {
+            display: flex;
+            gap: 15px;
+            min-width: min-content;
+        }
+
+        .day-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            min-width: 160px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .day-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        .day-card.today {
+            border: 3px solid #f5576c;
+        }
+
+        .day-header {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .day-date {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+
+        .day-label {
+            font-size: 1.1em;
+            font-weight: bold;
             color: #2c3e50;
             margin-bottom: 10px;
         }
 
-        .status-badge {
-            display: inline-block;
-            padding: 8px 20px;
+        .day-risk-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 16px;
             border-radius: 20px;
+            font-size: 0.9em;
             font-weight: bold;
-            margin-top: 10px;
+            margin-bottom: 15px;
         }
 
-        .status-badge.danger {
-            background: #ff4757;
-            color: white;
+        .weather-details {
+            font-size: 0.9em;
+            color: #555;
         }
 
-        .status-badge.warning {
-            background: #ffa502;
-            color: white;
+        .weather-details div {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .status-badge.success {
-            background: #26de81;
-            color: white;
+        .weather-icon {
+            font-size: 1.2em;
+            min-width: 25px;
         }
 
+        /* 統計情報 */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 15px;
             margin-bottom: 20px;
         }
@@ -86,272 +322,300 @@
         .stat-card {
             background: white;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .stat-card h3 {
-            font-size: 0.9em;
-            color: #7f8c8d;
-            margin-bottom: 10px;
-        }
-
-        .stat-card .value {
-            font-size: 2em;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-
-        .forecast-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .day-card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            text-align: center;
             transition: transform 0.2s;
-            position: relative;
         }
 
-        .day-card:hover {
+        .stat-card:hover {
             transform: translateY(-5px);
         }
 
-        .day-card .date {
-            font-size: 0.9em;
-            color: #7f8c8d;
+        .stat-card .icon {
+            font-size: 2em;
             margin-bottom: 10px;
         }
 
-        .day-card .risk-badge {
-            display: inline-block;
-            padding: 5px 15px;
-            border-radius: 15px;
+        .stat-card h3 {
             font-size: 0.85em;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
-        .risk-HIGH {
-            background: #ff4757;
-            color: white;
-        }
-
-        .risk-MEDIUM {
-            background: #ffa502;
-            color: white;
-        }
-
-        .risk-LOW {
-            background: #26de81;
-            color: white;
-        }
-
-        .risk-MINIMAL {
-            background: #ecf0f1;
             color: #7f8c8d;
+            margin-bottom: 10px;
+            font-weight: 500;
         }
 
-        .weather-info {
-            font-size: 0.85em;
-            color: #555;
-            margin-top: 10px;
-        }
-
-        .weather-info div {
-            margin: 5px 0;
-        }
-
-        .section-title {
-            background: white;
-            padding: 15px 25px;
-            border-radius: 10px;
-            margin: 30px 0 15px 0;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .section-title h2 {
-            color: #2c3e50;
-            font-size: 1.3em;
-        }
-
-        .route-list {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .route-item {
-            padding: 15px;
-            border-bottom: 1px solid #ecf0f1;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .route-item:last-child {
-            border-bottom: none;
-        }
-
-        .route-name {
+        .stat-card .value {
+            font-size: 2.2em;
             font-weight: bold;
             color: #2c3e50;
         }
 
-        .route-risk {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
+        /* フッター */
         .footer {
-            text-align: center;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
             color: white;
             margin-top: 30px;
-            font-size: 0.9em;
-        }
-
-        .update-time {
-            color: white;
             text-align: center;
-            margin-bottom: 20px;
         }
 
+        .footer p {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: underline;
+            font-weight: bold;
+        }
+
+        /* レスポンシブ */
         @media (max-width: 768px) {
-            .forecast-grid {
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            body {
+                padding: 10px;
             }
 
             .header h1 {
                 font-size: 1.5em;
             }
+
+            .today-forecast {
+                padding: 20px;
+            }
+
+            .day-card {
+                min-width: 140px;
+            }
+
+            .route-name-large {
+                font-size: 1em;
+            }
+        }
+
+        /* スクロールバーのスタイル */
+        .forecast-scroll::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .forecast-scroll::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+
+        .forecast-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+        }
+
+        .forecast-scroll::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.5);
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- ヘッダー -->
         <div class="header">
             <h1>🚢 北海道フェリー運航予報</h1>
-            <p>稚内 ⇔ 利尻・礼文島　7日間欠航リスク予測</p>
-            <span class="status-badge {{ status_class }}">{{ status }}</span>
+            <p class="subtitle">稚内 ⇔ 利尻・礼文島</p>
+            <div class="update-info">
+                📅 最終更新: {{ current_time }}<br>
+                📡 データ: 気象庁 (JMA) + Open-Meteo
+            </div>
         </div>
 
-        <div class="update-time">
-            最終更新: {{ current_time }} | データ: JMA + Open-Meteo
+        <!-- リスクレベル説明 -->
+        <div class="risk-guide">
+            <h3>📊 リスクレベルの見方</h3>
+            <div class="risk-levels">
+                <div class="risk-level-item">
+                    <div class="risk-icon">🔴</div>
+                    <div class="risk-text">
+                        <div class="level" style="color: #ff4757;">HIGH</div>
+                        <div class="desc">欠航の可能性大</div>
+                    </div>
+                </div>
+                <div class="risk-level-item">
+                    <div class="risk-icon">🟡</div>
+                    <div class="risk-text">
+                        <div class="level" style="color: #ffa502;">MEDIUM</div>
+                        <div class="desc">要注意</div>
+                    </div>
+                </div>
+                <div class="risk-level-item">
+                    <div class="risk-icon">🟢</div>
+                    <div class="risk-text">
+                        <div class="level" style="color: #26de81;">LOW</div>
+                        <div class="desc">ほぼ運航</div>
+                    </div>
+                </div>
+                <div class="risk-level-item">
+                    <div class="risk-icon">⚪</div>
+                    <div class="risk-text">
+                        <div class="level" style="color: #7f8c8d;">MINIMAL</div>
+                        <div class="desc">安定運航</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 本日の予報（最重要）-->
+        <div class="today-forecast">
+            <h2>📍 本日の運航予報</h2>
+
+            <div class="today-status">
+                <div class="main-message">
+                    {% if today_max_risk == 'HIGH' %}
+                    ⚠️ 本日は欠航リスクが高い日です
+                    {% elif today_max_risk == 'MEDIUM' %}
+                    🔔 本日は欠航の可能性があります
+                    {% elif today_max_risk == 'LOW' %}
+                    ✅ 本日はほぼ運航見込みです
+                    {% else %}
+                    ☀️ 本日は安定運航見込みです
+                    {% endif %}
+                </div>
+                <div class="sub-message">
+                    {% if today_max_risk == 'HIGH' %}
+                    公式サイトで最新情報を確認してください
+                    {% elif today_max_risk == 'MEDIUM' %}
+                    天候の変化に注意が必要です
+                    {% else %}
+                    良好な運航条件です
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="today-routes">
+                {% for route in today_routes %}
+                <div class="today-route-card">
+                    <div class="route-info">
+                        <div class="route-name-large">{{ route.route_name }}</div>
+                        <div class="route-weather">
+                            💨 {{ route.wind|round(1) }}m/s
+                            {% if route.wave %} | 🌊 {{ route.wave|round(1) }}m{% endif %}
+                        </div>
+                    </div>
+                    <div class="route-risk-badge risk-{{ route.risk_level }}">
+                        {% if route.risk_level == 'HIGH' %}🔴{% elif route.risk_level == 'MEDIUM' %}🟡{% elif route.risk_level == 'LOW' %}🟢{% else %}⚪{% endif %}
+                        {{ route.risk_level }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 7日間予報 -->
+        <div class="section-title">
+            <h2>📅 週間予報（7日間）</h2>
+        </div>
+
+        <div class="forecast-scroll">
+            <div class="forecast-grid">
+                {% for day in forecast %}
+                <div class="day-card {% if loop.first %}today{% endif %}">
+                    <div class="day-header">
+                        <div class="day-date">{{ day.date }}</div>
+                        <div class="day-label">{% if loop.first %}今日{% elif loop.index == 2 %}明日{% else %}{{ loop.index }}日後{% endif %}</div>
+                        <div class="day-risk-badge risk-{{ day.max_risk }}">
+                            {% if day.max_risk == 'HIGH' %}🔴{% elif day.max_risk == 'MEDIUM' %}🟡{% elif day.max_risk == 'LOW' %}🟢{% else %}⚪{% endif %}
+                            {{ day.max_risk }}
+                        </div>
+                    </div>
+                    <div class="weather-details">
+                        {% for risk in day.risks %}
+                        <div>
+                            <span class="weather-icon">📊</span>
+                            <span>リスク: {{ risk.score|round|int }}/100</span>
+                        </div>
+                        <div>
+                            <span class="weather-icon">💨</span>
+                            <span>{{ risk.wind|round(1) }} m/s</span>
+                        </div>
+                        {% if risk.wave %}
+                        <div>
+                            <span class="weather-icon">🌊</span>
+                            <span>{{ risk.wave|round(1) }} m</span>
+                        </div>
+                        {% endif %}
+                        {% if risk.visibility %}
+                        <div>
+                            <span class="weather-icon">👁️</span>
+                            <span>{{ risk.visibility|round(1) }} km</span>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 統計情報 -->
+        <div class="section-title">
+            <h2>📈 データ統計</h2>
         </div>
 
         <div class="stats-grid">
             <div class="stat-card">
-                <h3>📊 予報日数</h3>
+                <div class="icon">📊</div>
+                <h3>予報日数</h3>
                 <div class="value">{{ stats.forecast_days }}</div>
             </div>
             <div class="stat-card">
-                <h3>⚠️ 高リスク日</h3>
+                <div class="icon">⚠️</div>
+                <h3>高リスク日</h3>
                 <div class="value">{{ stats.high_risk_days }}</div>
             </div>
             <div class="stat-card">
-                <h3>🌊 気象データ</h3>
+                <div class="icon">🌊</div>
+                <h3>気象データ</h3>
                 <div class="value">{{ stats.weather_records }}</div>
             </div>
             <div class="stat-card">
-                <h3>🗓️ データ期間</h3>
+                <div class="icon">🗓️</div>
+                <h3>データ期間</h3>
                 <div class="value">{{ stats.weather_days }}日</div>
             </div>
         </div>
 
         {% if stats.accuracy_rate %}
         <div class="section-title">
-            <h2>📈 予測精度（過去30日間）</h2>
+            <h2>🎯 予測精度（過去30日間）</h2>
         </div>
 
         <div class="stats-grid">
             <div class="stat-card">
-                <h3>🎯 予測精度</h3>
+                <div class="icon">🎯</div>
+                <h3>予測精度</h3>
                 <div class="value">{{ "%.1f"|format(stats.accuracy_rate * 100) }}%</div>
-                <div class="label">的中率</div>
             </div>
             <div class="stat-card">
-                <h3>✅ 正解数</h3>
+                <div class="icon">✅</div>
+                <h3>正解数</h3>
                 <div class="value">{{ stats.accuracy_total_correct }}/{{ stats.accuracy_total_predictions }}</div>
-                <div class="label">予測</div>
             </div>
             <div class="stat-card">
-                <h3>📊 適合率</h3>
+                <div class="icon">📊</div>
+                <h3>適合率</h3>
                 <div class="value">{{ "%.1f"|format(stats.accuracy_precision * 100) }}%</div>
-                <div class="label">Precision</div>
             </div>
             <div class="stat-card">
-                <h3>🔍 再現率</h3>
+                <div class="icon">🔍</div>
+                <h3>再現率</h3>
                 <div class="value">{{ "%.1f"|format(stats.accuracy_recall * 100) }}%</div>
-                <div class="label">Recall</div>
             </div>
         </div>
         {% endif %}
 
-        <div class="section-title">
-            <h2>📅 7日間予報</h2>
-        </div>
-
-        <div class="forecast-grid">
-            {% for day in forecast %}
-            <div class="day-card">
-                <div class="date">{{ day.date }}</div>
-                <div class="risk-badge risk-{{ day.max_risk }}">
-                    {% if day.max_risk == 'HIGH' %}🔴{% elif day.max_risk == 'MEDIUM' %}🟡{% elif day.max_risk == 'LOW' %}🟢{% else %}⚪{% endif %}
-                    {{ day.max_risk }}
-                </div>
-                <div class="weather-info">
-                    {% for risk in day.risks %}
-                    <div><strong>リスク:</strong> {{ risk.score|round|int }}/100</div>
-                    <div>💨 {{ risk.wind|round(1) }} m/s</div>
-                    {% if risk.wave %}
-                    <div>🌊 {{ risk.wave|round(1) }} m</div>
-                    {% endif %}
-                    {% if risk.visibility %}
-                    <div>👁️ {{ risk.visibility|round(1) }} km</div>
-                    {% endif %}
-                    {% endfor %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-
-        <div class="section-title">
-            <h2>🛳️ 航路別予報（本日）</h2>
-        </div>
-
-        <div class="route-list">
-            {% for route in today_routes %}
-            <div class="route-item">
-                <div>
-                    <div class="route-name">{{ route.route_name }}</div>
-                    <div class="weather-info">
-                        風速 {{ route.wind|round(1) }}m/s
-                        {% if route.wave %} | 波高 {{ route.wave|round(1) }}m{% endif %}
-                        {% if route.visibility %} | 視界 {{ route.visibility|round(1) }}km{% endif %}
-                    </div>
-                </div>
-                <div class="route-risk">
-                    <span class="risk-badge risk-{{ route.risk_level }}">
-                        {% if route.risk_level == 'HIGH' %}🔴{% elif route.risk_level == 'MEDIUM' %}🟡{% elif route.risk_level == 'LOW' %}🟢{% else %}⚪{% endif %}
-                        {{ route.risk_level }}
-                    </span>
-                    <span style="color: #7f8c8d;">{{ route.risk_score|round|int }}/100</span>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-
+        <!-- フッター -->
         <div class="footer">
-            <p>データソース: 気象庁 (JMA) + Open-Meteo</p>
-            <p>更新頻度: 1日4回 (05:00, 11:00, 17:00, 23:00 JST)</p>
-            <p style="margin-top: 10px;">⚠️ この予報は参考情報です。実際の運航状況は<a href="https://heartlandferry.jp/status/" style="color: white; text-decoration: underline;">公式サイト</a>でご確認ください。</p>
+            <p>⚠️ <strong>重要なお知らせ</strong></p>
+            <p>この予報は参考情報です。実際の運航状況は必ず<a href="https://heartlandferry.jp/status/" target="_blank">ハートランドフェリー公式サイト</a>でご確認ください。</p>
+            <p style="margin-top: 15px;">🔄 更新頻度: 1日4回（05:00, 11:00, 17:00, 23:00 JST）</p>
+            <p>📡 データ提供: 気象庁（JMA）+ Open-Meteo</p>
         </div>
     </div>
 
@@ -375,109 +639,6 @@
             });
         }
 
-        // Notification button
-        const notificationButton = document.createElement('button');
-        notificationButton.innerHTML = '🔔 通知をオンにする';
-        notificationButton.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-            padding: 15px 25px;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
-            display: none;
-            transition: transform 0.2s;
-        `;
-
-        notificationButton.addEventListener('mouseenter', () => {
-            notificationButton.style.transform = 'scale(1.05)';
-        });
-
-        notificationButton.addEventListener('mouseleave', () => {
-            notificationButton.style.transform = 'scale(1)';
-        });
-
-        notificationButton.addEventListener('click', async () => {
-            try {
-                const permission = await Notification.requestPermission();
-
-                if (permission === 'granted') {
-                    console.log('Notification permission granted');
-                    notificationButton.innerHTML = '✅ 通知オン';
-
-                    // Subscribe to push notifications
-                    const registration = await navigator.serviceWorker.ready;
-                    const subscription = await registration.pushManager.subscribe({
-                        userVisibleOnly: true,
-                        applicationServerKey: urlBase64ToUint8Array('{{ vapid_public_key }}')
-                    });
-
-                    // Send subscription to server
-                    await fetch('/api/subscribe', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(subscription)
-                    });
-
-                    // Hide button after 3 seconds
-                    setTimeout(() => {
-                        notificationButton.style.display = 'none';
-                    }, 3000);
-
-                    // Show test notification
-                    new Notification('🚢 フェリー予報', {
-                        body: '通知が有効になりました！高リスク日をお知らせします。',
-                        icon: '/static/icon-192.png'
-                    });
-                } else {
-                    notificationButton.innerHTML = '❌ 通知が拒否されました';
-                }
-            } catch (error) {
-                console.error('Notification subscription failed:', error);
-                notificationButton.innerHTML = '⚠️ エラーが発生しました';
-            }
-        });
-
-        // Helper function for VAPID key conversion
-        function urlBase64ToUint8Array(base64String) {
-            const padding = '='.repeat((4 - base64String.length % 4) % 4);
-            const base64 = (base64String + padding)
-                .replace(/\-/g, '+')
-                .replace(/_/g, '/');
-
-            const rawData = window.atob(base64);
-            const outputArray = new Uint8Array(rawData.length);
-
-            for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
-            }
-            return outputArray;
-        }
-
-        // Check notification support and permission
-        if ('Notification' in window && 'serviceWorker' in navigator) {
-            if (Notification.permission === 'default') {
-                document.body.appendChild(notificationButton);
-                notificationButton.style.display = 'block';
-            } else if (Notification.permission === 'granted') {
-                notificationButton.innerHTML = '✅ 通知オン';
-                document.body.appendChild(notificationButton);
-                notificationButton.style.display = 'block';
-                setTimeout(() => {
-                    notificationButton.style.display = 'none';
-                }, 3000);
-            }
-        }
-
         // Install prompt handling
         let deferredPrompt;
         const installButton = document.createElement('button');
@@ -489,10 +650,10 @@
             padding: 15px 25px;
             background: white;
             color: #667eea;
-            border: none;
+            border: 2px solid #667eea;
             border-radius: 30px;
             font-weight: bold;
-            font-size: 0.9em;
+            font-size: 1em;
             box-shadow: 0 5px 20px rgba(0,0,0,0.3);
             cursor: pointer;
             z-index: 1000;
@@ -511,21 +672,16 @@
         document.head.appendChild(style);
 
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent automatic prompt
             e.preventDefault();
             deferredPrompt = e;
 
-            // Show install button
             document.body.appendChild(installButton);
             installButton.style.display = 'block';
 
             installButton.addEventListener('click', async () => {
                 installButton.style.display = 'none';
-
-                // Show install prompt
                 deferredPrompt.prompt();
 
-                // Wait for user response
                 const { outcome } = await deferredPrompt.userChoice;
                 console.log(`Install prompt outcome: ${outcome}`);
 
@@ -533,25 +689,10 @@
             });
         });
 
-        // Hide install button if app is already installed
         window.addEventListener('appinstalled', () => {
             installButton.style.display = 'none';
             console.log('PWA installed successfully');
         });
-
-        // Background sync for fresh data
-        if ('serviceWorker' in navigator && 'sync' in ServiceWorkerRegistration.prototype) {
-            navigator.serviceWorker.ready.then((registration) => {
-                // Sync when page becomes visible
-                document.addEventListener('visibilitychange', () => {
-                    if (!document.hidden) {
-                        registration.sync.register('sync-forecast')
-                            .then(() => console.log('Background sync registered'))
-                            .catch((err) => console.log('Background sync failed:', err));
-                    }
-                });
-            });
-        }
 
         // Auto-refresh data every 30 minutes
         setInterval(() => {
@@ -561,14 +702,15 @@
             }
         }, 30 * 60 * 1000);
 
-        // Add scroll anchors for shortcuts
-        window.addEventListener('load', () => {
-            const hash = window.location.hash;
-            if (hash === '#today') {
-                document.querySelector('.route-list')?.scrollIntoView({ behavior: 'smooth' });
-            } else if (hash === '#forecast') {
-                document.querySelector('.forecast-grid')?.scrollIntoView({ behavior: 'smooth' });
-            }
+        // Smooth scroll for better UX
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
         });
     </script>
 </body>
