@@ -171,6 +171,12 @@
             gap: 12px;
         }
 
+        .route-link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
         .today-route-card {
             background: rgba(255,255,255,0.15);
             backdrop-filter: blur(10px);
@@ -179,10 +185,11 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: transform 0.2s;
+            transition: transform 0.2s, background 0.2s;
+            cursor: pointer;
         }
 
-        .today-route-card:hover {
+        .route-link:hover .today-route-card {
             transform: translateX(5px);
             background: rgba(255,255,255,0.25);
         }
@@ -490,19 +497,21 @@
 
             <div class="today-routes">
                 {% for route in today_routes %}
-                <div class="today-route-card">
-                    <div class="route-info">
-                        <div class="route-name-large">{{ route.route_name }}</div>
-                        <div class="route-weather">
-                            💨 {{ route.wind|round(1) }}m/s
-                            {% if route.wave %} | 🌊 {{ route.wave|round(1) }}m{% endif %}
+                <a href="/route/{{ route.route }}" class="route-link">
+                    <div class="today-route-card">
+                        <div class="route-info">
+                            <div class="route-name-large">{{ route.route_name }}</div>
+                            <div class="route-weather">
+                                💨 {{ route.wind|round(1) }}m/s
+                                {% if route.wave %} | 🌊 {{ route.wave|round(1) }}m{% endif %}
+                            </div>
+                        </div>
+                        <div class="route-risk-badge risk-{{ route.risk_level }}">
+                            {% if route.risk_level == 'HIGH' %}🔴{% elif route.risk_level == 'MEDIUM' %}🟡{% elif route.risk_level == 'LOW' %}🟢{% else %}⚪{% endif %}
+                            {{ route.risk_level }}
                         </div>
                     </div>
-                    <div class="route-risk-badge risk-{{ route.risk_level }}">
-                        {% if route.risk_level == 'HIGH' %}🔴{% elif route.risk_level == 'MEDIUM' %}🟡{% elif route.risk_level == 'LOW' %}🟢{% else %}⚪{% endif %}
-                        {{ route.risk_level }}
-                    </div>
-                </div>
+                </a>
                 {% endfor %}
             </div>
         </div>

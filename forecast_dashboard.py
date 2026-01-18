@@ -338,6 +338,105 @@ def api_routes():
     date = request.args.get('date', datetime.now().date().isoformat())
     return jsonify(dashboard.get_routes_forecast(date))
 
+@app.route('/route/<route_id>')
+def route_details(route_id):
+    """Route-specific detailed forecast page for 7 days"""
+    import os
+
+    # Route name mapping
+    ROUTE_NAMES = {
+        'wakkanai_oshidomari': '稚内 ⇔ 利尻(鴛泊)',
+        'wakkanai_kafuka': '稚内 ⇔ 礼文(香深)',
+        'oshidomari_kafuka': '利尻(鴛泊) ⇔ 礼文(香深)',
+        'oshidomari_wakkanai': '利尻(鴛泊) ⇔ 稚内',
+        'kafuka_wakkanai': '礼文(香深) ⇔ 稚内',
+        'kafuka_oshidomari': '礼文(香深) ⇔ 利尻(鴛泊)'
+    }
+
+    route_name = ROUTE_NAMES.get(route_id, route_id)
+
+    # Get sailing forecast data for this route for next 7 days
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+    conn = sqlite3.connect(os.path.join(data_dir, "ferry_weather_forecast.db"))
+    cursor = conn.cursor()
+
+    # Get 7 days of forecasts
+    cursor.execute('''
+        SELECT
+            forecast_date,
+            departure_time,
+            arrival_time,
+            risk_level,
+            risk_score,
+            wind_speed,
+            wave_height,
+            visibility,
+            temperature,
+            recommended_action
+        FROM sailing_forecast
+        WHERE route = ?
+        AND forecast_date >= date('now')
+        AND forecast_date <= date('now', '+7 days')
+        ORDER BY forecast_date, departure_time
+    ''', (route_id,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    # Group by date
+    forecast_by_day = {}
+    for row in rows:
+        date_str, departure, arrival, risk, score, wind, wave, vis, temp, action = row
+
+        if date_str not in forecast_by_day:
+            forecast_by_day[date_str] = {
+                'date': date_str,
+                'weekday': datetime.fromisoformat(date_str).strftime('%a'),
+                'sailings': [],
+                'max_risk': 'MINIMAL'
+            }
+
+        forecast_by_day[date_str]['sailings'].append({
+            'departure': departure,
+            'arrival': arrival,
+            'risk_level': risk,
+            'risk_score': score,
+            'wind': wind,
+            'wave': wave,
+            'visibility': vis,
+            'temperature': temp,
+            'recommended_action': action
+        })
+
+        # Update max risk for the day
+        risk_priority = {'HIGH': 4, 'MEDIUM': 3, 'LOW': 2, 'MINIMAL': 1}
+        if risk_priority.get(risk, 0) > risk_priority.get(forecast_by_day[date_str]['max_risk'], 0):
+            forecast_by_day[date_str]['max_risk'] = risk
+
+    # Convert to list and sort by date
+    forecast_list = sorted(forecast_by_day.values(), key=lambda x: x['date'])
+
+    # Fill in missing dates with no sailings
+    all_days = []
+    for i in range(7):
+        target_date = (datetime.now().date() + timedelta(days=i)).isoformat()
+        existing_day = next((d for d in forecast_list if d['date'] == target_date), None)
+
+        if existing_day:
+            all_days.append(existing_day)
+        else:
+            all_days.append({
+                'date': target_date,
+                'weekday': (datetime.now().date() + timedelta(days=i)).strftime('%a'),
+                'sailings': [],
+                'max_risk': 'MINIMAL'
+            })
+
+    return render_template('route_details.html',
+                         route_name=route_name,
+                         route_id=route_id,
+                         forecast_by_day=all_days)
+
 @app.route('/api/stats')
 def api_stats():
     """API endpoint for statistics"""
