@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ sailing.departure }}発 - {{ route_name }} - 北海道フェリー予報</title>
+
+    <meta name="theme-color" content="#667eea">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* ヘッダー */
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.95em;
+            margin-bottom: 15px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .back-button:hover {
+            background: #f0f0f0;
+        }
+
+        .header h1 {
+            font-size: 1.5em;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .sailing-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .sailing-time {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .time-arrow {
+            color: #7f8c8d;
+        }
+
+        .sailing-date {
+            color: #7f8c8d;
+            font-size: 0.95em;
+        }
+
+        /* リスクサマリー */
+        .risk-summary {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .risk-level-large {
+            text-align: center;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .risk-level-large.HIGH {
+            background: linear-gradient(135deg, #ff4757 0%, #ff6b7a 100%);
+        }
+
+        .risk-level-large.MEDIUM {
+            background: linear-gradient(135deg, #ffa502 0%, #ffb732 100%);
+        }
+
+        .risk-level-large.LOW {
+            background: linear-gradient(135deg, #2e86de 0%, #4fa3ff 100%);
+        }
+
+        .risk-level-large.MINIMAL {
+            background: linear-gradient(135deg, #26de81 0%, #4df0a1 100%);
+        }
+
+        .risk-icon-large {
+            font-size: 4em;
+            margin-bottom: 10px;
+        }
+
+        .risk-text-large {
+            font-size: 2em;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 8px;
+        }
+
+        .risk-score-large {
+            font-size: 1.2em;
+            color: white;
+            opacity: 0.9;
+        }
+
+        .recommendation {
+            background: #f8f9fa;
+            padding: 18px;
+            border-radius: 10px;
+            font-size: 1.05em;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        /* 気象詳細 */
+        .weather-details {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .weather-details h2 {
+            font-size: 1.3em;
+            color: #2c3e50;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .weather-item {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 18px;
+            text-align: center;
+        }
+
+        .weather-icon {
+            font-size: 2.5em;
+            margin-bottom: 8px;
+        }
+
+        .weather-label {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+
+        .weather-value {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .weather-unit {
+            font-size: 0.7em;
+            color: #7f8c8d;
+            margin-left: 2px;
+        }
+
+        /* リスク要因 */
+        .risk-factors {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .risk-factors h2 {
+            font-size: 1.3em;
+            color: #2c3e50;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .factor-list {
+            background: #fff4e5;
+            border-left: 4px solid #ffa502;
+            padding: 18px;
+            border-radius: 8px;
+            font-size: 1.05em;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        /* アクション */
+        .actions {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px 20px;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #555;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 600px) {
+            .weather-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <div class="header">
+            <a href="/select-sailing" class="back-button">← 便選択に戻る</a>
+            <h1>🚢 {{ route_name }}</h1>
+            <div class="sailing-info">
+                <span class="sailing-time">{{ sailing.departure }} <span class="time-arrow">→</span> {{ sailing.arrival }}</span>
+                <span class="sailing-date">{{ sailing.date }}</span>
+            </div>
+        </div>
+
+        <!-- リスクレベル表示 -->
+        <div class="risk-summary">
+            <div class="risk-level-large {{ sailing.risk_level }}">
+                <div class="risk-icon-large">
+                    {% if sailing.risk_level == 'HIGH' %}🔴
+                    {% elif sailing.risk_level == 'MEDIUM' %}🟡
+                    {% elif sailing.risk_level == 'LOW' %}🟢
+                    {% else %}⚪
+                    {% endif %}
+                </div>
+                <div class="risk-text-large">{{ sailing.risk_level }}</div>
+                <div class="risk-score-large">リスクスコア: {{ sailing.risk_score | round(1) }} / 100</div>
+            </div>
+
+            <div class="recommendation">
+                {{ sailing.recommended_action }}
+            </div>
+        </div>
+
+        <!-- 気象条件詳細 -->
+        <div class="weather-details">
+            <h2>🌤️ 気象条件</h2>
+            <div class="weather-grid">
+                <div class="weather-item">
+                    <div class="weather-icon">💨</div>
+                    <div class="weather-label">風速</div>
+                    <div class="weather-value">
+                        {{ sailing.wind | round(1) }}
+                        <span class="weather-unit">m/s</span>
+                    </div>
+                </div>
+                <div class="weather-item">
+                    <div class="weather-icon">🌊</div>
+                    <div class="weather-label">波高</div>
+                    <div class="weather-value">
+                        {{ sailing.wave | round(1) }}
+                        <span class="weather-unit">m</span>
+                    </div>
+                </div>
+                <div class="weather-item">
+                    <div class="weather-icon">👁️</div>
+                    <div class="weather-label">視程</div>
+                    <div class="weather-value">
+                        {{ sailing.visibility | round(1) }}
+                        <span class="weather-unit">km</span>
+                    </div>
+                </div>
+                <div class="weather-item">
+                    <div class="weather-icon">🌡️</div>
+                    <div class="weather-label">気温</div>
+                    <div class="weather-value">
+                        {{ sailing.temperature | round(1) }}
+                        <span class="weather-unit">°C</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- リスク要因 -->
+        {% if sailing.risk_factors %}
+        <div class="risk-factors">
+            <h2>⚠️ 主なリスク要因</h2>
+            <div class="factor-list">
+                {{ sailing.risk_factors }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- アクション -->
+        <div class="actions">
+            <a href="/select-sailing" class="btn btn-secondary">別の便を選ぶ</a>
+            <a href="/" class="btn btn-primary">トップページへ</a>
+        </div>
+    </div>
+</body>
+</html>

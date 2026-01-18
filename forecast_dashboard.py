@@ -437,6 +437,79 @@ def route_details(route_id):
                          route_id=route_id,
                          forecast_by_day=all_days)
 
+@app.route('/select-sailing')
+def select_sailing():
+    """3-step sailing selection page"""
+    return render_template('sailing_selector.html')
+
+@app.route('/sailing/<route_id>/<date>/<departure_time>')
+def sailing_detail(route_id, date, departure_time):
+    """Detailed forecast for a specific sailing"""
+    import os
+
+    # Route name mapping
+    ROUTE_NAMES = {
+        'wakkanai_oshidomari': '稚内 ⇔ 利尻(鴛泊)',
+        'wakkanai_kafuka': '稚内 ⇔ 礼文(香深)',
+        'oshidomari_kafuka': '利尻(鴛泊) ⇔ 礼文(香深)',
+        'oshidomari_wakkanai': '利尻(鴛泊) ⇔ 稚内',
+        'kafuka_wakkanai': '礼文(香深) ⇔ 稚内',
+        'kafuka_oshidomari': '礼文(香深) ⇔ 利尻(鴛泊)'
+    }
+
+    route_name = ROUTE_NAMES.get(route_id, route_id)
+
+    # Get sailing data
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+    conn = sqlite3.connect(os.path.join(data_dir, "ferry_weather_forecast.db"))
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT
+            forecast_date,
+            departure_time,
+            arrival_time,
+            risk_level,
+            risk_score,
+            wind_forecast,
+            wave_forecast,
+            visibility_forecast,
+            temperature_forecast,
+            risk_factors,
+            recommended_action
+        FROM sailing_forecast
+        WHERE route = ?
+        AND forecast_date = ?
+        AND departure_time = ?
+    ''', (route_id, date, departure_time))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return "Sailing not found", 404
+
+    date_str, departure, arrival, risk, score, wind, wave, vis, temp, factors, action = row
+
+    sailing = {
+        'date': date_str,
+        'departure': departure,
+        'arrival': arrival,
+        'risk_level': risk,
+        'risk_score': score,
+        'wind': wind,
+        'wave': wave,
+        'visibility': vis,
+        'temperature': temp,
+        'risk_factors': factors,
+        'recommended_action': action
+    }
+
+    return render_template('sailing_detail.html',
+                         route_name=route_name,
+                         route_id=route_id,
+                         sailing=sailing)
+
 @app.route('/api/stats')
 def api_stats():
     """API endpoint for statistics"""

@@ -72,6 +72,28 @@
             margin-top: 15px;
         }
 
+        /* 便選択ボタン */
+        .sailing-selector-link {
+            display: block;
+            text-decoration: none;
+            margin-bottom: 20px;
+        }
+
+        .sailing-selector-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .sailing-selector-link:hover .sailing-selector-card {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
         /* リスク説明カード */
         .risk-guide {
             background: white;
@@ -432,6 +454,14 @@
                 📡 データ: 気象庁 (JMA) + Open-Meteo
             </div>
         </div>
+
+        <!-- 便選択ボタン -->
+        <a href="/select-sailing" class="sailing-selector-link">
+            <div class="sailing-selector-card">
+                <div style="font-size: 1.5em; margin-bottom: 8px;">🎯 特定の便を検索</div>
+                <div style="color: #7f8c8d; font-size: 0.95em;">航路・日付・時刻を選んで詳細予報を表示</div>
+            </div>
+        </a>
 
         <!-- リスクレベル説明 -->
         <div class="risk-guide">
