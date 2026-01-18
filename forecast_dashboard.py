@@ -368,10 +368,10 @@ def route_details(route_id):
             arrival_time,
             risk_level,
             risk_score,
-            wind_speed,
-            wave_height,
-            visibility,
-            temperature,
+            wind_forecast,
+            wave_forecast,
+            visibility_forecast,
+            temperature_forecast,
             recommended_action
         FROM sailing_forecast
         WHERE route = ?
