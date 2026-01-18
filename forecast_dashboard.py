@@ -525,6 +525,37 @@ def admin_run_accuracy_tracking():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/admin/generate-sailing-forecasts')
+def admin_generate_sailing_forecasts():
+    """Admin endpoint to generate sailing-level forecasts"""
+    import os
+    import subprocess
+
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+
+    try:
+        result = subprocess.run(
+            ['python', 'sailing_forecast_system.py'],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+
+        return jsonify({
+            'status': 'success' if result.returncode == 0 else 'error',
+            'stdout': result.stdout[-1000:] if result.stdout else '',
+            'stderr': result.stderr[-1000:] if result.stderr else '',
+            'returncode': result.returncode,
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/admin/init-accuracy-tables')
 def admin_init_accuracy_tables():
     """Admin endpoint to initialize accuracy tracking tables"""
