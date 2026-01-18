@@ -287,6 +287,7 @@ dashboard = ForecastDashboard()
 @app.route('/')
 def index():
     """Main dashboard page"""
+    from flask import make_response
 
     forecast = dashboard.get_7day_forecast()
     today_detail = dashboard.get_today_detail()
@@ -312,7 +313,7 @@ def index():
         risk_priority = {'HIGH': 4, 'MEDIUM': 3, 'LOW': 2, 'MINIMAL': 1}
         today_max_risk = max(today_routes, key=lambda r: risk_priority.get(r['risk_level'], 0))['risk_level']
 
-    return render_template('forecast_dashboard.html',
+    response = make_response(render_template('forecast_dashboard.html',
                          forecast=forecast,
                          today_detail=today_detail,
                          today_routes=today_routes,
@@ -320,7 +321,14 @@ def index():
                          stats=stats,
                          status=status,
                          status_class=status_class,
-                         current_time=datetime.now().strftime('%Y-%m-%d %H:%M'))
+                         current_time=datetime.now().strftime('%Y-%m-%d %H:%M')))
+
+    # Prevent caching
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+
+    return response
 
 @app.route('/api/forecast')
 def api_forecast():
