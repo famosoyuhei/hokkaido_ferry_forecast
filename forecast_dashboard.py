@@ -186,11 +186,14 @@ class ForecastDashboard:
     def get_next_sailings(self):
         """Get next upcoming sailing for each route"""
         from datetime import datetime, timedelta
+        import pytz
 
         conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
 
-        current_datetime = datetime.now()
+        # Use JST timezone
+        jst = pytz.timezone('Asia/Tokyo')
+        current_datetime = datetime.now(jst)
         current_date = current_datetime.date().isoformat()
         current_time = current_datetime.strftime('%H:%M')
         tomorrow_date = (current_datetime + timedelta(days=1)).date().isoformat()
@@ -382,6 +385,7 @@ dashboard = ForecastDashboard()
 def index():
     """Main dashboard page"""
     from flask import make_response
+    import pytz
 
     forecast = dashboard.get_7day_forecast()
     today_detail = dashboard.get_today_detail()
@@ -407,6 +411,10 @@ def index():
         risk_priority = {'HIGH': 4, 'MEDIUM': 3, 'LOW': 2, 'MINIMAL': 1}
         next_max_risk = max(next_sailings, key=lambda r: risk_priority.get(r['risk_level'], 0))['risk_level']
 
+    # Use JST timezone for display
+    jst = pytz.timezone('Asia/Tokyo')
+    current_time_jst = datetime.now(jst).strftime('%Y-%m-%d %H:%M JST')
+
     response = make_response(render_template('forecast_dashboard.html',
                          forecast=forecast,
                          today_detail=today_detail,
@@ -415,7 +423,7 @@ def index():
                          stats=stats,
                          status=status,
                          status_class=status_class,
-                         current_time=datetime.now().strftime('%Y-%m-%d %H:%M')))
+                         current_time=current_time_jst))
 
     # Prevent caching
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
