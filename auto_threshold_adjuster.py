@@ -3,6 +3,10 @@
 """
 Automatic Threshold Adjuster
 Applies ML-optimized thresholds to the risk calculation system
+
+⚠️ STATUS: Phase 3 - NOT CURRENTLY ACTIVE
+This file is reserved for future implementation (Phase 3 of ACCURACY_IMPROVEMENT_STRATEGY.md)
+Will be activated after unified_accuracy_tracker.py accumulates sufficient data
 """
 
 import sqlite3

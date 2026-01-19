@@ -21,7 +21,10 @@
       "Bash(git push:*)",
       "Bash(timeout 90 railway logs -s hokkaido-ferry-forecast)",
       "Bash(timeout 10 railway logs -s hokkaido-ferry-forecast)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(git reset:*)",
+      "Bash(curl:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

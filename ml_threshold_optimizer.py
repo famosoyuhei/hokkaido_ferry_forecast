@@ -3,6 +3,10 @@
 """
 ML-Based Risk Threshold Optimizer
 Automatically adjusts risk calculation thresholds based on historical accuracy data
+
+⚠️ STATUS: Phase 3 - NOT CURRENTLY ACTIVE
+This file is reserved for future implementation (Phase 3 of ACCURACY_IMPROVEMENT_STRATEGY.md)
+Currently using manual thresholds in sailing_forecast_system.py
 """
 
 import sys
