@@ -582,6 +582,53 @@ railway variables --set "RAILWAY_VOLUME_MOUNT_PATH=//data" -s hokkaido-ferry-for
 
 ---
 
+### 問題7: 時刻が9時間ズレる（日本時間問題）⚠️
+
+**症状**:
+- ダッシュボードの「最終更新」時刻が9時間古い
+- 「次の便」が正しく判定されない（夜なのに「本日」と表示）
+- データ収集タイミングがずれる
+
+**原因**:
+Railwayサーバーは**UTC（協定世界時）**で動作しており、`datetime.now()`がUTC時刻を返す。日本時間(JST)はUTC+9時間。
+
+**解決策**:
+
+1. **必ず`pytz`でJST明示**：
+   ```python
+   # ❌ 間違い（Railwayでは UTC）
+   from datetime import datetime
+   current_time = datetime.now()
+
+   # ✅ 正解（JST）
+   from datetime import datetime
+   import pytz
+   jst = pytz.timezone('Asia/Tokyo')
+   current_time = datetime.now(jst)
+   ```
+
+2. **requirements.txtに追加**：
+   ```
+   pytz>=2023.3
+   ```
+
+3. **影響を受けるファイル**：
+   - ✅ `forecast_dashboard.py` - 修正済み
+   - ⚠️ `weather_forecast_collector.py` - 要確認
+   - ⚠️ `improved_ferry_collector.py` - 要確認
+   - ⚠️ `accuracy_tracker.py` - 要確認
+   - ⚠️ `notification_service.py` - 要確認
+
+4. **確認方法**：
+   ```bash
+   # Railwayで実行
+   railway run python -c "from datetime import datetime; import pytz; print(datetime.now(pytz.timezone('Asia/Tokyo')))"
+   ```
+
+**重要**: データ収集スクリプトで`datetime.now()`を使っている場合、同様の修正が必要。特にcron実行時刻の判定やログタイムスタンプに影響する。
+
+---
+
 ## 📊 リスク計算ロジック
 
 ### アルゴリズム
@@ -726,9 +773,52 @@ git push
 
 ---
 
-## ✅ 最近の変更（2026-01-01）
+## ✅ 最近の変更
 
-### Railway本番環境セットアップ完了
+### 2026-01-19: UI改善と日本時間対応（重要）
+
+#### 1. **「次の便の予報」機能実装**
+   - 問題：全便出航後も「本日の運航予報」を表示していた
+   - 解決：`get_next_sailings()`メソッドを実装
+     - 現在時刻以降の本日便があれば表示
+     - 全便出航済みなら翌日の最初の便を表示
+     - タイミングラベル表示（「本日 06:55発」「明日 06:55発」）
+   - ファイル：`forecast_dashboard.py:186-278`, `templates/forecast_dashboard.html:464-510`
+
+#### 2. **日本時間(JST)対応（最重要）** ⚠️
+   - **問題**：Railwayサーバーは**UTC時刻**で動作
+     - 表示時刻が9時間古い（例：UTC 10:57 → JST 19:57）
+     - 「次の便」判定が9時間ズレる
+
+   - **解決**：`pytz`ライブラリでJST明示
+     ```python
+     import pytz
+     jst = pytz.timezone('Asia/Tokyo')
+     current_datetime = datetime.now(jst)  # 必須！
+     ```
+
+   - **変更箇所**：
+     - `forecast_dashboard.py:186-199` - `get_next_sailings()`
+     - `forecast_dashboard.py:414-416` - `index()`表示時刻
+     - `requirements.txt` - `pytz>=2023.3`追加
+
+   - **重要な注意点**：
+     - ❌ `datetime.now()` → RailwayではUTC時刻
+     - ✅ `datetime.now(pytz.timezone('Asia/Tokyo'))` → JST時刻
+     - データ収集スクリプトも同様に注意が必要
+
+#### 3. **UIシンプル化**
+   - トップページの7日間予報グリッドを削除（ユーザー要望）
+   - 3ステップ便選択システムを維持
+   - リスクガイドとデータ統計を保持
+
+#### 4. **キャッシュ制御強化**
+   - HTML meta tags + Flask response headers
+   - ブラウザキャッシュによる古いデータ表示を防止
+
+---
+
+### 2026-01-01: Railway本番環境セットアップ完了
 
 1. **Railwayへの統一**
    - RenderからRailwayに本番環境を移行
@@ -765,7 +855,7 @@ git push
 
 ---
 
-**最終更新日**: 2026-01-01
+**最終更新日**: 2026-01-19
 **メンテナー**: 利尻島フェリー予報プロジェクト
 **ライセンス**: Private（商用利用）
 
