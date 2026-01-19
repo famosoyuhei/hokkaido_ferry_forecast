@@ -1,7 +1,19 @@
 # GitHub Actions セットアップガイド
 
 **作成日**: 2026-01-09
+**最終更新**: 2026-01-20
 **目的**: Railway Cronジョブの代替として、確実なデータ収集を実現
+
+---
+
+## 🆕 最新アップデート (2026-01-20)
+
+**精度追跡の自動化を強化**:
+- `unified-accuracy-tracking.yml` を追加
+- Railway CLI を使って直接 Railway 上でスクリプト実行
+- エンドポイント経由よりも確実で高速
+
+詳細は後半の「精度追跡の自動化 (最新版)」セクションを参照。
 
 ---
 
@@ -249,5 +261,114 @@ GitHub はデフォルトでワークフロー失敗時にメール通知を送�
 
 ---
 
-**最終更新**: 2026-01-09
-**ステータス**: ✅ 稼働中
+## 🚀 精度追跡の自動化（最新版 - 2026-01-20）
+
+### 概要
+
+**新しい方式**: Railway CLI を使って直接 Railway 上でスクリプト実行
+
+**メリット**:
+- ✅ エンドポイント経由より確実
+- ✅ タイムアウトの心配なし
+- ✅ Railway環境変数とVolumeに直接アクセス
+- ✅ 実行ログが詳細
+
+### ワークフロー: `unified-accuracy-tracking.yml`
+
+**実行頻度**: 毎日 07:00 JST (22:00 UTC)
+
+**処理**:
+```bash
+# Railway CLI で直接スクリプト実行
+railway link hokkaido-ferry-forecast --environment production
+railway run python unified_accuracy_tracker.py
+```
+
+### セットアップ手順（初回のみ）
+
+#### ステップ1: Railway CLIトークンを取得
+
+**方法A: Railway Webダッシュボード（推奨）**
+
+1. Railway Dashboard にアクセス
+   ```
+   https://railway.app/
+   ```
+
+2. Account Settings → Tokens
+   - 右上のアカウントアイコン → Account Settings
+   - 左メニュー → Tokens
+
+3. 新しいトークンを作成
+   - 「Create New Token」ボタンをクリック
+   - Token name: `GitHub Actions - Accuracy Tracking`
+   - 「Create Token」をクリック
+
+4. トークンをコピー
+   - ⚠️ 表示されたトークンを今すぐコピー（再表示不可）
+   - 形式: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+
+#### ステップ2: GitHub Secretsにトークンを設定
+
+1. GitHubリポジトリを開く
+   ```
+   https://github.com/famosoyuhei/hokkaido_ferry_forecast
+   ```
+
+2. Settings タブ → Secrets and variables → Actions
+
+3. New repository secret
+   ```
+   Name: RAILWAY_TOKEN
+   Secret: [ステップ1でコピーしたトークン]
+   ```
+
+4. Add secret をクリック
+
+5. ✅ 確認: `RAILWAY_TOKEN` が一覧に表示される
+
+#### ステップ3: 変更をプッシュ
+
+```bash
+git push
+```
+
+これで自動化が有効になります！
+
+### テスト実行
+
+**手動トリガー**:
+1. GitHub → Actions → Unified Accuracy Tracking
+2. Run workflow ボタンをクリック
+3. Branch: main を選択
+4. Target date: 空欄（昨日のデータ）
+5. Run workflow をクリック
+
+**成功の確認**:
+- ✅ 緑色のチェックマーク
+- Summary に `Unified Accuracy Tracking Completed ✅`
+- Artifacts に `accuracy-report-XXX` がダウンロード可能
+
+### トラブルシューティング
+
+**エラー: `RAILWAY_TOKEN not found`**
+- GitHub Secrets にトークンを設定してください
+
+**エラー: `railway link failed`**
+- サービス名を確認: `hokkaido-ferry-forecast`
+- ローカルで確認: `railway status`
+
+**エラー: `No data found for date`**
+- 正常な動作です（該当日のデータがまだない）
+- 気象予報と実運航データが収集されているか確認
+
+### 関連ファイル
+
+- [unified_accuracy_tracker.py](unified_accuracy_tracker.py) - 精度追跡スクリプト
+- [ACCURACY_IMPROVEMENT_STRATEGY.md](ACCURACY_IMPROVEMENT_STRATEGY.md) - 精度向上戦略
+- [.github/workflows/unified-accuracy-tracking.yml](.github/workflows/unified-accuracy-tracking.yml) - ワークフロー定義
+
+---
+
+**最終更新**: 2026-01-20
+**ステータス**: ✅ 稼働中（精度追跡も自動化完了）

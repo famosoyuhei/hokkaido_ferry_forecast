@@ -775,6 +775,60 @@ git push
 
 ## ✅ 最近の変更
 
+### 2026-01-20: GitHub Actions完全自動化（Railway Cron問題の最終解決）
+
+#### **背景**
+Railway Cronが何度試しても動作せず、データ収集の自動化が不安定だった。
+
+#### **解決策**
+GitHub Actionsで完全自動化を実現。Railway CLIを使って直接Railway上でスクリプト実行。
+
+#### **実装内容**
+
+**1. 精度追跡ワークフローの改善**
+- ファイル: `.github/workflows/unified-accuracy-tracking.yml`
+- 変更点:
+  ```yaml
+  # 自動スケジュールを再有効化
+  schedule:
+    - cron: '0 22 * * *'  # 毎日 07:00 JST
+
+  # Railway CLI で直接実行（エンドポイント経由より確実）
+  railway link hokkaido-ferry-forecast --environment production
+  railway run python unified_accuracy_tracker.py
+  ```
+
+**2. セットアップ要件**
+- GitHub Secrets に `RAILWAY_TOKEN` を設定（初回のみ）
+- Railway Webダッシュボードでトークン作成
+- 手動トリガーでテスト可能
+
+**3. メリット**
+- ✅ Railway Cronの問題を完全回避
+- ✅ 確実な毎日自動実行（GitHub Actionsは信頼性が高い）
+- ✅ 実行履歴とログが見える
+- ✅ エラー時は自動メール通知
+- ✅ アーティファクト保存（accuracy_report.txt）
+
+**4. ドキュメント更新**
+- `GITHUB_ACTIONS_SETUP.md` に詳細手順を追加
+- Railway CLIトークン取得方法
+- GitHub Secrets設定手順
+- トラブルシューティング
+
+**5. 関連ファイル**
+- [.github/workflows/unified-accuracy-tracking.yml](.github/workflows/unified-accuracy-tracking.yml)
+- [GITHUB_ACTIONS_SETUP.md](GITHUB_ACTIONS_SETUP.md)
+- [unified_accuracy_tracker.py](unified_accuracy_tracker.py)
+
+**次のステップ**:
+1. RAILWAY_TOKEN を GitHub Secrets に設定
+2. 手動トリガーでテスト実行
+3. 1週間データ蓄積を監視
+4. Phase 3（機械学習）に進む
+
+---
+
 ### 2026-01-19 (夜): 統合精度追跡システム実装（Phase 1-2）
 
 #### **新規システム: unified_accuracy_tracker.py**
