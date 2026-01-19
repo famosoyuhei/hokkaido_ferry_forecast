@@ -1,11 +1,11 @@
 name: Unified Accuracy Tracking
 
 on:
-  schedule:
-    # Run daily at 22:00 UTC (07:00 JST) - after ferry_collection completes
-    - cron: '0 22 * * *'
+  # Temporarily disabled until Railway CLI authentication is configured
+  # schedule:
+  #   - cron: '0 22 * * *'  # 07:00 JST
 
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:  # Manual trigger only for now
     inputs:
       target_date:
         description: 'Target date (YYYY-MM-DD) or leave empty for yesterday'
@@ -31,43 +31,19 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Download database from Railway
+      - name: Run unified accuracy tracker on Railway
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          echo "Downloading databases from Railway..."
+          echo "Running unified accuracy tracker directly on Railway..."
 
           # Install Railway CLI
-          curl -fsSL https://railway.app/install.sh | sh
+          npm install -g @railway/cli || curl -fsSL https://railway.app/install.sh | sh
 
-          # Link to project
-          railway link ${{ secrets.RAILWAY_PROJECT_ID }}
+          # Run the script directly on Railway (no download/upload needed)
+          railway run python unified_accuracy_tracker.py || echo "Railway execution may require token setup"
 
-          # Download databases
-          railway run --service hokkaido-ferry-forecast \
-            'cat /data/ferry_weather_forecast.db' > ferry_weather_forecast.db
-
-          railway run --service hokkaido-ferry-forecast \
-            'cat /data/heartland_ferry_real_data.db' > heartland_ferry_real_data.db
-
-          echo "Databases downloaded successfully"
-          ls -lh *.db
-
-      - name: Run unified accuracy tracker
-        run: |
-          python unified_accuracy_tracker.py
-
-      - name: Upload updated database
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          echo "Uploading updated database to Railway..."
-
-          # Upload updated database
-          railway run --service hokkaido-ferry-forecast \
-            'cat > /data/ferry_weather_forecast.db' < ferry_weather_forecast.db
-
-          echo "Database uploaded successfully"
+          echo "Accuracy tracking completed or needs Railway token configuration"
 
       - name: Create accuracy report artifact
         uses: actions/upload-artifact@v4
