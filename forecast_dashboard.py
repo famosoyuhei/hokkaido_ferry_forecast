@@ -183,6 +183,100 @@ class ForecastDashboard:
         conn.close()
         return routes
 
+    def get_next_sailings(self):
+        """Get next upcoming sailing for each route"""
+        from datetime import datetime, timedelta
+
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+
+        current_datetime = datetime.now()
+        current_date = current_datetime.date().isoformat()
+        current_time = current_datetime.strftime('%H:%M')
+        tomorrow_date = (current_datetime + timedelta(days=1)).date().isoformat()
+
+        # Route name mapping
+        route_names = {
+            'wakkanai_oshidomari': '稚内 → 鴛泊（利尻）',
+            'wakkanai_kafuka': '稚内 → 香深（礼文）',
+            'oshidomari_wakkanai': '鴛泊（利尻）→ 稚内',
+            'kafuka_wakkanai': '香深（礼文）→ 稚内',
+            'oshidomari_kafuka': '鴛泊（利尻）→ 香深（礼文）',
+            'kafuka_oshidomari': '香深（礼文）→ 鴛泊（利尻）'
+        }
+
+        next_sailings = []
+
+        for route in route_names.keys():
+            # Try to find next sailing today (after current time)
+            cursor.execute('''
+                SELECT
+                    forecast_date,
+                    departure_time,
+                    arrival_time,
+                    risk_level,
+                    risk_score,
+                    wind_forecast,
+                    wave_forecast,
+                    visibility_forecast,
+                    recommended_action
+                FROM sailing_forecast
+                WHERE route = ?
+                AND forecast_date = ?
+                AND departure_time > ?
+                ORDER BY departure_time ASC
+                LIMIT 1
+            ''', (route, current_date, current_time))
+
+            row = cursor.fetchone()
+
+            # If no sailing found today, get tomorrow's first sailing
+            if not row:
+                cursor.execute('''
+                    SELECT
+                        forecast_date,
+                        departure_time,
+                        arrival_time,
+                        risk_level,
+                        risk_score,
+                        wind_forecast,
+                        wave_forecast,
+                        visibility_forecast,
+                        recommended_action
+                    FROM sailing_forecast
+                    WHERE route = ?
+                    AND forecast_date = ?
+                    ORDER BY departure_time ASC
+                    LIMIT 1
+                ''', (route, tomorrow_date))
+
+                row = cursor.fetchone()
+
+            if row:
+                date, departure, arrival, risk, score, wind, wave, vis, action = row
+
+                # Determine if it's today or tomorrow
+                is_today = (date == current_date)
+                timing_label = f"本日 {departure}発" if is_today else f"明日 {departure}発"
+
+                next_sailings.append({
+                    'route': route,
+                    'route_name': route_names.get(route, route),
+                    'date': date,
+                    'departure_time': departure,
+                    'arrival_time': arrival,
+                    'timing_label': timing_label,
+                    'risk_level': risk,
+                    'risk_score': score,
+                    'wind': wind,
+                    'wave': wave,
+                    'visibility': vis,
+                    'action': action
+                })
+
+        conn.close()
+        return next_sailings
+
     def get_statistics(self):
         """Get collection statistics"""
 
@@ -291,7 +385,7 @@ def index():
 
     forecast = dashboard.get_7day_forecast()
     today_detail = dashboard.get_today_detail()
-    today_routes = dashboard.get_routes_forecast()
+    next_sailings = dashboard.get_next_sailings()
     stats = dashboard.get_statistics()
 
     # Determine page title and status
@@ -307,17 +401,17 @@ def index():
         status = "✅ 良好"
         status_class = "success"
 
-    # Get today's max risk level
-    today_max_risk = 'MINIMAL'
-    if today_routes:
+    # Get next sailings' max risk level
+    next_max_risk = 'MINIMAL'
+    if next_sailings:
         risk_priority = {'HIGH': 4, 'MEDIUM': 3, 'LOW': 2, 'MINIMAL': 1}
-        today_max_risk = max(today_routes, key=lambda r: risk_priority.get(r['risk_level'], 0))['risk_level']
+        next_max_risk = max(next_sailings, key=lambda r: risk_priority.get(r['risk_level'], 0))['risk_level']
 
     response = make_response(render_template('forecast_dashboard.html',
                          forecast=forecast,
                          today_detail=today_detail,
-                         today_routes=today_routes,
-                         today_max_risk=today_max_risk,
+                         next_sailings=next_sailings,
+                         next_max_risk=next_max_risk,
                          stats=stats,
                          status=status,
                          status_class=status_class,
@@ -822,8 +916,8 @@ if __name__ == '__main__':
     print("=" * 80)
     print("FERRY FORECAST DASHBOARD")
     print("=" * 80)
-    print("\n🌐 Starting web server...")
-    print("📊 Dashboard URL: http://localhost:5000")
-    print("\n✅ Press Ctrl+C to stop\n")
+    print("\nStarting web server...")
+    print("Dashboard URL: http://localhost:5000")
+    print("\nPress Ctrl+C to stop\n")
 
     app.run(host='0.0.0.0', port=5000, debug=True)

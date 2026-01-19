@@ -407,26 +407,26 @@
             </div>
         </div>
 
-        <!-- 本日の予報（最重要）-->
+        <!-- 次の便の予報（最重要）-->
         <div class="today-forecast">
-            <h2>📍 本日の運航予報</h2>
+            <h2>⏰ 次の便の予報</h2>
 
             <div class="today-status">
                 <div class="main-message">
-                    {% if today_max_risk == 'HIGH' %}
-                    ⚠️ 本日は欠航リスクが高い日です
-                    {% elif today_max_risk == 'MEDIUM' %}
-                    🔔 本日は欠航の可能性があります
-                    {% elif today_max_risk == 'LOW' %}
-                    ✅ 本日はほぼ運航見込みです
+                    {% if next_max_risk == 'HIGH' %}
+                    ⚠️ 次の便は欠航リスクが高いです
+                    {% elif next_max_risk == 'MEDIUM' %}
+                    🔔 次の便は欠航の可能性があります
+                    {% elif next_max_risk == 'LOW' %}
+                    ✅ 次の便はほぼ運航見込みです
                     {% else %}
-                    ☀️ 本日は安定運航見込みです
+                    ☀️ 次の便は安定運航見込みです
                     {% endif %}
                 </div>
                 <div class="sub-message">
-                    {% if today_max_risk == 'HIGH' %}
+                    {% if next_max_risk == 'HIGH' %}
                     公式サイトで最新情報を確認してください
-                    {% elif today_max_risk == 'MEDIUM' %}
+                    {% elif next_max_risk == 'MEDIUM' %}
                     天候の変化に注意が必要です
                     {% else %}
                     良好な運航条件です
@@ -435,19 +435,19 @@
             </div>
 
             <div class="today-routes">
-                {% for route in today_routes %}
-                <a href="/route/{{ route.route }}" class="route-link">
+                {% for sailing in next_sailings %}
+                <a href="/sailing/{{ sailing.route }}/{{ sailing.date }}/{{ sailing.departure_time }}" class="route-link">
                     <div class="today-route-card">
                         <div class="route-info">
-                            <div class="route-name-large">{{ route.route_name }}</div>
+                            <div class="route-name-large">{{ sailing.route_name }}</div>
                             <div class="route-weather">
-                                💨 {{ route.wind|round(1) }}m/s
-                                {% if route.wave %} | 🌊 {{ route.wave|round(1) }}m{% endif %}
+                                🕐 {{ sailing.timing_label }} | 💨 {{ sailing.wind|round(1) }}m/s
+                                {% if sailing.wave %} | 🌊 {{ sailing.wave|round(1) }}m{% endif %}
                             </div>
                         </div>
-                        <div class="route-risk-badge risk-{{ route.risk_level }}">
-                            {% if route.risk_level == 'HIGH' %}🔴{% elif route.risk_level == 'MEDIUM' %}🟡{% elif route.risk_level == 'LOW' %}🟢{% else %}⚪{% endif %}
-                            {{ route.risk_level }}
+                        <div class="route-risk-badge risk-{{ sailing.risk_level }}">
+                            {% if sailing.risk_level == 'HIGH' %}🔴{% elif sailing.risk_level == 'MEDIUM' %}🟡{% elif sailing.risk_level == 'LOW' %}🟢{% else %}⚪{% endif %}
+                            {{ sailing.risk_level }}
                         </div>
                     </div>
                 </a>
