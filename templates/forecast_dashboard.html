@@ -250,7 +250,7 @@
         .risk-LOW { background: #26de81; color: white; }
         .risk-MINIMAL { background: white; color: #667eea; }
 
-        /* 7日間予報 */
+        /* 統計情報 */
         .section-title {
             background: white;
             padding: 18px 25px;
@@ -266,83 +266,6 @@
             display: flex;
             align-items: center;
             gap: 10px;
-        }
-
-        .forecast-scroll {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-        }
-
-        .forecast-grid {
-            display: flex;
-            gap: 15px;
-            min-width: min-content;
-        }
-
-        .day-card {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            min-width: 160px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .day-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-        }
-
-        .day-card.today {
-            border: 3px solid #f5576c;
-        }
-
-        .day-header {
-            text-align: center;
-            margin-bottom: 15px;
-        }
-
-        .day-date {
-            font-size: 0.9em;
-            color: #7f8c8d;
-            margin-bottom: 5px;
-        }
-
-        .day-label {
-            font-size: 1.1em;
-            font-weight: bold;
-            color: #2c3e50;
-            margin-bottom: 10px;
-        }
-
-        .day-risk-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            font-weight: bold;
-            margin-bottom: 15px;
-        }
-
-        .weather-details {
-            font-size: 0.9em;
-            color: #555;
-        }
-
-        .weather-details div {
-            margin: 8px 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .weather-icon {
-            font-size: 1.2em;
-            min-width: 25px;
         }
 
         /* 統計情報 */
@@ -426,25 +349,6 @@
             .route-name-large {
                 font-size: 1em;
             }
-        }
-
-        /* スクロールバーのスタイル */
-        .forecast-scroll::-webkit-scrollbar {
-            height: 8px;
-        }
-
-        .forecast-scroll::-webkit-scrollbar-track {
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
-        }
-
-        .forecast-scroll::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.3);
-            border-radius: 10px;
-        }
-
-        .forecast-scroll::-webkit-scrollbar-thumb:hover {
-            background: rgba(255,255,255,0.5);
         }
     </style>
 </head>
@@ -547,52 +451,6 @@
                         </div>
                     </div>
                 </a>
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- 7日間予報 -->
-        <div class="section-title">
-            <h2>📅 週間予報（7日間）</h2>
-        </div>
-
-        <div class="forecast-scroll">
-            <div class="forecast-grid">
-                {% for day in forecast %}
-                <div class="day-card {% if loop.first %}today{% endif %}">
-                    <div class="day-header">
-                        <div class="day-date">{{ day.date }}</div>
-                        <div class="day-label">{% if loop.first %}今日{% elif loop.index == 2 %}明日{% else %}{{ loop.index }}日後{% endif %}</div>
-                        <div class="day-risk-badge risk-{{ day.max_risk }}">
-                            {% if day.max_risk == 'HIGH' %}🔴{% elif day.max_risk == 'MEDIUM' %}🟡{% elif day.max_risk == 'LOW' %}🟢{% else %}⚪{% endif %}
-                            {{ day.max_risk }}
-                        </div>
-                    </div>
-                    <div class="weather-details">
-                        {% for risk in day.risks %}
-                        <div>
-                            <span class="weather-icon">📊</span>
-                            <span>リスク: {{ risk.score|round|int }}/100</span>
-                        </div>
-                        <div>
-                            <span class="weather-icon">💨</span>
-                            <span>{{ risk.wind|round(1) }} m/s</span>
-                        </div>
-                        {% if risk.wave %}
-                        <div>
-                            <span class="weather-icon">🌊</span>
-                            <span>{{ risk.wave|round(1) }} m</span>
-                        </div>
-                        {% endif %}
-                        {% if risk.visibility %}
-                        <div>
-                            <span class="weather-icon">👁️</span>
-                            <span>{{ risk.visibility|round(1) }} km</span>
-                        </div>
-                        {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
                 {% endfor %}
             </div>
         </div>
