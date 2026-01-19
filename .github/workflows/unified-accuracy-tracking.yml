@@ -1,0 +1,103 @@
+name: Unified Accuracy Tracking
+
+on:
+  schedule:
+    # Run daily at 22:00 UTC (07:00 JST) - after ferry_collection completes
+    - cron: '0 22 * * *'
+
+  workflow_dispatch:  # Allow manual trigger
+    inputs:
+      target_date:
+        description: 'Target date (YYYY-MM-DD) or leave empty for yesterday'
+        required: false
+        default: ''
+
+jobs:
+  track-accuracy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Download database from Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "Downloading databases from Railway..."
+
+          # Install Railway CLI
+          curl -fsSL https://railway.app/install.sh | sh
+
+          # Link to project
+          railway link ${{ secrets.RAILWAY_PROJECT_ID }}
+
+          # Download databases
+          railway run --service hokkaido-ferry-forecast \
+            'cat /data/ferry_weather_forecast.db' > ferry_weather_forecast.db
+
+          railway run --service hokkaido-ferry-forecast \
+            'cat /data/heartland_ferry_real_data.db' > heartland_ferry_real_data.db
+
+          echo "Databases downloaded successfully"
+          ls -lh *.db
+
+      - name: Run unified accuracy tracker
+        run: |
+          python unified_accuracy_tracker.py
+
+      - name: Upload updated database
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "Uploading updated database to Railway..."
+
+          # Upload updated database
+          railway run --service hokkaido-ferry-forecast \
+            'cat > /data/ferry_weather_forecast.db' < ferry_weather_forecast.db
+
+          echo "Database uploaded successfully"
+
+      - name: Create accuracy report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: accuracy-report-${{ github.run_number }}
+          path: accuracy_report.txt
+          retention-days: 30
+
+      - name: Comment on commit (if issues found)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Accuracy Tracking Failed',
+              body: 'Unified accuracy tracking workflow failed. Please check the logs.',
+              labels: ['alert', 'accuracy-tracking']
+            })
+
+      - name: Summary
+        run: |
+          echo "### Unified Accuracy Tracking Completed ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f accuracy_report.txt ]; then
+            echo "**Report Preview**:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            head -n 30 accuracy_report.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
