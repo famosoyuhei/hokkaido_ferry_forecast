@@ -39,10 +39,11 @@ jobs:
           # Install Railway CLI
           npm install -g @railway/cli || curl -fsSL https://railway.app/install.sh | sh
 
-          # Run the script directly on Railway using project and service IDs
-          # Project: comfortable-courtesy (c93898e1-5fe6-4fd7-b81d-33cb31b8addf)
+          # Run the script directly on Railway with explicit project and service
+          # Project ID: c93898e1-5fe6-4fd7-b81d-33cb31b8addf
           # Service: hokkaido-ferry-forecast
-          railway run --service hokkaido-ferry-forecast python unified_accuracy_tracker.py
+          # Environment: production
+          railway run --project c93898e1-5fe6-4fd7-b81d-33cb31b8addf --service hokkaido-ferry-forecast --environment production python unified_accuracy_tracker.py
 
           echo "✅ Accuracy tracking completed successfully"
 
