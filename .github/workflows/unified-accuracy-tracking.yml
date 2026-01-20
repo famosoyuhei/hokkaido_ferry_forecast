@@ -17,42 +17,24 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install dependencies
+      - name: Run unified accuracy tracker via Railway endpoint
         run: |
-          pip install -r requirements.txt
+          echo "Running unified accuracy tracker via Railway admin endpoint..."
 
-      - name: Run unified accuracy tracker on Railway
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          echo "Running unified accuracy tracker directly on Railway..."
+          # Call the admin endpoint that runs unified_accuracy_tracker.py
+          response=$(curl -s -w "\n%{http_code}" https://web-production-a628.up.railway.app/admin/run-accuracy-tracking)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
 
-          # Install Railway CLI
-          npm install -g @railway/cli || curl -fsSL https://railway.app/install.sh | sh
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
 
-          # Run the script directly on Railway with explicit project and service
-          # Project ID: c93898e1-5fe6-4fd7-b81d-33cb31b8addf
-          # Service: hokkaido-ferry-forecast
-          # Environment: production
-          railway run --project c93898e1-5fe6-4fd7-b81d-33cb31b8addf --service hokkaido-ferry-forecast --environment production python unified_accuracy_tracker.py
-
-          echo "✅ Accuracy tracking completed successfully"
-
-      - name: Create accuracy report artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: accuracy-report-${{ github.run_number }}
-          path: accuracy_report.txt
-          retention-days: 30
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ Accuracy tracking completed successfully"
+          else
+            echo "❌ Accuracy tracking failed with status $http_code"
+            exit 1
+          fi
 
       - name: Comment on commit (if issues found)
         if: failure()
@@ -68,14 +50,9 @@ jobs:
             })
 
       - name: Summary
+        if: success()
         run: |
           echo "### Unified Accuracy Tracking Completed ✅" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f accuracy_report.txt ]; then
-            echo "**Report Preview**:" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            head -n 30 accuracy_report.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "**Method**: Railway admin endpoint" >> $GITHUB_STEP_SUMMARY
