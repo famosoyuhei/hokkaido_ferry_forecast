@@ -776,9 +776,7 @@ def admin_run_accuracy_tracking():
         results = {}
 
         scripts = [
-            'operation_accuracy_calculator.py',
-            'dual_accuracy_tracker.py',
-            'auto_threshold_adjuster.py'
+            'unified_accuracy_tracker.py'
         ]
 
         for script in scripts:
