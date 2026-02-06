@@ -900,6 +900,40 @@ def admin_init_accuracy_tables():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/admin/analyze-accuracy')
+def admin_analyze_accuracy():
+    """Admin endpoint to run accuracy analysis"""
+    import subprocess
+    import os
+
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+
+    try:
+        # Run analyze_accuracy.py
+        result = subprocess.run(
+            ['python', 'analyze_accuracy.py'],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        return jsonify({
+            'status': 'success' if result.returncode == 0 else 'error',
+            'returncode': result.returncode,
+            'output': result.stdout,
+            'errors': result.stderr,
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/manifest.json')
 def manifest():
     """Serve PWA manifest"""
