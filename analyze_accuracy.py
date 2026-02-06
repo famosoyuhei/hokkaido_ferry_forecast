@@ -48,8 +48,8 @@ def analyze_overall_accuracy(cursor):
         total_predictions,
         correct_predictions,
         accuracy_rate,
-        precision_rate,
-        recall_rate,
+        precision_score,
+        recall_score,
         f1_score
     FROM unified_daily_summary
     ORDER BY summary_date DESC
