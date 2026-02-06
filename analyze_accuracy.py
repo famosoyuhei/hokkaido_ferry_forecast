@@ -45,11 +45,11 @@ def analyze_overall_accuracy(cursor):
     query = """
     SELECT
         summary_date,
-        total_sailings,
+        total_predictions,
         correct_predictions,
-        overall_accuracy,
-        precision_score,
-        recall_score,
+        accuracy_rate,
+        precision_rate,
+        recall_rate,
         f1_score
     FROM unified_daily_summary
     ORDER BY summary_date DESC
@@ -64,25 +64,26 @@ def analyze_overall_accuracy(cursor):
         print("    Data collection may still be in progress.")
         return None
 
-    print(f"\n{'Date':<12} {'Sailings':<10} {'Correct':<10} {'Accuracy':<10} {'F1 Score':<10}")
+    print(f"\n{'Date':<12} {'Predictions':<12} {'Correct':<10} {'Accuracy':<10} {'F1 Score':<10}")
     print("-" * 70)
 
-    total_sailings = 0
+    total_predictions = 0
     total_correct = 0
 
     for row in summaries:
-        date, sailings, correct, accuracy, precision, recall, f1 = row
-        print(f"{date:<12} {sailings:<10} {correct:<10} {accuracy:>8.1f}% {f1 or 0:>8.3f}")
-        total_sailings += sailings
+        date, predictions, correct, accuracy, precision, recall, f1 = row
+        accuracy_pct = accuracy * 100 if accuracy else 0
+        print(f"{date:<12} {predictions:<12} {correct:<10} {accuracy_pct:>8.1f}% {f1 or 0:>8.3f}")
+        total_predictions += predictions
         total_correct += correct
 
-    overall_accuracy = (total_correct / total_sailings * 100) if total_sailings > 0 else 0
+    overall_accuracy = (total_correct / total_predictions * 100) if total_predictions > 0 else 0
 
     print("-" * 70)
-    print(f"{'TOTAL':<12} {total_sailings:<10} {total_correct:<10} {overall_accuracy:>8.1f}%")
+    print(f"{'TOTAL':<12} {total_predictions:<12} {total_correct:<10} {overall_accuracy:>8.1f}%")
 
     return {
-        'total_sailings': total_sailings,
+        'total_predictions': total_predictions,
         'total_correct': total_correct,
         'overall_accuracy': overall_accuracy,
         'days_analyzed': len(summaries)
@@ -97,13 +98,11 @@ def analyze_risk_level_accuracy(cursor):
     query = """
     SELECT
         risk_level,
-        total_predictions,
-        true_positives,
-        false_positives,
-        false_negatives,
-        precision_score,
-        recall_score
+        predictions_count,
+        correct_count,
+        accuracy_rate
     FROM risk_level_accuracy
+    WHERE analysis_date = (SELECT MAX(analysis_date) FROM risk_level_accuracy)
     ORDER BY
         CASE risk_level
             WHEN 'HIGH' THEN 1
@@ -120,14 +119,13 @@ def analyze_risk_level_accuracy(cursor):
         print("  No risk level accuracy data found yet.")
         return None
 
-    print(f"\n{'Risk Level':<12} {'Total':<8} {'TP':<6} {'FP':<6} {'FN':<6} {'Precision':<12} {'Recall':<10}")
+    print(f"\n{'Risk Level':<12} {'Predictions':<12} {'Correct':<10} {'Accuracy':<10}")
     print("-" * 70)
 
     for row in results:
-        level, total, tp, fp, fn, precision, recall = row
-        precision_str = f"{precision:.1%}" if precision else "N/A"
-        recall_str = f"{recall:.1%}" if recall else "N/A"
-        print(f"{level:<12} {total:<8} {tp:<6} {fp:<6} {fn:<6} {precision_str:<12} {recall_str:<10}")
+        level, predictions, correct, accuracy = row
+        accuracy_pct = accuracy * 100 if accuracy else 0
+        print(f"{level:<12} {predictions:<12} {correct:<10} {accuracy_pct:>8.1f}%")
 
     return results
 
@@ -182,7 +180,7 @@ def generate_recommendations(overall_stats, risk_results):
 
     print(f"\n Current Status:")
     print(f"    {days} days of data collected")
-    print(f"    {overall_stats['total_sailings']} sailings analyzed")
+    print(f"    {overall_stats['total_predictions']} predictions analyzed")
     print(f"    {accuracy:.1f}% overall accuracy")
 
     print(f"\n Next Steps:")
@@ -208,11 +206,10 @@ def generate_recommendations(overall_stats, risk_results):
     if risk_results:
         print(f"\n Focus Areas:")
         for row in risk_results:
-            level, total, tp, fp, fn, precision, recall = row
-            if fp > tp:
-                print(f"    {level}: Too many false positives (over-predicting cancellations)")
-            if fn > tp:
-                print(f"    {level}: Too many false negatives (missing cancellations) ")
+            level, predictions, correct, accuracy = row
+            accuracy_pct = accuracy * 100 if accuracy else 0
+            if accuracy_pct < 70:
+                print(f"    {level}: Low accuracy ({accuracy_pct:.1f}%) - needs improvement")
 
 def main():
     """Main analysis function"""
