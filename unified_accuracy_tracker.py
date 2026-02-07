@@ -140,26 +140,25 @@ class UnifiedAccuracyTracker:
 
         print(f"\nCalculating accuracy for {target_date}...")
 
-        # Get predictions from sailing_forecast
+        # Get predictions from cancellation_forecast
         forecast_conn = sqlite3.connect(self.forecast_db)
         forecast_cursor = forecast_conn.cursor()
 
         forecast_cursor.execute('''
-            SELECT
-                forecast_date,
+            SELECT DISTINCT
+                forecast_for_date,
                 route,
-                departure_time,
                 risk_level,
                 risk_score,
                 wind_forecast,
                 wave_forecast,
                 visibility_forecast
-            FROM sailing_forecast
-            WHERE forecast_date = ?
+            FROM cancellation_forecast
+            WHERE forecast_for_date = ?
         ''', (target_date,))
 
         predictions = forecast_cursor.fetchall()
-        print(f"  Found {len(predictions)} predictions")
+        print(f"  Found {len(predictions)} predictions from cancellation_forecast")
 
         if not predictions:
             print(f"  No predictions found for {target_date}")
@@ -181,17 +180,20 @@ class UnifiedAccuracyTracker:
             WHERE scrape_date = ?
         ''', (target_date,))
 
-        actual_ops = {}
+        # Group actual operations by route
+        actual_ops_by_route = {}
         for row in real_cursor.fetchall():
             date, route, dep_time, status, is_cancelled = row
-            key = f"{route}_{dep_time}"
-            actual_ops[key] = {
+            if route not in actual_ops_by_route:
+                actual_ops_by_route[route] = []
+            actual_ops_by_route[route].append({
+                'departure_time': dep_time,
                 'status': 'CANCELLED' if is_cancelled else 'OPERATED',
                 'is_cancelled': is_cancelled
-            }
+            })
 
         real_conn.close()
-        print(f"  Found {len(actual_ops)} actual operations")
+        print(f"  Found {sum(len(ops) for ops in actual_ops_by_route.values())} actual operations across {len(actual_ops_by_route)} routes")
 
         # Match predictions with actual
         matched = 0
@@ -205,26 +207,31 @@ class UnifiedAccuracyTracker:
         unified_cursor = unified_conn.cursor()
 
         for pred in predictions:
-            pred_date, route, dep_time, risk, score, wind, wave, vis = pred
-            key = f"{route}_{dep_time}"
+            pred_date, route, risk, score, wind, wave, vis = pred
 
-            if key in actual_ops:
-                matched += 1
-                actual = actual_ops[key]
+            if route in actual_ops_by_route:
+                # Route-level matching (since cancellation_forecast is per route, not per sailing)
+                route_ops = actual_ops_by_route[route]
+
+                # Count how many sailings were cancelled vs operated
+                cancelled_count = sum(1 for op in route_ops if op['is_cancelled'])
+                operated_count = len(route_ops) - cancelled_count
+
+                # Route is considered "cancelled" if majority of sailings were cancelled
+                route_mostly_cancelled = cancelled_count > operated_count
 
                 # Determine if prediction was correct
                 predicted_high_risk = risk in ['HIGH', 'MEDIUM']
-                actually_cancelled = actual['is_cancelled']
 
-                is_correct = (predicted_high_risk and actually_cancelled) or \
-                             (not predicted_high_risk and not actually_cancelled)
+                is_correct = (predicted_high_risk and route_mostly_cancelled) or \
+                             (not predicted_high_risk and not route_mostly_cancelled)
 
                 # Confusion matrix
-                if predicted_high_risk and actually_cancelled:
+                if predicted_high_risk and route_mostly_cancelled:
                     true_positives += 1
-                elif predicted_high_risk and not actually_cancelled:
+                elif predicted_high_risk and not route_mostly_cancelled:
                     false_positives += 1
-                elif not predicted_high_risk and actually_cancelled:
+                elif not predicted_high_risk and route_mostly_cancelled:
                     false_negatives += 1
                 else:
                     true_negatives += 1
@@ -232,7 +239,9 @@ class UnifiedAccuracyTracker:
                 if is_correct:
                     correct += 1
 
-                # Store in unified_operation_accuracy
+                matched += 1
+
+                # Store one record per route (not per sailing)
                 unified_cursor.execute('''
                     INSERT OR REPLACE INTO unified_operation_accuracy
                     (operation_date, route, departure_time,
@@ -241,11 +250,12 @@ class UnifiedAccuracyTracker:
                      calculated_at, data_source)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
-                    pred_date, route, dep_time,
+                    pred_date, route, f"{cancelled_count}/{len(route_ops)} cancelled",
                     risk, score, wind, wave, vis,
-                    actual['status'], is_correct,
-                    predicted_high_risk and not actually_cancelled,
-                    not predicted_high_risk and actually_cancelled,
+                    'MOSTLY_CANCELLED' if route_mostly_cancelled else 'MOSTLY_OPERATED',
+                    is_correct,
+                    predicted_high_risk and not route_mostly_cancelled,
+                    not predicted_high_risk and route_mostly_cancelled,
                     datetime.now(self.jst).isoformat(),
                     'heartland_ferry'
                 ))
