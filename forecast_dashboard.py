@@ -789,7 +789,9 @@ def admin_run_accuracy_tracking():
 
             results[script] = {
                 'status': 'success' if result.returncode == 0 else 'error',
-                'returncode': result.returncode
+                'returncode': result.returncode,
+                'stdout': result.stdout,
+                'stderr': result.stderr
             }
 
         return jsonify({
