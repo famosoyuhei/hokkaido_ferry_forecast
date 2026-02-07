@@ -28,11 +28,14 @@ class ImprovedFerryCollector:
 
     def __init__(self):
         self.status_url = "https://heartlandferry.jp/status/"
-        self.db_file = "heartland_ferry_real_data.db"
-        self.csv_file = Path("data") / "ferry_cancellation_log.csv"
+
+        # Use Railway Volume path if available, otherwise local
+        data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')
+        self.db_file = os.path.join(data_dir, "heartland_ferry_real_data.db")
+        self.csv_file = Path(data_dir) / "data" / "ferry_cancellation_log.csv"
 
         # Create data directory
-        Path("data").mkdir(exist_ok=True)
+        (Path(data_dir) / "data").mkdir(exist_ok=True)
 
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
