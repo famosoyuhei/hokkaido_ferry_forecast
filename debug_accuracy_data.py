@@ -12,53 +12,54 @@ forecast_db = os.path.join(data_dir, "ferry_weather_forecast.db")
 real_data_db = os.path.join(data_dir, "heartland_ferry_real_data.db")
 
 jst = pytz.timezone('Asia/Tokyo')
+today = datetime.now(jst).strftime('%Y-%m-%d')
 yesterday = (datetime.now(jst) - timedelta(days=1)).strftime('%Y-%m-%d')
 
-print(f"Checking data for {yesterday}")
+print(f"Checking data for TODAY ({today}) and YESTERDAY ({yesterday})")
 print("=" * 80)
 
-# Check predictions
+# Check predictions for both days
 print("\n1. PREDICTIONS (cancellation_forecast table):")
 conn1 = sqlite3.connect(forecast_db)
 cursor1 = conn1.cursor()
 
-cursor1.execute('''
-    SELECT DISTINCT
-        forecast_for_date,
-        route,
-        risk_level,
-        risk_score
-    FROM cancellation_forecast
-    WHERE forecast_for_date = ?
-    ORDER BY route
-''', (yesterday,))
+for check_date in [today, yesterday]:
+    cursor1.execute('''
+        SELECT DISTINCT
+            forecast_for_date,
+            route,
+            risk_level,
+            risk_score
+        FROM cancellation_forecast
+        WHERE forecast_for_date = ?
+        ORDER BY route
+    ''', (check_date,))
 
-predictions = cursor1.fetchall()
-print(f"   Found {len(predictions)} predictions")
-for pred in predictions[:10]:
-    print(f"     {pred}")
+    predictions = cursor1.fetchall()
+    print(f"   {check_date}: Found {len(predictions)} predictions")
 
-# Check actual operations
+# Check actual operations for both days
 print("\n2. ACTUAL OPERATIONS (ferry_status table):")
 conn2 = sqlite3.connect(real_data_db)
 cursor2 = conn2.cursor()
 
-cursor2.execute('''
-    SELECT
-        scrape_date,
-        route,
-        departure_time,
-        operational_status,
-        is_cancelled
-    FROM ferry_status
-    WHERE scrape_date = ?
-    ORDER BY route, departure_time
-''', (yesterday,))
+for check_date in [today, yesterday]:
+    cursor2.execute('''
+        SELECT
+            scrape_date,
+            route,
+            departure_time,
+            operational_status,
+            is_cancelled
+        FROM ferry_status
+        WHERE scrape_date = ?
+        ORDER BY route, departure_time
+    ''', (check_date,))
 
-actual_ops = cursor2.fetchall()
-print(f"   Found {len(actual_ops)} actual operations")
-for op in actual_ops[:10]:
-    print(f"     {op}")
+    actual_ops = cursor2.fetchall()
+    print(f"   {check_date}: Found {len(actual_ops)} actual operations")
+    if actual_ops:
+        print(f"      First 3: {actual_ops[:3]}")
 
 # Check if accuracy tables have any data
 print("\n3. ACCURACY TABLES:")
