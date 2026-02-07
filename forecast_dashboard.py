@@ -968,6 +968,40 @@ def admin_debug_accuracy_data():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/admin/test-ferry-db-path')
+def admin_test_ferry_db_path():
+    """Admin endpoint to test ferry DB path"""
+    import subprocess
+    import os
+
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+
+    try:
+        # Run test_ferry_db_path.py
+        result = subprocess.run(
+            ['python', 'test_ferry_db_path.py'],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        return jsonify({
+            'status': 'success' if result.returncode == 0 else 'error',
+            'returncode': result.returncode,
+            'output': result.stdout,
+            'errors': result.stderr,
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/manifest.json')
 def manifest():
     """Serve PWA manifest"""
