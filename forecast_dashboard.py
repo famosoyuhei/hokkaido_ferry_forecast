@@ -934,6 +934,40 @@ def admin_analyze_accuracy():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/admin/debug-accuracy-data')
+def admin_debug_accuracy_data():
+    """Admin endpoint to run debug script"""
+    import subprocess
+    import os
+
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+
+    try:
+        # Run debug_accuracy_data.py
+        result = subprocess.run(
+            ['python', 'debug_accuracy_data.py'],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        return jsonify({
+            'status': 'success' if result.returncode == 0 else 'error',
+            'returncode': result.returncode,
+            'output': result.stdout,
+            'errors': result.stderr,
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/manifest.json')
 def manifest():
     """Serve PWA manifest"""
