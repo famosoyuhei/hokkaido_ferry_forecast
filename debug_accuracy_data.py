@@ -39,7 +39,7 @@ for check_date in [today, yesterday]:
     print(f"   {check_date}: Found {len(predictions)} predictions")
 
 # Check actual operations for both days
-print("\n2. ACTUAL OPERATIONS (ferry_status table):")
+print("\n2. ACTUAL OPERATIONS (ferry_status_enhanced table):")
 conn2 = sqlite3.connect(real_data_db)
 cursor2 = conn2.cursor()
 
@@ -51,7 +51,7 @@ for check_date in [today, yesterday]:
             departure_time,
             operational_status,
             is_cancelled
-        FROM ferry_status
+        FROM ferry_status_enhanced
         WHERE scrape_date = ?
         ORDER BY route, departure_time
     ''', (check_date,))

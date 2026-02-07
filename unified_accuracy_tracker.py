@@ -176,7 +176,7 @@ class UnifiedAccuracyTracker:
                 departure_time,
                 operational_status,
                 is_cancelled
-            FROM ferry_status
+            FROM ferry_status_enhanced
             WHERE scrape_date = ?
         ''', (target_date,))
 
