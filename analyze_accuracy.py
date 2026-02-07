@@ -139,9 +139,9 @@ def analyze_operation_accuracy(cursor):
     SELECT
         operation_date,
         route,
-        predicted_status,
+        predicted_risk,
         actual_status,
-        prediction_correct
+        is_correct
     FROM unified_operation_accuracy
     ORDER BY operation_date DESC, route
     LIMIT 20
