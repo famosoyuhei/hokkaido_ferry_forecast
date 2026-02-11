@@ -72,7 +72,8 @@ def analyze_overall_accuracy(cursor):
 
     for row in summaries:
         date, predictions, correct, accuracy, precision, recall, f1 = row
-        accuracy_pct = accuracy * 100 if accuracy else 0
+        # accuracy_rate is already stored as percentage (0-100) in the database
+        accuracy_pct = accuracy if accuracy else 0
         print(f"{date:<12} {predictions:<12} {correct:<10} {accuracy_pct:>8.1f}% {f1 or 0:>8.3f}")
         total_predictions += predictions
         total_correct += correct
