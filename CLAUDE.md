@@ -775,6 +775,95 @@ git push
 
 ## ✅ 最近の変更
 
+### 2026-02-12: 精度追跡システムのバグ修正と検証完了
+
+#### **背景**
+精度追跡システムが動作していたが、異常な精度値（5000%超）と予測データの大量喪失（38%）が発覚。
+
+#### **発見した3つの重大なバグ**
+
+**1. パーセント表示の二重計算**
+- **問題**: `analyze_accuracy.py`が`accuracy * 100`を実行
+- **原因**: `unified_accuracy_tracker.py`で既に100倍してDBに保存済み
+- **結果**: 精度79.4%が7940%と表示される異常値
+- **修正**: `analyze_accuracy.py:75`で`* 100`を削除
+- **コミット**: 3c764af
+
+**2. DISTINCT による予測データ喪失（38%）**
+- **問題**: 同じ日・同じ航路で複数の予測（forecast_hour別）があり、DISTINCTで1つに絞られる
+  - 例：2026-02-11は12,834件の予測 → DISTINCT後7,932件（4,902件喪失）
+- **原因**: `unified_accuracy_tracker.py:147-158`で`SELECT DISTINCT`を使用
+- **修正**: 最新の予測（forecast_hour最大値）のみを取得するよう変更
+  ```sql
+  -- 修正前: DISTINCT
+  SELECT DISTINCT forecast_for_date, route, risk_level...
+
+  -- 修正後: 最新予測を取得
+  SELECT cf.* FROM cancellation_forecast cf
+  INNER JOIN (
+      SELECT forecast_for_date, route, MAX(forecast_hour) as max_hour
+      FROM cancellation_forecast
+      WHERE forecast_for_date = ?
+      GROUP BY forecast_for_date, route
+  ) latest ON...
+  ```
+- **コミット**: 9102240
+
+**3. データベーステーブル名の不一致**
+- **問題**: `improved_ferry_collector.py`が`ferry_status_enhanced`に保存、`unified_accuracy_tracker.py`が`ferry_status`を参照
+- **結果**: 実運航データが0件として扱われる
+- **修正**: `unified_accuracy_tracker.py:180`で正しいテーブル名に変更
+- **コミット**: 1f1696a
+
+#### **検証ツール作成**
+
+デバッグと検証のため3つのツールを作成：
+
+1. **check_route_names.py**
+   - 予測データと実運航データのルート名マッピングを確認
+   - 結果：6ルート完全一致（kafuka-wakkanai, oshidomari-wakkanai等）
+
+2. **check_prediction_count.py**
+   - DISTINCT有無での予測件数差分を確認
+   - 結果：DISTINCTで38%のデータ喪失を発見
+
+3. **debug_accuracy_data.py**
+   - 日別の予測数・実運航数を確認
+   - 結果：テーブル名の不一致を発見
+
+#### **修正後の精度結果**
+
+| 日付 | 予測数 | 正解数 | 精度 | F1スコア |
+|------|--------|--------|------|----------|
+| 2026-02-07 | 11,058 | 10,068 | **91.0%** | 0.953 |
+| 2026-02-08 | 11,022 | 8,520 | 77.3% | 0.872 |
+| 2026-02-09 | 10,428 | 8,082 | 77.5% | 0.873 |
+| 2026-02-10 | 2,844 | 1,578 | 55.5% | 0.714 |
+| 2026-02-11 | 522 | 222 | 42.5% | 0.597 |
+
+**総合精度: 79.4%**（35,874件中28,470件正解）
+
+#### **現状の課題**
+
+直近の精度低下（42.5%）の原因：
+- システムは**LOW/MINIMAL**（低リスク）と予測
+- 実際は**MOSTLY_CANCELLED**（ほぼ全便欠航）
+- 冬季の厳しい天候（風速30m/s超）を過小評価
+
+**次のアクション**:
+- Phase 3: 機械学習による閾値最適化が必要
+- 現在のリスク判定基準（風速15m/s→LOW、20m/s→MEDIUM）が甘すぎる
+- 冬季は閾値を下げる（例：風速12m/s→MEDIUM、18m/s→HIGH）
+
+#### **修正ファイル一覧**
+- [analyze_accuracy.py](analyze_accuracy.py) - パーセント計算修正
+- [unified_accuracy_tracker.py](unified_accuracy_tracker.py) - 最新予測取得、テーブル名修正
+- [check_route_names.py](check_route_names.py) - ルート名検証ツール（新規）
+- [check_prediction_count.py](check_prediction_count.py) - DISTINCT検証ツール（新規）
+- [forecast_dashboard.py](forecast_dashboard.py) - デバッグエンドポイント追加
+
+---
+
 ### 2026-01-20: GitHub Actions完全自動化（Railway Cron問題の最終解決）
 
 #### **背景**
