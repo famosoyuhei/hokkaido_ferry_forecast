@@ -144,17 +144,26 @@ class UnifiedAccuracyTracker:
         forecast_conn = sqlite3.connect(self.forecast_db)
         forecast_cursor = forecast_conn.cursor()
 
+        # Get the most recent (latest forecast_hour) prediction for each route on the target date
         forecast_cursor.execute('''
-            SELECT DISTINCT
-                forecast_for_date,
-                route,
-                risk_level,
-                risk_score,
-                wind_forecast,
-                wave_forecast,
-                visibility_forecast
-            FROM cancellation_forecast
-            WHERE forecast_for_date = ?
+            SELECT
+                cf.forecast_for_date,
+                cf.route,
+                cf.risk_level,
+                cf.risk_score,
+                cf.wind_forecast,
+                cf.wave_forecast,
+                cf.visibility_forecast
+            FROM cancellation_forecast cf
+            INNER JOIN (
+                SELECT forecast_for_date, route, MAX(forecast_hour) as max_hour
+                FROM cancellation_forecast
+                WHERE forecast_for_date = ?
+                GROUP BY forecast_for_date, route
+            ) latest
+            ON cf.forecast_for_date = latest.forecast_for_date
+            AND cf.route = latest.route
+            AND cf.forecast_hour = latest.max_hour
         ''', (target_date,))
 
         predictions = forecast_cursor.fetchall()
