@@ -102,7 +102,7 @@ if false_negatives:
     print(f"\n  Average conditions when we UNDER-predicted:")
     print(f"    Wind: {avg_wind:.1f} m/s")
     print(f"    Wave: {avg_wave:.1f} m")
-    print(f"  → These should trigger at least MEDIUM risk")
+    print(f"  >> These should trigger at least MEDIUM risk")
 
 # Find conservative cases (predicted HIGH/MEDIUM but actually OPERATED)
 print("\n" + "=" * 100)
@@ -124,7 +124,7 @@ if false_positives:
     print(f"\n  Average conditions when we OVER-predicted:")
     print(f"    Wind: {avg_wind:.1f} m/s")
     print(f"    Wave: {avg_wave:.1f} m")
-    print(f"  → These conditions actually allow operation")
+    print(f"  >> These conditions actually allow operation")
 
 print("\n" + "=" * 100)
 print("RECOMMENDATIONS:")
@@ -133,7 +133,7 @@ print("=" * 100)
 if false_negatives:
     fn_wind = sum(r[4] for r in false_negatives) / len(false_negatives)
     print(f"1. Lower MEDIUM threshold: Current wind threshold should catch {fn_wind:.1f}m/s")
-    print(f"   Suggested: Wind ≥{fn_wind - 2:.0f}m/s should be MEDIUM in winter")
+    print(f"   Suggested: Wind >={fn_wind - 2:.0f}m/s should be MEDIUM in winter")
 
 if false_positives:
     fp_wind = sum(r[4] for r in false_positives) / len(false_positives)
