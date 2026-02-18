@@ -1140,6 +1140,42 @@ def admin_analyze_threshold_accuracy():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/admin/validate-seasonal-fix')
+def admin_validate_seasonal_fix():
+    """Admin endpoint to validate seasonal adjustment fixes historical errors"""
+    try:
+        result = subprocess.run(
+            ['python', 'validate_seasonal_fix.py'],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=os.path.dirname(os.path.abspath(__file__))
+        )
+
+        return jsonify({
+            'status': 'success' if result.returncode == 0 else 'error',
+            'output': result.stdout,
+            'errors': result.stderr,
+            'returncode': result.returncode,
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except subprocess.TimeoutExpired:
+        return jsonify({
+            'status': 'timeout',
+            'error': 'Script execution timed out after 30 seconds',
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        }), 504
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'data_directory': data_dir,
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 @app.route('/manifest.json')
 def manifest():
     """Serve PWA manifest"""
