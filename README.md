@@ -1,6 +1,8 @@
-# Hokkaido Ferry Forecast System
-
-Real-time ferry cancellation prediction system for Hokkaido islands (Rishiri & Rebun).
+<div align="center">
+  <img src="app_icon.png" alt="Hokkaido Ferry Forecast" width="150" height="150">
+  <h1>Hokkaido Ferry Forecast System</h1>
+  <p>Real-time ferry cancellation prediction system for Hokkaido islands (Rishiri & Rebun)</p>
+</div>
 
 📱 **NEW: Smartphone App Available!** Install as a Progressive Web App (PWA) on iOS/Android - see [PWA Guide](PWA_SMARTPHONE_APP_GUIDE.md)
 

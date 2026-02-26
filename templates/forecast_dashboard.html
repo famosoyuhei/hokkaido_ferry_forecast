@@ -21,6 +21,7 @@
     <link rel="manifest" href="/manifest.json">
 
     <!-- Icons -->
+    <link rel="icon" type="image/png" href="/static/app_icon.png">
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
@@ -53,6 +54,14 @@
             margin-bottom: 20px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.15);
             text-align: center;
+        }
+
+        .header-logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            display: block;
+            border-radius: 15px;
         }
 
         .header h1 {
@@ -356,7 +365,8 @@
     <div class="container">
         <!-- ヘッダー -->
         <div class="header">
-            <h1>🚢 北海道フェリー運航予報</h1>
+            <img src="/static/app_icon.png" alt="北海道フェリー予報" class="header-logo">
+            <h1>北海道フェリー運航予報</h1>
             <p class="subtitle">稚内 ⇔ 利尻・礼文島</p>
             <div class="update-info">
                 📅 最終更新: {{ current_time }}<br>
