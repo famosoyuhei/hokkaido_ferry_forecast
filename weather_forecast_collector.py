@@ -497,6 +497,9 @@ class WeatherForecastCollector:
             elif wind_speed >= 8:
                 risk_score += 15
                 risk_factors.append(f"Moderate wind ({wind_speed:.1f} m/s)")
+            elif wind_speed >= 5:
+                risk_score += 10
+                risk_factors.append(f"Light wind ({wind_speed:.1f} m/s)")
         else:
             # Summer: Standard thresholds
             if wind_speed >= 35:
@@ -529,7 +532,7 @@ class WeatherForecastCollector:
                 risk_score += 20
                 risk_factors.append(f"Moderate-high waves ({wave_height:.1f} m)")
             elif wave_height >= 1.5:
-                risk_score += 10
+                risk_score += 15
                 risk_factors.append(f"Moderate waves ({wave_height:.1f} m)")
         else:
             if wave_height >= 4.0:
@@ -554,10 +557,10 @@ class WeatherForecastCollector:
         # Apply seasonal multiplier
         risk_score = risk_score * seasonal_multiplier
 
-        # Determine risk level (LOWERED thresholds for more conservative approach)
+        # Determine risk level
         if risk_score >= 60:
             risk_level = "HIGH"
-        elif risk_score >= 35:
+        elif risk_score >= 30:
             risk_level = "MEDIUM"
         elif risk_score >= 15:
             risk_level = "LOW"
