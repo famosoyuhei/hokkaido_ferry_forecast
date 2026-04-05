@@ -57,9 +57,27 @@ class ImprovedFerryCollector:
         self.wakkanai_lat = 45.415
         self.wakkanai_lon = 141.673
 
-    def scrape_ferry_schedules(self):
-        """Scrape detailed ferry schedules from website"""
+    # Direction text → English route name
+    DIRECTION_MAP = {
+        "稚内→鴛泊": "wakkanai_oshidomari",
+        "鴛泊→稚内": "oshidomari_wakkanai",
+        "稚内→香深": "wakkanai_kafuka",
+        "香深→稚内": "kafuka_wakkanai",
+        "鴛泊→香深": "oshidomari_kafuka",
+        "香深→鴛泊": "kafuka_oshidomari",
+        "稚内→沓形": "wakkanai_kutsugata",
+        "沓形→稚内": "kutsugata_wakkanai",
+    }
 
+    def scrape_ferry_schedules(self):
+        """Scrape ferry schedules from Heartland Ferry status page.
+
+        Parses each ferry row individually using CSS classes:
+          <p class="joukyou"> ... overall status announcement
+          <th colspan="2">   ... direction header (e.g. 稚内→鴛泊)
+          <td class="time_td"> ... departure/arrival time + vessel name
+          <td class="kbn_td">  ... per-sailing status (運航 / 欠航 / 遅延)
+        """
         print(f"[INFO] Scraping ferry schedules from {self.status_url}")
 
         try:
@@ -69,91 +87,85 @@ class ImprovedFerryCollector:
                 timeout=30,
                 verify=False
             )
-
             if response.status_code != 200:
                 raise Exception(f"HTTP {response.status_code}")
 
             soup = BeautifulSoup(response.text, 'html.parser')
-
-            # Parse ferry schedule data
-            ferry_records = []
             current_date = datetime.now().strftime('%Y-%m-%d')
             current_time = datetime.now().strftime('%H:%M:%S')
 
-            # Extract general status message
-            general_status = "運航"  # Default to operating
-            if "欠航" in response.text:
-                general_status = "欠航"
-            elif "遅延" in response.text:
-                general_status = "遅延"
+            # --- Overall status (for logging only) ---
+            joukyou = soup.find('p', class_='joukyou')
+            overall_text = joukyou.get_text(strip=True) if joukyou else ''
+            print(f"[INFO] Overall status: {overall_text}")
 
-            # Look for time patterns (HH:MM～HH:MM or HH:MM~HH:MM)
-            time_pattern = r'(\d{1,2}:\d{2})[～~](\d{1,2}:\d{2})'
-            time_matches = re.findall(time_pattern, response.text)
+            ferry_records = []
 
-            # Look for ship names (more specific pattern)
-            ship_pattern = r'(アマポーラ宗谷|サイプリア宗谷|ボレアース宗谷)'
-            ship_matches = re.findall(ship_pattern, response.text)
+            # --- Parse each direction table ---
+            # Each <th colspan="2"> contains a direction like "稚内→鴛泊"
+            for th in soup.find_all('th', attrs={'colspan': '2'}):
+                direction = th.get_text(strip=True)
+                route_en = self.DIRECTION_MAP.get(direction)
+                if not route_en:
+                    continue  # skip Okushiri / unknown routes
 
-            # If no ships found, use default
-            if not ship_matches:
-                ship_matches = ['ハートランドフェリー']
+                route_info = next(
+                    (v for v in self.route_mappings.values() if v['en'] == route_en),
+                    None
+                )
 
-            # Extract route information
-            route_pattern = r'(稚内|利尻|礼文|鴛泊|香深|沓形)[⇔→←]+(稚内|利尻|礼文|鴛泊|香深|沓形)'
-            route_matches = re.findall(route_pattern, response.text)
+                table = th.find_parent('table')
+                if not table:
+                    continue
 
-            print(f"[DEBUG] Found {len(time_matches)} time slots")
-            print(f"[DEBUG] Found {len(ship_matches)} ship references")
-            print(f"[DEBUG] Found {len(route_matches)} route references")
+                for tr in table.find_all('tr'):
+                    time_td = tr.find('td', class_='time_td')
+                    kbn_td  = tr.find('td', class_='kbn_td')
+                    if not (time_td and kbn_td):
+                        continue
 
-            # Create records from extracted data
-            if time_matches:
-                for i, (departure_time, arrival_time) in enumerate(time_matches):
-                    # Assign route (cycle through routes)
-                    route_key = list(self.route_mappings.keys())[i % len(self.route_mappings)]
-                    route_info = self.route_mappings[route_key]
+                    # Departure/arrival times
+                    bold = time_td.find('span', style=lambda s: s and 'font-weight:bold' in s)
+                    time_text = bold.get_text(strip=True) if bold else ''
+                    if '～' in time_text:
+                        dep_time, arr_time = time_text.split('～', 1)
+                    else:
+                        dep_time, arr_time = time_text, ''
 
-                    # Assign ship name
-                    ship_name = ship_matches[i % len(ship_matches)] if ship_matches else "ハートランドフェリー"
+                    # Vessel name
+                    vessel_a = time_td.find('a')
+                    vessel = vessel_a.get_text(strip=True) if vessel_a else 'ハートランドフェリー'
 
-                    ferry_record = {
+                    # Per-sailing status
+                    status_span = kbn_td.find('span')
+                    status = status_span.get_text(strip=True) if status_span else '運航'
+                    is_cancelled = 1 if status == '欠航' else 0
+                    is_delayed   = 1 if status == '遅延' else 0
+
+                    record = {
                         'scrape_date': current_date,
                         'scrape_time': current_time,
-                        'route': route_info['en'],
-                        'route_jp': route_key,
-                        'departure_port': route_info['departure'],
-                        'arrival_port': route_info['arrival'],
-                        'vessel_name': ship_name,
-                        'departure_time': departure_time,
-                        'arrival_time': arrival_time,
-                        'operational_status': general_status,
-                        'is_cancelled': 1 if "欠航" in general_status else 0,
-                        'is_delayed': 1 if "遅延" in general_status else 0,
+                        'route': route_en,
+                        'route_jp': direction,
+                        'departure_port': route_info['departure'] if route_info else '',
+                        'arrival_port':   route_info['arrival']   if route_info else '',
+                        'vessel_name': vessel,
+                        'departure_time': dep_time,
+                        'arrival_time':   arr_time,
+                        'operational_status': status,
+                        'is_cancelled': is_cancelled,
+                        'is_delayed':   is_delayed,
                         'collection_timestamp': datetime.now().isoformat()
                     }
+                    ferry_records.append(record)
+                    mark = '[CANCEL]' if is_cancelled else '[OK]'
+                    print(f"  {mark} {direction} {dep_time} {vessel} -> {status}")
 
-                    ferry_records.append(ferry_record)
-                    print(f"[OK] {route_key} {departure_time}-{arrival_time} {ship_name} - {general_status}")
-
-            # If no schedules found, create a general status record
             if not ferry_records:
-                ferry_records.append({
-                    'scrape_date': current_date,
-                    'scrape_time': current_time,
-                    'route': 'general',
-                    'route_jp': '全航路',
-                    'departure_port': '',
-                    'arrival_port': '',
-                    'vessel_name': 'ハートランドフェリー',
-                    'departure_time': '全便',
-                    'arrival_time': '',
-                    'operational_status': general_status,
-                    'is_cancelled': 1 if "欠航" in general_status else 0,
-                    'is_delayed': 1 if "遅延" in general_status else 0,
-                    'collection_timestamp': datetime.now().isoformat()
-                })
+                print("[WARNING] No ferry records parsed from page")
 
+            print(f"[INFO] Total records: {len(ferry_records)} "
+                  f"(cancelled: {sum(r['is_cancelled'] for r in ferry_records)})")
             return ferry_records
 
         except Exception as e:
