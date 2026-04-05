@@ -1144,11 +1144,11 @@ def admin_analyze_threshold_accuracy():
 def admin_analyze_monthly():
     """Admin endpoint to analyze monthly cancellation patterns"""
     try:
-        import subprocess
+        import subprocess, os as _os
+        script = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'analyze_monthly_cancellations.py')
         result = subprocess.run(
-            ['python', 'analyze_monthly_cancellations.py'],
-            capture_output=True, text=True, timeout=30,
-            cwd=os.path.dirname(os.path.abspath(__file__))
+            ['python', script],
+            capture_output=True, text=True, timeout=30
         )
         return jsonify({
             'status': 'success' if result.returncode == 0 else 'error',
