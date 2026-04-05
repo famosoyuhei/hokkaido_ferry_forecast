@@ -462,18 +462,20 @@ class WeatherForecastCollector:
         risk_score = 0
         risk_factors = []
 
-        # Determine if it's winter season (Dec-Mar) for seasonal adjustment
+        # Determine season for risk adjustment
+        # Winter/spring (Dec-Apr): conservative thresholds, 1.2x multiplier
+        # Summer/autumn (May-Nov): standard thresholds, 1.0x multiplier
         is_winter = False
         if forecast_date:
             try:
                 from datetime import datetime as dt
                 date_obj = dt.strptime(forecast_date, '%Y-%m-%d')
                 month = date_obj.month
-                is_winter = month in [12, 1, 2, 3]
+                is_winter = month in [12, 1, 2, 3, 4]
             except:
                 pass
 
-        # Seasonal multiplier (winter is 1.2x, summer is 1.0x)
+        # Seasonal multiplier (winter/spring is 1.2x, summer/autumn is 1.0x)
         seasonal_multiplier = 1.2 if is_winter else 1.0
 
         # Wind speed risk with seasonal adjustment
