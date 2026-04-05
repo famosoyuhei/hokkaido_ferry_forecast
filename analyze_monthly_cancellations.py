@@ -17,24 +17,35 @@ print("=" * 70)
 conn = sqlite3.connect(real_db)
 cur = conn.cursor()
 
-print("\n[1] Monthly cancellation rate (ferry_status table)")
+# Show available tables
+cur.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+tables = [r[0] for r in cur.fetchall()]
+print(f"Tables in real_data DB: {tables}")
+
+print("\n[1] Monthly cancellation rate")
 print("-" * 70)
-cur.execute("""
-    SELECT
-        strftime('%Y-%m', scrape_date) as month,
-        COUNT(*) as total,
-        SUM(CASE WHEN is_cancelled = 1 THEN 1 ELSE 0 END) as cancelled
-    FROM ferry_status
-    GROUP BY month
-    ORDER BY month
-""")
-rows = cur.fetchall()
-print(f"{'Month':<12} {'Total':<8} {'Cancelled':<12} {'Cancel%'}")
-print("-" * 40)
-for month, total, cancelled in rows:
-    pct = (cancelled / total * 100) if total > 0 else 0
-    bar = '#' * int(pct / 5)
-    print(f"{month:<12} {total:<8} {cancelled:<12} {pct:5.1f}% {bar}")
+# Try ferry_status_enhanced first, then ferry_status
+table = 'ferry_status_enhanced' if 'ferry_status_enhanced' in tables else 'ferry_status'
+try:
+    cur.execute(f"""
+        SELECT
+            strftime('%Y-%m', scrape_date) as month,
+            COUNT(*) as total,
+            SUM(CASE WHEN is_cancelled = 1 THEN 1 ELSE 0 END) as cancelled
+        FROM {table}
+        GROUP BY month
+        ORDER BY month
+    """)
+    rows = cur.fetchall()
+    print(f"Source: {table}")
+    print(f"{'Month':<12} {'Total':<8} {'Cancelled':<12} {'Cancel%'}")
+    print("-" * 40)
+    for month, total, cancelled in rows:
+        pct = (cancelled / total * 100) if total > 0 else 0
+        bar = '#' * int(pct / 5)
+        print(f"{month:<12} {total:<8} {cancelled:<12} {pct:5.1f}% {bar}")
+except Exception as e:
+    print(f"  Error: {e}")
 
 # --- 2. Monthly summary from daily_summary ---
 print("\n[2] Monthly data from daily_summary table")
