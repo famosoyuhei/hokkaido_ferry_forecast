@@ -48,28 +48,16 @@ except Exception as e:
     print(f"  Error: {e}")
 
 # --- 2. Monthly summary from daily_summary ---
-print("\n[2] Monthly data from daily_summary table")
+# Show sample of what's in ferry_status_enhanced
+print("\n[2] Sample records from ferry_status_enhanced")
 print("-" * 70)
-cur.execute("""
-    SELECT
-        strftime('%Y-%m', summary_date) as month,
-        COUNT(*) as days,
-        SUM(total_sailings) as total_sailings,
-        SUM(cancelled_sailings) as cancelled_sailings
-    FROM daily_summary
-    GROUP BY month
-    ORDER BY month
-""")
-rows2 = cur.fetchall()
-if rows2:
-    print(f"{'Month':<12} {'Days':<6} {'Sailings':<10} {'Cancelled':<12} {'Cancel%'}")
-    print("-" * 50)
-    for month, days, total, cancelled in rows2:
-        if total and total > 0:
-            pct = (cancelled / total * 100)
-            print(f"{month:<12} {days:<6} {total:<10} {cancelled:<12} {pct:5.1f}%")
-else:
-    print("  No data in daily_summary")
+cur.execute("PRAGMA table_info(ferry_status_enhanced)")
+cols = [c[1] for c in cur.fetchall()]
+print(f"Columns: {cols}")
+cur.execute("SELECT * FROM ferry_status_enhanced LIMIT 5")
+samples = cur.fetchall()
+for s in samples:
+    print(s)
 
 conn.close()
 
