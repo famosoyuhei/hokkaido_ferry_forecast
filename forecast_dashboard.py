@@ -1140,6 +1140,24 @@ def admin_analyze_threshold_accuracy():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/admin/analyze-monthly')
+def admin_analyze_monthly():
+    """Admin endpoint to analyze monthly cancellation patterns"""
+    try:
+        result = subprocess.run(
+            ['python', 'analyze_monthly_cancellations.py'],
+            capture_output=True, text=True, timeout=30,
+            cwd=os.path.dirname(os.path.abspath(__file__))
+        )
+        return jsonify({
+            'status': 'success' if result.returncode == 0 else 'error',
+            'output': result.stdout,
+            'errors': result.stderr,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
 @app.route('/admin/validate-seasonal-fix')
 def admin_validate_seasonal_fix():
     """Admin endpoint to validate seasonal adjustment fixes historical errors"""
