@@ -1144,6 +1144,7 @@ def admin_analyze_threshold_accuracy():
 def admin_analyze_monthly():
     """Admin endpoint to analyze monthly cancellation patterns"""
     try:
+        import subprocess
         result = subprocess.run(
             ['python', 'analyze_monthly_cancellations.py'],
             capture_output=True, text=True, timeout=30,
