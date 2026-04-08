@@ -17,19 +17,24 @@ jobs:
     name: Collect Weather Forecast Data
 
     steps:
-      - name: Trigger weather forecast collection
+      - name: Trigger weather forecast collection (with retry)
         run: |
           echo "Triggering weather forecast collection..."
-          response=$(curl -s -w "\n%{http_code}" https://web-production-a628.up.railway.app/admin/collect-data)
-          http_code=$(echo "$response" | tail -n 1)
-          body=$(echo "$response" | head -n -1)
-
-          echo "HTTP Status: $http_code"
-          echo "Response: $body"
-
-          if [ "$http_code" != "200" ]; then
-            echo "❌ Weather forecast collection failed"
-            exit 1
-          fi
-
-          echo "✅ Weather forecast collection successful"
+          MAX_RETRIES=3
+          RETRY_DELAY=30
+          for i in $(seq 1 $MAX_RETRIES); do
+            response=$(curl -s -w "\n%{http_code}" --max-time 60 https://web-production-a628.up.railway.app/admin/collect-data)
+            http_code=$(echo "$response" | tail -n 1)
+            body=$(echo "$response" | head -n -1)
+            echo "Attempt $i/$MAX_RETRIES - HTTP Status: $http_code"
+            if [ "$http_code" = "200" ]; then
+              echo "Weather forecast collection successful"
+              echo "$body"
+              exit 0
+            fi
+            echo "Failed (status $http_code). Retrying in ${RETRY_DELAY}s..."
+            echo "$body"
+            sleep $RETRY_DELAY
+          done
+          echo "Weather forecast collection failed after $MAX_RETRIES attempts"
+          exit 1

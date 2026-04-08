@@ -17,24 +17,27 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Run unified accuracy tracker via Railway endpoint
+      - name: Run unified accuracy tracker via Railway endpoint (with retry)
         run: |
           echo "Running unified accuracy tracker via Railway admin endpoint..."
-
-          # Call the admin endpoint that runs unified_accuracy_tracker.py
-          response=$(curl -s -w "\n%{http_code}" https://web-production-a628.up.railway.app/admin/run-accuracy-tracking)
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | head -n-1)
-
-          echo "HTTP Status: $http_code"
-          echo "Response: $body"
-
-          if [ "$http_code" -eq 200 ]; then
-            echo "✅ Accuracy tracking completed successfully"
-          else
-            echo "❌ Accuracy tracking failed with status $http_code"
-            exit 1
-          fi
+          MAX_RETRIES=3
+          RETRY_DELAY=30
+          for i in $(seq 1 $MAX_RETRIES); do
+            response=$(curl -s -w "\n%{http_code}" --max-time 60 https://web-production-a628.up.railway.app/admin/run-accuracy-tracking)
+            http_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | head -n-1)
+            echo "Attempt $i/$MAX_RETRIES - HTTP Status: $http_code"
+            if [ "$http_code" = "200" ]; then
+              echo "Accuracy tracking completed successfully"
+              echo "$body"
+              exit 0
+            fi
+            echo "Failed (status $http_code). Retrying in ${RETRY_DELAY}s..."
+            echo "$body"
+            sleep $RETRY_DELAY
+          done
+          echo "Accuracy tracking failed after $MAX_RETRIES attempts"
+          exit 1
 
       - name: Comment on commit (if issues found)
         if: failure()
@@ -45,14 +48,14 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: 'Accuracy Tracking Failed',
-              body: 'Unified accuracy tracking workflow failed. Please check the logs.',
+              body: 'Unified accuracy tracking workflow failed after 3 retries. Please check the logs.',
               labels: ['alert', 'accuracy-tracking']
             })
 
       - name: Summary
         if: success()
         run: |
-          echo "### Unified Accuracy Tracking Completed ✅" >> $GITHUB_STEP_SUMMARY
+          echo "### Unified Accuracy Tracking Completed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
           echo "**Method**: Railway admin endpoint" >> $GITHUB_STEP_SUMMARY
