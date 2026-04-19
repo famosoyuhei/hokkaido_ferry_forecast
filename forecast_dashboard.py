@@ -808,6 +808,36 @@ def admin_run_accuracy_tracking():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/admin/run-backfill')
+def admin_run_backfill():
+    """Admin endpoint to backfill historical actual weather data."""
+    import subprocess
+    from flask import request as flask_request
+    start_date = flask_request.args.get('start', '2025-10-01')
+    end_date   = flask_request.args.get('end', '')
+    cmd = ['python', 'backfill_actual_weather.py', start_date]
+    if end_date:
+        cmd.append(end_date)
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=600
+        )
+        return jsonify({
+            'status': 'success' if result.returncode == 0 else 'error',
+            'returncode': result.returncode,
+            'stdout': result.stdout[-4000:] if len(result.stdout) > 4000 else result.stdout,
+            'stderr': result.stderr[-2000:] if len(result.stderr) > 2000 else result.stderr,
+            'start_date': start_date,
+            'end_date': end_date or 'yesterday',
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({'status': 'timeout', 'message': 'Backfill is still running (>10min)'}), 202
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
 @app.route('/admin/generate-sailing-forecasts')
 def admin_generate_sailing_forecasts():
     """Admin endpoint to generate sailing-level forecasts"""
