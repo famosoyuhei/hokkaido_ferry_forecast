@@ -839,6 +839,35 @@ def admin_run_bulk_accuracy():
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
+@app.route('/admin/ferry-status-raw')
+def admin_ferry_status_raw():
+    """Return raw ferry_status_enhanced records for a given date."""
+    from flask import request as flask_request
+    import sqlite3, os
+    target_date = flask_request.args.get('date', '')
+    if not target_date:
+        import pytz as _pytz
+        from datetime import datetime as _dt, timedelta as _td
+        target_date = (_dt.now(_pytz.timezone('Asia/Tokyo')) - _td(days=1)).strftime('%Y-%m-%d')
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')
+    real_db = os.path.join(data_dir, 'heartland_ferry_real_data.db')
+    try:
+        conn = sqlite3.connect(real_db)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            'SELECT scrape_date, route, departure_time, operational_status, is_cancelled '
+            'FROM ferry_status_enhanced WHERE scrape_date = ? ORDER BY route, departure_time',
+            (target_date,)
+        ).fetchall()
+        conn.close()
+        return jsonify({
+            'date': target_date,
+            'count': len(rows),
+            'records': [dict(r) for r in rows]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/admin/run-backfill')
 def admin_run_backfill():
     """Admin endpoint to backfill historical actual weather data."""
