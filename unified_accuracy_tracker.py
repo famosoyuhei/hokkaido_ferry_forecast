@@ -158,9 +158,9 @@ class UnifiedAccuracyTracker:
         actual_vis_measured  = row[2] if row and row[2] is not None else None
 
         if actual_wind_measured is not None:
-            print(f"  Actual weather: wind={actual_wind_measured:.1f}m/s "
-                  f"wave={actual_wave_measured:.2f}m "
-                  f"vis={actual_vis_measured:.1f}km")
+            w = f"{actual_wave_measured:.2f}m" if actual_wave_measured is not None else "N/A"
+            v = f"{actual_vis_measured:.1f}km" if actual_vis_measured is not None else "N/A"
+            print(f"  Actual weather: wind={actual_wind_measured:.1f}m/s wave={w} vis={v}")
         else:
             print(f"  [WARNING] No actual weather data for {target_date} "
                   f"(run actual_weather_collector.py first)")
