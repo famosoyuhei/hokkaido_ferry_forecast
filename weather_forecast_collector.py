@@ -462,92 +462,37 @@ class WeatherForecastCollector:
         risk_score = 0
         risk_factors = []
 
-        # Determine season for risk adjustment
-        # Winter/spring (Dec-Apr): conservative thresholds, 1.2x multiplier
-        # Summer/autumn (May-Nov): standard thresholds, 1.0x multiplier
-        is_winter = False
-        if forecast_date:
-            try:
-                from datetime import datetime as dt
-                date_obj = dt.strptime(forecast_date, '%Y-%m-%d')
-                month = date_obj.month
-                is_winter = month in [12, 1, 2, 3, 4]
-            except:
-                pass
+        # Wind speed (primary factor)
+        if wind_speed >= 35:
+            risk_score += 70
+            risk_factors.append(f"Extreme wind ({wind_speed:.1f} m/s)")
+        elif wind_speed >= 30:
+            risk_score += 60
+            risk_factors.append(f"Very dangerous wind ({wind_speed:.1f} m/s)")
+        elif wind_speed >= 25:
+            risk_score += 50
+            risk_factors.append(f"Very strong wind ({wind_speed:.1f} m/s)")
+        elif wind_speed >= 20:
+            risk_score += 35
+            risk_factors.append(f"Strong wind ({wind_speed:.1f} m/s)")
+        elif wind_speed >= 15:
+            risk_score += 20
+            risk_factors.append(f"Moderate wind ({wind_speed:.1f} m/s)")
+        elif wind_speed >= 10:
+            risk_score += 10
 
-        # Seasonal multiplier (winter/spring is 1.2x, summer/autumn is 1.0x)
-        seasonal_multiplier = 1.2 if is_winter else 1.0
+        # Wave height — only count above 2.0m (1.5m is the API floor value, not reliable)
+        if wave_height >= 4.0:
+            risk_score += 40
+            risk_factors.append(f"Very high waves ({wave_height:.1f} m)")
+        elif wave_height >= 3.0:
+            risk_score += 30
+            risk_factors.append(f"High waves ({wave_height:.1f} m)")
+        elif wave_height >= 2.0:
+            risk_score += 15
+            risk_factors.append(f"Moderate-high waves ({wave_height:.1f} m)")
 
-        # Wind speed risk with seasonal adjustment
-        if is_winter:
-            # Winter: Lowered thresholds
-            if wind_speed >= 30:
-                risk_score += 70
-                risk_factors.append(f"Extreme wind ({wind_speed:.1f} m/s)")
-            elif wind_speed >= 25:
-                risk_score += 60
-                risk_factors.append(f"Very dangerous wind ({wind_speed:.1f} m/s)")
-            elif wind_speed >= 20:
-                risk_score += 50
-                risk_factors.append(f"Very strong wind ({wind_speed:.1f} m/s)")
-            elif wind_speed >= 15:
-                risk_score += 35
-                risk_factors.append(f"Strong wind ({wind_speed:.1f} m/s)")
-            elif wind_speed >= 12:
-                risk_score += 25
-                risk_factors.append(f"Moderate-strong wind ({wind_speed:.1f} m/s)")
-            elif wind_speed >= 8:
-                risk_score += 15
-                risk_factors.append(f"Moderate wind ({wind_speed:.1f} m/s)")
-            elif wind_speed >= 5:
-                risk_score += 10
-                risk_factors.append(f"Light wind ({wind_speed:.1f} m/s)")
-        else:
-            # Summer: Standard thresholds
-            if wind_speed >= 35:
-                risk_score += 70
-                risk_factors.append(f"Extreme wind ({wind_speed:.1f} m/s)")
-            elif wind_speed >= 30:
-                risk_score += 60
-                risk_factors.append(f"Very dangerous wind ({wind_speed:.1f} m/s)")
-            elif wind_speed >= 25:
-                risk_score += 50
-                risk_factors.append(f"Very strong wind ({wind_speed:.1f} m/s)")
-            elif wind_speed >= 20:
-                risk_score += 35
-                risk_factors.append(f"Strong wind ({wind_speed:.1f} m/s)")
-            elif wind_speed >= 15:
-                risk_score += 20
-                risk_factors.append(f"Moderate wind ({wind_speed:.1f} m/s)")
-            elif wind_speed >= 10:
-                risk_score += 10
-
-        # Wave height risk with seasonal adjustment
-        if is_winter:
-            if wave_height >= 4.0:
-                risk_score += 45
-                risk_factors.append(f"Very high waves ({wave_height:.1f} m)")
-            elif wave_height >= 3.0:
-                risk_score += 35
-                risk_factors.append(f"High waves ({wave_height:.1f} m)")
-            elif wave_height >= 2.0:
-                risk_score += 20
-                risk_factors.append(f"Moderate-high waves ({wave_height:.1f} m)")
-            elif wave_height >= 1.5:
-                risk_score += 15
-                risk_factors.append(f"Moderate waves ({wave_height:.1f} m)")
-        else:
-            if wave_height >= 4.0:
-                risk_score += 40
-                risk_factors.append(f"Very high waves ({wave_height:.1f} m)")
-            elif wave_height >= 3.0:
-                risk_score += 30
-                risk_factors.append(f"High waves ({wave_height:.1f} m)")
-            elif wave_height >= 2.0:
-                risk_score += 15
-                risk_factors.append(f"Moderate waves ({wave_height:.1f} m)")
-
-        # Visibility risk (same for all seasons)
+        # Visibility
         if visibility is not None:
             if visibility < 1.0:
                 risk_score += 20
@@ -556,15 +501,12 @@ class WeatherForecastCollector:
                 risk_score += 10
                 risk_factors.append(f"Poor visibility ({visibility:.1f} km)")
 
-        # Apply seasonal multiplier
-        risk_score = risk_score * seasonal_multiplier
-
-        # Determine risk level
-        if risk_score >= 60:
+        # Risk level
+        if risk_score >= 70:
             risk_level = "HIGH"
-        elif risk_score >= 30:
+        elif risk_score >= 40:
             risk_level = "MEDIUM"
-        elif risk_score >= 15:
+        elif risk_score >= 20:
             risk_level = "LOW"
         else:
             risk_level = "MINIMAL"
