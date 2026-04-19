@@ -808,6 +808,37 @@ def admin_run_accuracy_tracking():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/admin/run-bulk-accuracy')
+def admin_run_bulk_accuracy():
+    """Re-calculate accuracy for a date range using backfilled actual weather."""
+    import subprocess
+    from flask import request as flask_request
+    start_date = flask_request.args.get('start', '2026-04-05')
+    end_date   = flask_request.args.get('end', '')
+    if not end_date:
+        import pytz as _pytz
+        from datetime import datetime as _dt, timedelta as _td
+        end_date = (_dt.now(_pytz.timezone('Asia/Tokyo')) - _td(days=1)).strftime('%Y-%m-%d')
+    try:
+        result = subprocess.run(
+            ['python', 'unified_accuracy_tracker.py', start_date, end_date],
+            capture_output=True,
+            text=True,
+            timeout=600
+        )
+        return jsonify({
+            'status': 'success' if result.returncode == 0 else 'error',
+            'returncode': result.returncode,
+            'start_date': start_date,
+            'end_date': end_date,
+            'stdout': result.stdout[-6000:] if len(result.stdout) > 6000 else result.stdout,
+            'stderr': result.stderr[-2000:] if len(result.stderr) > 2000 else result.stderr,
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({'status': 'timeout', 'message': 'Still running (>10min)'}), 202
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
 @app.route('/admin/run-backfill')
 def admin_run_backfill():
     """Admin endpoint to backfill historical actual weather data."""

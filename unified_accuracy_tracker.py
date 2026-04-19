@@ -454,15 +454,44 @@ class UnifiedAccuracyTracker:
 
 
 def main():
-    """Main execution"""
+    """Main execution.
+
+    Usage:
+        python unified_accuracy_tracker.py                        # yesterday only
+        python unified_accuracy_tracker.py 2026-04-05            # single date
+        python unified_accuracy_tracker.py 2026-04-05 2026-04-18 # date range
+    """
+    from datetime import date as date_cls
+
     print("Starting Unified Accuracy Tracker...")
     print("=" * 80)
 
+    jst = pytz.timezone('Asia/Tokyo')
+    yesterday_str = (datetime.now(jst) - timedelta(days=1)).strftime('%Y-%m-%d')
+
+    args = sys.argv[1:]
+    if len(args) >= 2:
+        start_str = args[0]
+        end_str   = args[1]
+    elif len(args) == 1:
+        start_str = args[0]
+        end_str   = args[0]
+    else:
+        start_str = yesterday_str
+        end_str   = yesterday_str
+
     tracker = UnifiedAccuracyTracker()
 
-    # Calculate yesterday's accuracy
-    yesterday = (datetime.now(pytz.timezone('Asia/Tokyo')) - timedelta(days=1)).strftime('%Y-%m-%d')
-    tracker.calculate_daily_accuracy(yesterday)
+    # Loop over requested date range
+    current = date_cls.fromisoformat(start_str)
+    end_d   = date_cls.fromisoformat(end_str)
+    days_done = 0
+    while current <= end_d:
+        tracker.calculate_daily_accuracy(current.strftime('%Y-%m-%d'))
+        current += timedelta(days=1)
+        days_done += 1
+
+    print(f"\nProcessed {days_done} day(s) from {start_str} to {end_str}")
 
     # Generate and print report
     report = tracker.generate_report()
