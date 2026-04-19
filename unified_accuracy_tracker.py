@@ -130,6 +130,31 @@ class UnifiedAccuracyTracker:
         conn.close()
         print("Accuracy tables initialized")
 
+    def _calc_risk(self, wind: float, wave: Optional[float], vis: Optional[float]):
+        """Inline risk calculation (mirrors weather_forecast_collector logic)."""
+        score = 0
+        if wind >= 35:   score += 70
+        elif wind >= 30: score += 60
+        elif wind >= 25: score += 50
+        elif wind >= 20: score += 35
+        elif wind >= 15: score += 20
+        elif wind >= 10: score += 10
+
+        if wave is not None:
+            if wave >= 4.0:   score += 40
+            elif wave >= 3.0: score += 30
+            elif wave >= 2.0: score += 15
+
+        if vis is not None:
+            if vis < 1.0:   score += 20
+            elif vis < 3.0: score += 10
+
+        if score >= 70:   risk = 'HIGH'
+        elif score >= 40: risk = 'MEDIUM'
+        elif score >= 20: risk = 'LOW'
+        else:             risk = 'MINIMAL'
+        return risk, score
+
     def calculate_daily_accuracy(self, target_date: Optional[str] = None) -> Dict:
         """Calculate accuracy for a specific date"""
 
@@ -166,23 +191,17 @@ class UnifiedAccuracyTracker:
                   f"(run actual_weather_collector.py first)")
 
         # --- Hindcast: what would our model predict using ACTUAL weather? ---
-        # Import risk calculator from weather_forecast_collector
-        try:
-            from weather_forecast_collector import WeatherForecastCollector
-            wfc = WeatherForecastCollector.__new__(WeatherForecastCollector)
-            hindcast_risk, hindcast_score, _ = wfc.calculate_cancellation_risk(
-                actual_wind_measured or 10.0,
+        hindcast_risk = None
+        hindcast_score = None
+        use_hindcast = actual_wind_measured is not None
+
+        if use_hindcast:
+            hindcast_risk, hindcast_score = self._calc_risk(
+                actual_wind_measured,
                 actual_wave_measured,
-                actual_vis_measured,
-                target_date
+                actual_vis_measured
             )
             print(f"  Hindcast risk (actual weather): {hindcast_risk} (score={hindcast_score:.1f})")
-            use_hindcast = actual_wind_measured is not None
-        except Exception as e:
-            print(f"  [WARNING] Hindcast failed: {e}. Falling back to forecast risk.")
-            hindcast_risk = None
-            hindcast_score = None
-            use_hindcast = False
 
         # --- Forecast-based predictions (for reference) ---
         forecast_cursor.execute('''
