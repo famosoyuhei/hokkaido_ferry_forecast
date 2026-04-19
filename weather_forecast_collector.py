@@ -32,6 +32,7 @@ class WeatherForecastCollector:
 
         # Open-Meteo configuration
         self.openmeteo_url = "https://api.open-meteo.com/v1/forecast"
+        self.openmeteo_marine_url = "https://marine-api.open-meteo.com/v1/marine"
         self.locations = {
             'wakkanai': {'lat': 45.415, 'lon': 141.673, 'name': '稚内'},
             'rishiri': {'lat': 45.180, 'lon': 141.240, 'name': '利尻'},
@@ -285,6 +286,7 @@ class WeatherForecastCollector:
         print(f"\n[INFO] Collecting Open-Meteo forecast for {location['name']}")
 
         try:
+            # Fetch weather forecast (wind, visibility, temperature)
             params = {
                 'latitude': location['lat'],
                 'longitude': location['lon'],
@@ -292,12 +294,9 @@ class WeatherForecastCollector:
                 'forecast_days': 7,
                 'timezone': 'Asia/Tokyo'
             }
-
             response = requests.get(self.openmeteo_url, params=params, timeout=30)
-
             if response.status_code != 200:
                 raise Exception(f"HTTP {response.status_code}")
-
             data = response.json()
             hourly = data.get('hourly', {})
 
@@ -307,29 +306,51 @@ class WeatherForecastCollector:
             wind_dirs = hourly.get('winddirection_10m', [])
             visibilities = hourly.get('visibility', [])
 
-            forecasts = []
+            # Fetch wave height from Marine API (separate endpoint)
+            marine_params = {
+                'latitude': location['lat'],
+                'longitude': location['lon'],
+                'hourly': ['wave_height'],
+                'forecast_days': 7,
+                'timezone': 'Asia/Tokyo'
+            }
+            wave_by_time = {}
+            try:
+                marine_response = requests.get(self.openmeteo_marine_url, params=marine_params, timeout=30)
+                if marine_response.status_code == 200:
+                    marine_data = marine_response.json()
+                    marine_hourly = marine_data.get('hourly', {})
+                    marine_times = marine_hourly.get('time', [])
+                    marine_waves = marine_hourly.get('wave_height', [])
+                    wave_by_time = {t: w for t, w in zip(marine_times, marine_waves) if w is not None}
+                    print(f"[OK] Marine API: {len(wave_by_time)} wave height records")
+            except Exception as e:
+                print(f"[WARNING] Marine API failed, wave height unavailable: {e}")
 
+            forecasts = []
             for i, time_str in enumerate(times):
                 forecast_time = datetime.fromisoformat(time_str)
                 hours_ahead = int((forecast_time - datetime.now()).total_seconds() / 3600)
-
-                # Skip past times
                 if hours_ahead < 0:
                     continue
+
+                # Use real wave height from Marine API; fall back to None (not 1.5 default)
+                wave_height = wave_by_time.get(time_str)
 
                 forecast_record = {
                     'forecast_date': forecast_time.date().isoformat(),
                     'forecast_hour': forecast_time.hour,
                     'location': location['name'],
                     'temperature': temps[i] if i < len(temps) else None,
-                    'visibility': visibilities[i] / 1000 if i < len(visibilities) else None,  # Convert to km
+                    'visibility': visibilities[i] / 1000 if i < len(visibilities) else None,
                     'wind_speed_numeric': wind_speeds[i] if i < len(wind_speeds) else None,
                     'wind_direction_deg': wind_dirs[i] if i < len(wind_dirs) else None,
+                    'wave_height_min': wave_height,
+                    'wave_height_max': wave_height,
                     'collected_at': datetime.now().isoformat(),
                     'forecast_horizon': hours_ahead,
                     'data_source': 'Open-Meteo'
                 }
-
                 forecasts.append(forecast_record)
 
             print(f"[OK] Collected {len(forecasts)} Open-Meteo forecast records")
@@ -446,7 +467,7 @@ class WeatherForecastCollector:
         print(f"[OK] Saved {saved} forecast records to database")
         return saved
 
-    def calculate_cancellation_risk(self, wind_speed: float, wave_height: float,
+    def calculate_cancellation_risk(self, wind_speed: float, wave_height: Optional[float],
                                     visibility: Optional[float] = None,
                                     forecast_date: Optional[str] = None) -> Tuple[str, float, List[str]]:
         """
@@ -481,16 +502,17 @@ class WeatherForecastCollector:
         elif wind_speed >= 10:
             risk_score += 10
 
-        # Wave height — only count above 2.0m (1.5m is the API floor value, not reliable)
-        if wave_height >= 4.0:
-            risk_score += 40
-            risk_factors.append(f"Very high waves ({wave_height:.1f} m)")
-        elif wave_height >= 3.0:
-            risk_score += 30
-            risk_factors.append(f"High waves ({wave_height:.1f} m)")
-        elif wave_height >= 2.0:
-            risk_score += 15
-            risk_factors.append(f"Moderate-high waves ({wave_height:.1f} m)")
+        # Wave height — from Marine API (real data, not 1.5m floor)
+        if wave_height is not None:
+            if wave_height >= 4.0:
+                risk_score += 40
+                risk_factors.append(f"Very high waves ({wave_height:.1f} m)")
+            elif wave_height >= 3.0:
+                risk_score += 30
+                risk_factors.append(f"High waves ({wave_height:.1f} m)")
+            elif wave_height >= 2.0:
+                risk_score += 15
+                risk_factors.append(f"Moderate-high waves ({wave_height:.1f} m)")
 
         # Visibility
         if visibility is not None:
@@ -551,9 +573,9 @@ class WeatherForecastCollector:
             if wind_speed is None and wave_height is None:
                 continue
 
-            # Use defaults if data is missing
+            # Use defaults if data is missing (wave_height stays None if unavailable)
             wind_speed = wind_speed if wind_speed is not None else 10.0
-            wave_height = wave_height if wave_height is not None else 1.5
+            wave_height = wave_height if wave_height is not None else None
 
             # Calculate risk (with seasonal adjustment)
             risk_level, risk_score, risk_factors = self.calculate_cancellation_risk(
