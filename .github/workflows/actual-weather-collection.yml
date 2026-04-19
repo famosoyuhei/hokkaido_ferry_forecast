@@ -1,0 +1,44 @@
+name: Actual Weather Collection
+
+on:
+  schedule:
+    # Run at 22:30 UTC (07:30 JST) — after ferry scraper (21:00 UTC) and accuracy tracker (22:00 UTC)
+    - cron: '30 22 * * *'
+  workflow_dispatch:
+
+jobs:
+  collect-actual-weather:
+    runs-on: ubuntu-latest
+    name: Collect Yesterday Actual Weather
+
+    steps:
+      - name: Collect actual weather and run accuracy tracking (with retry)
+        run: |
+          echo "Collecting actual weather data and running accuracy tracking..."
+          MAX_RETRIES=3
+          RETRY_DELAY=30
+          for i in $(seq 1 $MAX_RETRIES); do
+            response=$(curl -s -w "\n%{http_code}" --max-time 120 https://web-production-a628.up.railway.app/admin/run-accuracy-tracking)
+            http_code=$(echo "$response" | tail -n 1)
+            body=$(echo "$response" | head -n -1)
+            echo "Attempt $i/$MAX_RETRIES - HTTP Status: $http_code"
+            if [ "$http_code" = "200" ]; then
+              echo "Actual weather collection and accuracy tracking successful"
+              echo "$body" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    for script, result in d.get('scripts_run', {}).items():
+        print(f'  {script}: {result[\"status\"]}')
+        if result['stdout']:
+            for line in result['stdout'].split('\n')[-10:]:
+                if line.strip(): print(f'    {line}')
+except: pass
+" 2>/dev/null || true
+              exit 0
+            fi
+            echo "Failed (status $http_code). Retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          done
+          echo "Failed after $MAX_RETRIES attempts"
+          exit 1

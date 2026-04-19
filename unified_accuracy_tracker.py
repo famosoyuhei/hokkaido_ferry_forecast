@@ -140,11 +140,51 @@ class UnifiedAccuracyTracker:
 
         print(f"\nCalculating accuracy for {target_date}...")
 
-        # Get predictions from cancellation_forecast
+        # --- Actual weather for target_date (daily averages) ---
         forecast_conn = sqlite3.connect(self.forecast_db)
         forecast_cursor = forecast_conn.cursor()
 
-        # Get the most recent (latest forecast_hour) prediction for each route on the target date
+        forecast_cursor.execute('''
+            SELECT
+                AVG(wind_speed)   as actual_wind,
+                AVG(wave_height)  as actual_wave,
+                AVG(visibility)   as actual_vis
+            FROM actual_weather
+            WHERE date = ?
+        ''', (target_date,))
+        row = forecast_cursor.fetchone()
+        actual_wind_measured = row[0] if row and row[0] is not None else None
+        actual_wave_measured = row[1] if row and row[1] is not None else None
+        actual_vis_measured  = row[2] if row and row[2] is not None else None
+
+        if actual_wind_measured is not None:
+            print(f"  Actual weather: wind={actual_wind_measured:.1f}m/s "
+                  f"wave={actual_wave_measured:.2f}m "
+                  f"vis={actual_vis_measured:.1f}km")
+        else:
+            print(f"  [WARNING] No actual weather data for {target_date} "
+                  f"(run actual_weather_collector.py first)")
+
+        # --- Hindcast: what would our model predict using ACTUAL weather? ---
+        # Import risk calculator from weather_forecast_collector
+        try:
+            from weather_forecast_collector import WeatherForecastCollector
+            wfc = WeatherForecastCollector.__new__(WeatherForecastCollector)
+            hindcast_risk, hindcast_score, _ = wfc.calculate_cancellation_risk(
+                actual_wind_measured or 10.0,
+                actual_wave_measured,
+                actual_vis_measured,
+                target_date
+            )
+            print(f"  Hindcast risk (actual weather): {hindcast_risk} (score={hindcast_score:.1f})")
+            use_hindcast = actual_wind_measured is not None
+        except Exception as e:
+            print(f"  [WARNING] Hindcast failed: {e}. Falling back to forecast risk.")
+            hindcast_risk = None
+            hindcast_score = None
+            use_hindcast = False
+
+        # --- Forecast-based predictions (for reference) ---
         forecast_cursor.execute('''
             SELECT
                 cf.forecast_for_date,
@@ -167,7 +207,7 @@ class UnifiedAccuracyTracker:
         ''', (target_date,))
 
         predictions = forecast_cursor.fetchall()
-        print(f"  Found {len(predictions)} predictions from cancellation_forecast")
+        print(f"  Found {len(predictions)} forecast predictions")
 
         if not predictions:
             print(f"  No predictions found for {target_date}")
@@ -219,23 +259,19 @@ class UnifiedAccuracyTracker:
             pred_date, route, risk, score, wind, wave, vis = pred
 
             if route in actual_ops_by_route:
-                # Route-level matching (since cancellation_forecast is per route, not per sailing)
                 route_ops = actual_ops_by_route[route]
-
-                # Count how many sailings were cancelled vs operated
                 cancelled_count = sum(1 for op in route_ops if op['is_cancelled'])
-                operated_count = len(route_ops) - cancelled_count
-
-                # Route is considered "cancelled" if majority of sailings were cancelled
+                operated_count  = len(route_ops) - cancelled_count
                 route_mostly_cancelled = cancelled_count > operated_count
 
-                # Determine if prediction was correct
-                predicted_high_risk = risk in ['HIGH', 'MEDIUM']
+                # Use hindcast (actual weather) when available; else fall back to forecast risk
+                eval_risk  = hindcast_risk  if use_hindcast else risk
+                eval_score = hindcast_score if use_hindcast else score
 
+                predicted_high_risk = eval_risk in ['HIGH', 'MEDIUM']
                 is_correct = (predicted_high_risk and route_mostly_cancelled) or \
                              (not predicted_high_risk and not route_mostly_cancelled)
 
-                # Confusion matrix
                 if predicted_high_risk and route_mostly_cancelled:
                     true_positives += 1
                 elif predicted_high_risk and not route_mostly_cancelled:
@@ -247,26 +283,29 @@ class UnifiedAccuracyTracker:
 
                 if is_correct:
                     correct += 1
-
                 matched += 1
 
-                # Store one record per route (not per sailing)
                 unified_cursor.execute('''
                     INSERT OR REPLACE INTO unified_operation_accuracy
                     (operation_date, route, departure_time,
                      predicted_risk, predicted_score, predicted_wind, predicted_wave, predicted_visibility,
-                     actual_status, is_correct, false_positive, false_negative,
+                     actual_status, actual_wind, actual_wave, actual_visibility,
+                     is_correct, false_positive, false_negative,
                      calculated_at, data_source)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     pred_date, route, f"{cancelled_count}/{len(route_ops)} cancelled",
-                    risk, score, wind, wave, vis,
+                    eval_risk, eval_score,
+                    actual_wind_measured if use_hindcast else wind,
+                    actual_wave_measured if use_hindcast else wave,
+                    actual_vis_measured  if use_hindcast else vis,
                     'MOSTLY_CANCELLED' if route_mostly_cancelled else 'MOSTLY_OPERATED',
+                    actual_wind_measured, actual_wave_measured, actual_vis_measured,
                     is_correct,
                     predicted_high_risk and not route_mostly_cancelled,
                     not predicted_high_risk and route_mostly_cancelled,
                     datetime.now(self.jst).isoformat(),
-                    'heartland_ferry'
+                    'hindcast' if use_hindcast else 'forecast'
                 ))
 
         unified_conn.commit()

@@ -776,7 +776,8 @@ def admin_run_accuracy_tracking():
         results = {}
 
         scripts = [
-            'unified_accuracy_tracker.py'
+            'actual_weather_collector.py',   # collect actual weather first
+            'unified_accuracy_tracker.py'    # then calculate accuracy against it
         ]
 
         for script in scripts:
