@@ -2,7 +2,7 @@
 
 **プロジェクト**: 北海道フェリー運航予報システム
 **対象路線**: 稚内⇔利尻島・礼文島
-**最終更新**: 2025-12-31
+**最終更新**: 2026-04-19
 
 ---
 
@@ -1195,9 +1195,186 @@ GitHub Actionsで完全自動化を実現。Railway CLIを使って直接Railway
 
 ---
 
-**最終更新日**: 2026-01-19
+**最終更新日**: 2026-04-19
 **メンテナー**: 利尻島フェリー予報プロジェクト
 **ライセンス**: Private（商用利用）
+
+---
+
+### 2026-04-19: 精度追跡システムの抜本的修正と実測データ基盤の構築
+
+#### **背景と根本的問題の発見**
+
+精度追跡が「予報気象」vs「実際の運航」という比較をしていた。これは本質的に無意味。
+- 予報風速 42.8 m/s（実際は 6.0 m/s）→ モデルが「HIGH」と判定 → フェリーは通常運航 → False Positive
+- 気象予報の誤差がそのまま精度の誤差として計上される
+
+**正しいアプローチ（Hindcast 精度）**:
+実測気象データ → リスクモデル → 実際の運航結果と比較
+
+#### **修正1: フェリースクレイパーのバグ修正（2026-04-05）**
+
+**問題**: `if "欠航" in response.text` → ページタイトルに「欠航」が含まれるため常にTrueになり、全便欠航と誤記録
+
+**修正**: CSS クラスで便ごとの状態を個別にパース
+```python
+# 修正後: <td class="kbn_td"><span> で便ごとに判定
+for th in soup.find_all('th', attrs={'colspan': '2'}):
+    direction = th.get_text(strip=True)  # "稚内→鴛泊" など
+    for tr in table.find_all('tr'):
+        status_span = kbn_td.find('span')
+        status = status_span.get_text(strip=True)  # '運航' or '欠航'
+        is_cancelled = 1 if status == '欠航' else 0
+```
+
+**影響**: このバグ修正以前のデータ（2026-04-05以前）は全て欠航フラグが誤り。精度計算には **2026-04-05以降のデータのみ使用すること**。
+
+#### **修正2: 波高の実測値取得（Marine API）**
+
+**問題**: `wave_height` が常にデフォルト値 `1.5m` に固定されていた（Open-Meteo Forecast APIは波高パラメータなし）
+
+**修正**: `weather_forecast_collector.py` に Marine API を追加
+```python
+self.openmeteo_marine_url = "https://marine-api.open-meteo.com/v1/marine"
+# 時間ごとに wave_height を取得、デフォルトを1.5→Noneに変更
+```
+
+**影響**: 波高が1.5m固定から実際の値（例: 0.76〜1.40m）に変わり、リスク計算が正確になった。
+
+#### **修正3: リスクロジックの単純化（seasonal complexity を廃止）**
+
+**問題**: 季節調整（冬季1.2倍）を導入したが、誤った欠航データ（バグによる全欠航）で閾値チューニングを繰り返し、かえって精度が悪化する「堂々巡り」に陥った
+
+**対応**: 季節調整を撤廃し、シンプルなオリジナルロジックに戻す
+```python
+# 現在のリスクロジック（weather_forecast_collector.py）
+if wind_speed >= 35:   risk_score += 70
+elif wind_speed >= 30: risk_score += 60
+elif wind_speed >= 25: risk_score += 50
+elif wind_speed >= 20: risk_score += 35
+elif wind_speed >= 15: risk_score += 20
+elif wind_speed >= 10: risk_score += 10
+# 波高は2.0m以上のみカウント（Marine API実測値）
+if wave_height >= 4.0:   risk_score += 40
+elif wave_height >= 3.0: risk_score += 30
+elif wave_height >= 2.0: risk_score += 15
+```
+
+**教訓**: 誤ったデータで閾値調整しても意味がない。まず正しいデータを得てから調整する。
+
+#### **修正4: 実測気象収集システムの構築**
+
+**新規ファイル**: `actual_weather_collector.py`
+- Open-Meteo Archive API（ERA5 再解析）から実測風速・視程を取得
+- Marine Archive API から実測波高を取得
+- `actual_weather` テーブル（`ferry_weather_forecast.db`）に保存
+- 毎日 07:30 JST に前日分を自動収集（GitHub Actions）
+
+**スキーマ**:
+```sql
+actual_weather (
+    date TEXT, hour INTEGER,
+    wind_speed REAL, wave_height REAL, visibility REAL,
+    collected_at TEXT,
+    UNIQUE(date, hour)
+)
+```
+
+#### **修正5: Hindcast 精度追跡への移行**
+
+`unified_accuracy_tracker.py` を改修：
+1. `actual_weather` テーブルから実測気象を取得
+2. 実測値でリスクスコアを計算（hindcast）
+3. hindcast リスク vs 実際の運航結果を比較
+
+```python
+def _calc_risk(self, wind, wave, vis):
+    """実測値でリスク計算（weather_forecast_collectorと同一ロジック）"""
+    ...
+    return risk, score  # 'HIGH'/'MEDIUM'/'LOW'/'MINIMAL', score
+```
+
+**効果（2026-04-19 実測）**: 実測風速 6.0 m/s、波高 0.85 m → MINIMAL → 全便運航 → **100% 正確**
+
+#### **修正6: 歴史的実測データのバックフィル**
+
+**新規ファイル**: `backfill_actual_weather.py`
+- デフォルト: 2025-10-01（開発開始）〜 前日
+- 30日チャンクで Archive/Marine API を呼び出し
+- 実行方法: `python backfill_actual_weather.py [start_date] [end_date]`
+- Railway エンドポイント: `/admin/run-backfill?start=2025-10-01`
+
+**結果**: 2025-10-01〜2026-04-18 の **200日分・4,800件** の実測データを収集完了。
+
+#### **修正7: ferry_status_enhanced の重複レコード防止**
+
+**問題**: テーブルに UNIQUE 制約がなく、スクレイパーが1日複数回実行されると同じ便の記録が重複（例: 2026-04-08 は 20 件 = 10件 × 2回）
+
+**修正** (`improved_ferry_collector.py`):
+```python
+# 既存重複を削除（最新IDを残す）
+cursor.execute('''
+    DELETE FROM ferry_status_enhanced
+    WHERE id NOT IN (
+        SELECT MAX(id) FROM ferry_status_enhanced
+        GROUP BY scrape_date, route, departure_time
+    )
+''')
+# 以降の重複防止
+cursor.execute('''
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_ferry_status_unique
+    ON ferry_status_enhanced (scrape_date, route, departure_time)
+''')
+# INSERT → INSERT OR REPLACE に変更
+```
+
+**効果**: 2026-04-08 の重複が 20件 → 10件 に解消。
+
+#### **新規管理エンドポイント（forecast_dashboard.py）**
+
+| エンドポイント | 用途 |
+|--------------|------|
+| `/admin/run-backfill?start=YYYY-MM-DD` | 実測気象の一括バックフィル |
+| `/admin/run-bulk-accuracy?start=YYYY-MM-DD&end=YYYY-MM-DD` | 複数日の精度一括再計算 |
+| `/admin/ferry-status-raw?date=YYYY-MM-DD` | ferry_status_enhanced の生データ参照 |
+
+#### **GitHub Actions の改善**
+
+全ワークフローにリトライロジックを追加（Railway の起動タイミング問題対策）:
+```bash
+MAX_RETRIES=3
+RETRY_DELAY=30
+for i in $(seq 1 $MAX_RETRIES); do
+    response=$(curl ...)
+    if [ "$http_code" = "200" ]; then exit 0; fi
+    sleep $RETRY_DELAY
+done
+```
+
+新規ワークフロー: `actual-weather-collection.yml`（毎日 07:30 JST）
+
+#### **精度追跡の現状（2026-04-19 時点）**
+
+信頼できるデータ期間: **2026-04-05以降**（スクレイパー修正後）
+
+| 期間 | 精度 | 備考 |
+|------|------|------|
+| 直近7日（04/12〜18） | **100%** | FP=0, FN=0 |
+| 04-07 | 66.7% | 午後便のみ欠航（風が午後に強まった） |
+| 04-08 | 100% | 重複解消後（午前欠航/午後運航） |
+| 04-09 | 66.7% | LOW条件での一部欠航 |
+| 04-10〜11 | 0% | 全便欠航（気象外理由推定：季節ダイヤ切替？） |
+
+**気象外欠航について**: 稚内〜利尻・礼文は4月上旬に冬→夏ダイヤ切り替えで数日運休することがある。これは気象モデルで予測不可能。データ蓄積で毎年のパターンとして把握できるようになる見込み。
+
+#### **unified_accuracy_tracker.py の日付範囲対応**
+
+`main()` が日付引数に対応:
+```bash
+python unified_accuracy_tracker.py                        # 昨日のみ（デフォルト）
+python unified_accuracy_tracker.py 2026-04-05            # 指定日
+python unified_accuracy_tracker.py 2026-04-05 2026-04-18 # 期間指定
+```
 
 ---
 
