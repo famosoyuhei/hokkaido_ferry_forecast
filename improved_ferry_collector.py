@@ -247,12 +247,28 @@ class ImprovedFerryCollector:
             )
         ''')
 
+        # Clean up existing duplicate rows (keep only the latest per date+route+time)
+        cursor.execute('''
+            DELETE FROM ferry_status_enhanced
+            WHERE id NOT IN (
+                SELECT MAX(id)
+                FROM ferry_status_enhanced
+                GROUP BY scrape_date, route, departure_time
+            )
+        ''')
+
+        # Ensure uniqueness going forward
+        cursor.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_ferry_status_unique
+            ON ferry_status_enhanced (scrape_date, route, departure_time)
+        ''')
+
         saved_count = 0
 
         for record in ferry_records:
             try:
                 cursor.execute('''
-                    INSERT INTO ferry_status_enhanced
+                    INSERT OR REPLACE INTO ferry_status_enhanced
                     (scrape_date, scrape_time, route, route_jp, departure_port, arrival_port,
                      vessel_name, departure_time, arrival_time, operational_status,
                      is_cancelled, is_delayed, temperature, wind_speed, wind_direction,
