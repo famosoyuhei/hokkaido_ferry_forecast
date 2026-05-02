@@ -19,7 +19,7 @@
 3. 「Variables」タブ
 4. 環境変数を追加:
    ```
-   FLIGHTAWARE_API_KEY = QEgHk9GkswfERfjg2ujDosuP2Ss60sXs
+   FLIGHTAWARE_API_KEY = your_actual_api_key_here
    ```
 
 ### Local Development

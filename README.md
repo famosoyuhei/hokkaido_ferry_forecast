@@ -1,164 +1,93 @@
 <div align="center">
   <img src="app_icon.png" alt="Hokkaido Ferry Forecast" width="150" height="150">
-  <h1>Hokkaido Ferry Forecast System</h1>
-  <p>Real-time ferry cancellation prediction system for Hokkaido islands (Rishiri & Rebun)</p>
+  <h1>北海道フェリー運航予報システム</h1>
+  <p>稚内⇔利尻島・礼文島の欠航リスクを7日間予報するWebアプリ</p>
 </div>
 
-📱 **NEW: Smartphone App Available!** Install as a Progressive Web App (PWA) on iOS/Android - see [PWA Guide](PWA_SMARTPHONE_APP_GUIDE.md)
+**本番URL**: https://web-production-a628.up.railway.app/
 
-🎯 **NEW: Accuracy Improvement System!** Automated prediction-actual matching and continuous model refinement - see [Accuracy System Guide](README_ACCURACY_SYSTEM.md)
+---
 
-## 🎉 Latest Updates (2025-12-14)
+## 概要
 
-### 🎯 Prediction Accuracy Improvement System - NEW!
-- **Automated Matching**: Links predictions with actual ferry operations
-- **Continuous Learning**: Automatically adjusts risk thresholds based on performance
-- **Real-time Monitoring**: Web dashboard for accuracy metrics and trends
-- **Performance Tracking**: Precision, Recall, F1-Score, and Calibration metrics
-- **Daily Automation**: Runs automatically via Railway cron jobs
+フェリー輸送に依存する利尻島・礼文島の事業者向けに、**7日間の欠航リスク予報**（HIGH / MEDIUM / LOW / MINIMAL）を提供するシステムです。気象庁(JMA) + Open-Meteo APIの気象データをもとにリスクを算出し、PWA対応でスマートフォンからも利用できます。
 
-## Previous Updates (2025-10-22)
+## 機能
 
-### 📱 Smartphone App (PWA) - NEW!
-- **Progressive Web App**: Install on iPhone/Android home screen
-- **Offline Support**: Works without internet connection (cached data)
-- **App-like Experience**: Full-screen mode, no browser UI
-- **Auto-refresh**: Fresh data every 30 minutes
-- **Push Notifications**: Ready for high-risk day alerts (configurable)
-- **Zero Cost**: No App Store fees or審査 required
+- 7日間の欠航リスク予報（全6ルート）
+- 風速・波高・視程に基づくリスク計算
+- PWA対応スマートフォンアプリ（iOS/Android）
+- 自動データ収集（1日4回気象、1日1回実運航）
+- Hindcast精度追跡（実測気象 vs 実際の運航結果）
 
-### ✅ 7-Day Weather Forecast System - NEW!
-- **JMA (Japan Meteorological Agency) API Integration**: Official weather forecasts for Wakkanai/Soya region
-- **Dual-Source Weather Data**: JMA (wave height, official forecasts) + Open-Meteo (visibility, detailed hourly data)
-- **7-Day Cancellation Risk Prediction**: Automated risk assessment for all ferry routes
-- **Real-time Updates**: Forecasts updated 5 times daily via JMA
-- **Comprehensive Data**: Wind speed, wave height, visibility, temperature, precipitation probability
+## 対象航路
 
-### ✅ Enhanced Data Collection System
-- **Real Ferry Schedule Collection**: Extracts detailed operational data from Heartland Ferry official website
-- **Weather Data Integration**: Current weather + 7-day forecasts
-- **Dual Storage**: SQLite database (enhanced analysis) + CSV files (compatibility)
-- **Automated Collection**: Railway cron job runs daily at 6:00 AM JST
+- 稚内 ↔ 鴛泊（利尻島）
+- 稚内 ↔ 香深（礼文島）
+- 鴛泊 ↔ 香深
 
-### 📊 Forecast Capability (NEW)
-- **Forecast Period**: 7 days ahead
-- **Update Frequency**: 5 times/day (JMA: 05:00, 11:00, 17:00 JST)
-- **Data Sources**: JMA (official) + Open-Meteo (hourly detail)
-- **Risk Levels**: HIGH / MEDIUM / LOW / MINIMAL
-- **Example Forecast** (2025-10-22):
-  - Today: HIGH RISK - Wind 25m/s, Wave 5m → Cancellations likely
-  - Tomorrow: MEDIUM RISK - Wind 27m/s → Monitor closely
-  - Next week: Weather improving
+## 技術スタック
 
-### 📊 Data Collection Status
-- **Total Records**: 70 (CSV) + 16 (enhanced database) + 499 (weather forecasts)
-- **Collection Period**: September 11, 2025 - Present
-- **Data Quality**: Actual ferry operations + Current weather + 7-day forecasts
-- **Latest Collection**: October 22, 2025
-  - Current: Wind 21.8 m/s, Visibility 0.98 km
-  - Forecast: Improving conditions expected in 3-4 days
+| 項目 | 内容 |
+|------|------|
+| バックエンド | Python 3.11 / Flask / gunicorn |
+| データベース | SQLite（Railway Volume で永続化） |
+| ホスティング | Railway |
+| 自動化 | GitHub Actions（データ収集・精度追跡） |
 
-## Features
+## データソース
 
-- **7-Day Weather Forecasts**: JMA + Open-Meteo dual-source predictions
-- **Real-time Monitoring**: Heartland Ferry status tracking
-- **Accuracy Improvement**: Automated prediction-actual matching and model refinement
-- **Web Dashboard**: Real-time accuracy metrics and performance trends
-- **Smartphone App**: PWA for iOS/Android
-- **Notification System**: Discord and LINE integration
-- **24/7 Automation**: Railway cron jobs for continuous operation
+- **気象予報**: 気象庁(JMA) API + Open-Meteo Forecast/Marine API
+- **実測気象**: Open-Meteo Archive API（ERA5再解析）
+- **実運航データ**: [ハートランドフェリー公式サイト](https://heartlandferry.jp/status/)
 
-## Data Sources
+## データベース（3個）
 
-- **Ferry Status**: https://heartlandferry.jp/status/
-- **Timetables**: https://heartlandferry.jp/timetable/
-- **Flight Data**: FlightAware API
-- **Weather**: Integrated weather analysis
+| ファイル | 用途 |
+|---------|------|
+| `ferry_weather_forecast.db` | 気象予報・欠航リスク予測・実測気象 |
+| `heartland_ferry_real_data.db` | 実運航データ |
+| `notifications.db` | プッシュ通知（開発予定） |
 
-## Deployment
+## 自動化スケジュール（GitHub Actions）
 
-This system runs on Railway for 24/7 operation:
+| ワークフロー | 実行時刻(JST) | 内容 |
+|-------------|-------------|------|
+| data-collection.yml | 05:00 / 11:00 / 17:00 / 23:00 | 気象予報収集 |
+| ferry-collection.yml | 06:00 | 実運航データ収集 |
+| actual-weather-collection.yml | 07:30 | 実測気象収集（前日分） |
+| unified-accuracy-tracking.yml | 07:00 | 精度追跡 |
 
-1. Automatic data collection every day at 6:00 AM JST
-2. PostgreSQL database for reliable data storage
-3. Real-time status monitoring and predictions
-
-## Routes Covered
-
-- Wakkanai ↔ Rishiri Island
-- Wakkanai ↔ Rebun Island  
-- Rishiri Island ↔ Rebun Island
-
-## Technology Stack
-
-- **Backend**: Python 3.11
-- **Database**: PostgreSQL (Railway)
-- **Web Scraping**: BeautifulSoup4, Requests
-- **Scheduling**: Railway Cron Jobs
-- **API**: FlightAware AeroAPI
-
-## Environment Variables
-
-- `FLIGHTAWARE_API_KEY`: FlightAware API key for flight data
-- `DATABASE_URL`: PostgreSQL connection (auto-provided by Railway)
-
-## Quick Start Guides
-
-### Accuracy Improvement System
-```bash
-# Quick test
-python quick_test.py
-
-# Start full system with dashboard
-start_accuracy_system.bat
-
-# Or manual steps:
-python automated_improvement_runner.py  # Run improvement cycle
-python accuracy_dashboard.py            # Start dashboard at :5001
-```
-
-See [README_ACCURACY_SYSTEM.md](README_ACCURACY_SYSTEM.md) for detailed documentation.
-
-### Smartphone App
-```bash
-start_mobile_app.bat  # Access at http://localhost:5000
-```
-
-See [README_Mobile.md](README_Mobile.md) for details.
-
-## Data Collection Scripts
-
-### Weather Forecast Collector (NEW - Primary)
-```bash
-python weather_forecast_collector.py
-```
-- **7-day weather forecasts** from JMA + Open-Meteo
-- **Cancellation risk prediction** for all ferry routes
-- Wave height, wind speed, visibility, temperature
-- Automated risk level assessment (HIGH/MEDIUM/LOW/MINIMAL)
-- Updates 5 times/day
-- **Recommended for production use**
-
-### Current Conditions Collector
-```bash
-python improved_ferry_collector.py
-```
-- Scrapes actual ferry schedules from Heartland Ferry website
-- Collects real-time weather data (current conditions only)
-- Saves to both SQLite database and CSV files
-
-### Legacy Collectors
-- `ferry_data_collector.py`: Generates simulated data (for testing)
-- `heartland_ferry_scraper.py`: Basic scraper without weather integration
-- `cloud_ferry_collector.py`: Cloud deployment template (deprecated)
-
-## Local Development
+## ローカル開発
 
 ```bash
+git clone https://github.com/famosoyuhei/hokkaido_ferry_forecast.git
+cd hokkaido_ferry_forecast
+python -m venv venv
+venv\Scripts\activate   # Windows
 pip install -r requirements.txt
-python improved_ferry_collector.py
+python forecast_dashboard.py   # → http://localhost:5000
 ```
 
-## License
+## APIエンドポイント
 
-Private project for Hokkaido ferry prediction research.
+```bash
+curl https://web-production-a628.up.railway.app/api/stats     # 統計情報
+curl https://web-production-a628.up.railway.app/api/forecast  # 7日間予報
+curl https://web-production-a628.up.railway.app/api/today     # 本日詳細
+```
+
+## ドキュメント
+
+- [CLAUDE.md](CLAUDE.md) - システム全体の詳細仕様（開発者向け）
+- [GITHUB_ACTIONS_SETUP.md](GITHUB_ACTIONS_SETUP.md) - 自動化の設定方法
+- [PWA_SMARTPHONE_APP_GUIDE.md](PWA_SMARTPHONE_APP_GUIDE.md) - スマホアプリのインストール方法
+- [API_KEY_MANAGEMENT.md](API_KEY_MANAGEMENT.md) - APIキーの管理方法
+
+## セキュリティ
+
+このリポジトリは**Public**です。APIキー・シークレットは Railway Variables に保存し、コードにハードコードしません。詳細は [API_KEY_MANAGEMENT.md](API_KEY_MANAGEMENT.md) を参照。
+
+---
+
+**ライセンス**: Private（商用利用）
