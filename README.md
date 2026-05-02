@@ -79,6 +79,7 @@ curl https://web-production-a628.up.railway.app/api/today     # 本日詳細
 
 ## ドキュメント
 
+- [USER_GUIDE.md](USER_GUIDE.md) - アプリの使い方（エンドユーザー向け）
 - [CLAUDE.md](CLAUDE.md) - システム全体の詳細仕様（開発者向け）
 - [GITHUB_ACTIONS_SETUP.md](GITHUB_ACTIONS_SETUP.md) - 自動化の設定方法
 - [PWA_SMARTPHONE_APP_GUIDE.md](PWA_SMARTPHONE_APP_GUIDE.md) - スマホアプリのインストール方法
