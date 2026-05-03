@@ -1286,6 +1286,78 @@ def admin_validate_seasonal_fix():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/admin/db-coverage')
+def admin_db_coverage():
+    """Show date coverage of all key tables in both DBs."""
+    import os
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+    forecast_db  = os.path.join(data_dir, 'ferry_weather_forecast.db')
+    realdata_db  = os.path.join(data_dir, 'heartland_ferry_real_data.db')
+
+    result = {}
+    try:
+        conn = sqlite3.connect(forecast_db)
+        cur  = conn.cursor()
+        for table, date_col in [
+            ('actual_weather',             'date'),
+            ('cancellation_forecast',      'forecast_for_date'),
+            ('unified_operation_accuracy', 'operation_date'),
+        ]:
+            try:
+                cur.execute(f'''
+                    SELECT MIN({date_col}), MAX({date_col}),
+                           COUNT(DISTINCT {date_col}), COUNT(*)
+                    FROM {table}
+                ''')
+                row = cur.fetchone()
+                result[table] = {
+                    'min_date': row[0], 'max_date': row[1],
+                    'distinct_days': row[2], 'total_records': row[3]
+                }
+                if table == 'actual_weather':
+                    cur.execute('''
+                        SELECT location, MIN(date), MAX(date),
+                               COUNT(DISTINCT date), COUNT(*)
+                        FROM actual_weather GROUP BY location ORDER BY location
+                    ''')
+                    result['actual_weather_by_port'] = [
+                        {'location': r[0], 'min': r[1], 'max': r[2],
+                         'days': r[3], 'records': r[4]}
+                        for r in cur.fetchall()
+                    ]
+            except Exception as e:
+                result[table] = {'error': str(e)}
+        conn.close()
+    except Exception as e:
+        result['forecast_db_error'] = str(e)
+
+    try:
+        conn = sqlite3.connect(realdata_db)
+        cur  = conn.cursor()
+        for table, date_col in [
+            ('ferry_status_enhanced', 'scrape_date'),
+            ('ferry_status',          'scrape_date'),
+        ]:
+            try:
+                cur.execute(f'''
+                    SELECT MIN({date_col}), MAX({date_col}),
+                           COUNT(DISTINCT {date_col}), COUNT(*)
+                    FROM {table}
+                ''')
+                row = cur.fetchone()
+                result[table] = {
+                    'min_date': row[0], 'max_date': row[1],
+                    'distinct_days': row[2], 'total_records': row[3]
+                }
+            except Exception as e:
+                result[table] = {'error': str(e)}
+        conn.close()
+    except Exception as e:
+        result['realdata_db_error'] = str(e)
+
+    return jsonify(result)
+
+
 @app.route('/manifest.json')
 def manifest():
     """Serve PWA manifest"""
