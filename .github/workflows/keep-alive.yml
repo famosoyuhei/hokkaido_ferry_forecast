@@ -1,0 +1,62 @@
+name: Keep Alive
+
+# Runs every Monday at 09:00 JST (00:00 UTC) to prevent GitHub from
+# disabling scheduled workflows after 60 days of inactivity.
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # Monday 09:00 JST
+
+  # Allow manual trigger to recover from "no jobs were run" state
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    name: Keep repository active
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update keep-alive timestamp
+        run: |
+          NOW=$(TZ='Asia/Tokyo' date '+%Y-%m-%d %H:%M JST')
+          echo "$NOW" > .github/keep-alive.txt
+          echo "Keep-alive timestamp updated: $NOW"
+
+      - name: Commit and push
+        run: |
+          git config user.name  "Ferry Forecast System"
+          git config user.email "actions@github.com"
+          git add .github/keep-alive.txt
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "chore: keep-alive $( cat .github/keep-alive.txt )"
+          git push
+          echo "Pushed keep-alive commit"
+
+      - name: Re-enable all scheduled workflows via API
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="famosoyuhei/hokkaido_ferry_forecast"
+          WORKFLOWS=(
+            "data-collection.yml"
+            "ferry-collection.yml"
+            "actual-weather-collection.yml"
+            "health-check.yml"
+          )
+
+          echo "Ensuring all scheduled workflows are enabled..."
+          for wf in "${WORKFLOWS[@]}"; do
+            STATE=$(gh api "repos/$REPO/actions/workflows/$wf" --jq '.state' 2>/dev/null || echo "unknown")
+            echo "  $wf: $STATE"
+            if [ "$STATE" = "disabled_inactivity" ] || [ "$STATE" = "disabled_manually" ]; then
+              echo "  → Re-enabling $wf ..."
+              gh api --method PUT "repos/$REPO/actions/workflows/$wf/enable" && echo "  ✅ Enabled" || echo "  ❌ Failed to enable"
+            fi
+          done
+          echo "Done."
