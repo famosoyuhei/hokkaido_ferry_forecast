@@ -1,0 +1,248 @@
+# 精度追跡システム 設計仕様書
+
+**最終更新**: 2026-05-03  
+**バージョン**: 1.0  
+**目的**: 役割分担・現状の問題点・改善ロードマップを一元管理する
+
+---
+
+## システム全体の役割分担
+
+```
+【役割1】 フェリー実運航データ収集
+  improved_ferry_collector.py
+  → heartland_ferry_real_data.db / ferry_status_enhanced
+
+【役割2】 各港の実測気象データ収集
+  actual_weather_collector.py
+  → ferry_weather_forecast.db / actual_weather
+
+【役割3】 予報リスクの計算・保存
+  weather_forecast_collector.py
+  → ferry_weather_forecast.db / cancellation_forecast
+
+【役割4】 実測気象 × 実運航データの照合（Hindcast精度）
+  unified_accuracy_tracker.py
+  → ferry_weather_forecast.db / unified_operation_accuracy, unified_daily_summary
+```
+
+---
+
+## 現状の実装と問題点
+
+### 役割1：フェリー実運航データ収集 ✅ 正常稼働
+
+| 項目 | 内容 |
+|------|------|
+| スクリプト | `improved_ferry_collector.py` |
+| 実行 | GitHub Actions `ferry-collection.yml`（毎日06:00 JST） |
+| 取得内容 | 便ごとの出発時刻・運航/欠航フラグ |
+| 対象ルート | 6ルート（稚内-鴛泊、稚内-香深、稚内-沓形、鴛泊-香深 往復） |
+| 信頼できる開始日 | **2026-04-05以降**（それ以前はスクレイパーのバグにより全便欠航と誤記録） |
+
+---
+
+### 役割2：実測気象データ収集 ⚠️ **重大な問題あり**
+
+| 項目 | 現状 | あるべき姿 |
+|------|------|-----------|
+| スクリプト | `actual_weather_collector.py` | 同左（要修正） |
+| 実行 | GitHub Actions `actual-weather-collection.yml`（毎日07:30 JST） |
+| 取得地点 | **稚内港のみ（座標1点）** | **4港それぞれ** |
+| 取得頻度 | 1時間ごと（ERA5再解析） | 同左でよい |
+| 波高取得 | 稚内沖のみ | 各港沖 |
+
+**問題の詳細**：
+
+```python
+# actual_weather_collector.py:23 現状
+WAKKANAI = {'lat': 45.415, 'lon': 141.673}
+# 稚内のみ。鴛泊・沓形・香深の気象が未収集。
+```
+
+4港の座標（あるべき姿）：
+
+| 港 | 緯度 | 経度 | 備考 |
+|----|------|------|------|
+| 稚内港 | 45.415 | 141.673 | ✅ 現在収集中 |
+| 鴛泊港（利尻島東） | 45.200 | 141.216 | ❌ 未収集 |
+| 沓形港（利尻島西） | 45.393 | 141.107 | ❌ 未収集 |
+| 香深港（礼文島） | 45.298 | 141.036 | ❌ 未収集 |
+
+**影響**：稚内の気象だけでは利尻島・礼文島側の局所的な強風・高波を捉えられない。
+特に西風時は稚内が穏やかでも鴛泊・沓形・香深が荒れる状況が発生しうる。
+
+---
+
+### 役割3：予報リスクの計算・保存 ✅ 正常稼働
+
+| 項目 | 内容 |
+|------|------|
+| スクリプト | `weather_forecast_collector.py` |
+| 実行 | GitHub Actions `data-collection.yml`（毎日05:00/11:00/17:00/23:00 JST） |
+| 予報地点 | 稚内・利尻・礼文（3地点の最大値でリスク算出） |
+| 保存先 | `cancellation_forecast` テーブル（6ルート × 7日間） |
+
+---
+
+### 役割4：Hindcast精度照合 ⚠️ **問題あり**
+
+| 項目 | 現状 | あるべき姿 |
+|------|------|-----------|
+| スクリプト | `unified_accuracy_tracker.py` | 同左（要修正） |
+| 実行 | `actual-weather-collection.yml`（役割2と同一ワークフロー） | 同左 |
+| 気象データ | **稚内のみ・1日の平均値** | **出発時刻に近い時間帯の値** |
+| ルート別気象 | ❌ 全ルート共通（稚内の気象を使用） | ✅ ルートごとに出発港・到着港の気象を使用 |
+
+**問題の詳細**：
+
+```python
+# unified_accuracy_tracker.py:172-179 現状
+SELECT AVG(wind_speed), AVG(wave_height), AVG(visibility)
+FROM actual_weather
+WHERE date = ?
+# → 00:00〜23:00の全時間帯の平均。出発時刻との対応がない。
+# → 稚内の気象のみ。鴛泊・沓形・香深の気象を使っていない。
+```
+
+例：06:55発の稚内→鴛泊便について、実際には06時台の稚内・鴛泊両港の気象で判断すべきだが、
+現状は0〜23時の稚内平均値だけで判定している。
+
+---
+
+## GitHubワークフローの現状
+
+| ワークフロー | 役割 | 実行時刻(JST) | 状態 |
+|------------|------|-------------|------|
+| `data-collection.yml` | 役割3（予報収集） | 05:00/11:00/17:00/23:00 | ✅ |
+| `ferry-collection.yml` | 役割1（実運航収集） | 06:00 | ✅ |
+| `actual-weather-collection.yml` | 役割2＋4（実測気象＋精度照合） | 07:30 | ⚠️ 1つのワークフローに2役が混在 |
+
+**問題**：`actual-weather-collection.yml` が役割2（収集）と役割4（照合）を兼ねており、
+片方が失敗した場合の切り分けが困難。分離を推奨。
+
+---
+
+## 改善ロードマップ
+
+### 優先度 高：4港の実測気象収集（役割2の修正）
+
+**修正ファイル**: `actual_weather_collector.py`
+
+```python
+# 修正後のあるべき姿
+LOCATIONS = {
+    'wakkanai':   {'lat': 45.415, 'lon': 141.673},
+    'oshidomari': {'lat': 45.200, 'lon': 141.216},
+    'kutsugata':  {'lat': 45.393, 'lon': 141.107},
+    'kafuka':     {'lat': 45.298, 'lon': 141.036},
+}
+# → actual_weather テーブルに location カラムを追加
+# → 各港ごとに hourly データを収集
+```
+
+**DBスキーマ変更**：
+
+```sql
+-- 現状
+actual_weather (id, date, hour, wind_speed, wave_height, visibility, collected_at)
+UNIQUE(date, hour)
+
+-- 修正後
+actual_weather (id, date, hour, location, wind_speed, wave_height, visibility, collected_at)
+UNIQUE(date, hour, location)
+```
+
+---
+
+### 優先度 高：出発時刻ベースの気象マッチング（役割4の修正）
+
+**修正ファイル**: `unified_accuracy_tracker.py`
+
+```python
+# 修正後のあるべき姿
+# ルートの出発港を使い、出発時刻 ±1時間の気象値を取得する
+
+ROUTE_DEPARTURE_PORT = {
+    'wakkanai_oshidomari': 'wakkanai',
+    'oshidomari_wakkanai': 'oshidomari',
+    'wakkanai_kafuka':     'wakkanai',
+    'kafuka_wakkanai':     'kafuka',
+    'wakkanai_kutsugata':  'wakkanai',
+    'kutsugata_wakkanai':  'kutsugata',
+    'oshidomari_kafuka':   'oshidomari',
+    'kafuka_oshidomari':   'kafuka',
+}
+
+# 出発時刻に合わせた気象値を取得
+departure_hour = int(departure_time[:2])   # "06:55" → 6
+SELECT wind_speed, wave_height, visibility
+FROM actual_weather
+WHERE date = ? AND location = ? AND hour = ?
+```
+
+---
+
+### 優先度 中：ワークフローの分離
+
+**現状**：`actual-weather-collection.yml` が実測収集＋精度照合を兼務  
+**改善案**：2つに分離
+
+```
+actual-weather-collection.yml  → 役割2のみ（実測気象収集）07:00 JST
+accuracy-tracking.yml          → 役割4のみ（精度照合）     07:30 JST（収集完了後）
+```
+
+---
+
+### 優先度 低：バックフィル対応
+
+4港収集に変更後、過去データのバックフィルが必要。  
+`backfill_actual_weather.py` を修正して4港分を再収集する。  
+信頼できる実運航データは2026-04-05以降のため、それ以降の期間だけで十分。
+
+---
+
+## データフロー（あるべき姿）
+
+```
+【毎日のデータ収集フロー】
+
+05:00 JST  weather_forecast_collector.py
+           → cancellation_forecast（稚内・利尻・礼文の予報リスク）
+
+06:00 JST  improved_ferry_collector.py
+           → ferry_status_enhanced（便ごとの運航/欠航実績）
+
+07:00 JST  actual_weather_collector.py（4港対応後）
+           → actual_weather（稚内・鴛泊・沓形・香深の hourly 実測値）
+
+07:30 JST  unified_accuracy_tracker.py（出発時刻対応後）
+           → 各便の出発港・出発時刻に対応した実測気象を取得
+           → hindcast リスク計算
+           → 実際の運航結果と照合
+           → unified_operation_accuracy に保存
+```
+
+---
+
+## 各スクリプトの役割一覧（現時点）
+
+| スクリプト | 役割 | 状態 | 主な問題 |
+|-----------|------|------|---------|
+| `weather_forecast_collector.py` | 予報収集・リスク計算 | ✅ 稼働中 | なし |
+| `improved_ferry_collector.py` | 実運航データ収集 | ✅ 稼働中 | なし |
+| `actual_weather_collector.py` | 実測気象収集 | ⚠️ 部分稼働 | 稚内のみ・4港未対応 |
+| `unified_accuracy_tracker.py` | Hindcast精度照合 | ⚠️ 部分稼働 | 日平均値・稚内のみ使用 |
+| `backfill_actual_weather.py` | 実測気象の一括取得 | ✅ 利用可能 | 4港対応後に再実行が必要 |
+| `auto_threshold_adjuster.py` | 閾値の自動調整 | 🔴 未稼働 | 精度データ蓄積後に使用予定 |
+| `ml_threshold_optimizer.py` | ML閾値最適化 | 🔴 未稼働 | Phase 3（将来） |
+| `notification_service.py` | 通知送信 | 🔴 未稼働 | 将来実装 |
+
+---
+
+## 更新履歴
+
+| 日付 | バージョン | 変更内容 |
+|------|----------|---------|
+| 2026-05-03 | 1.0 | 初版作成。現状の問題点（稚内のみ・日平均値）と改善ロードマップを文書化 |
