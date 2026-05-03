@@ -38,7 +38,7 @@ jobs:
           git push
           echo "Pushed keep-alive commit"
 
-      - name: Re-enable all scheduled workflows via API
+      - name: Check and restore workflows disabled by inactivity
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -50,13 +50,29 @@ jobs:
             "health-check.yml"
           )
 
-          echo "Ensuring all scheduled workflows are enabled..."
+          echo "Checking workflow states..."
+          NEEDS_ALERT=false
           for wf in "${WORKFLOWS[@]}"; do
             STATE=$(gh api "repos/$REPO/actions/workflows/$wf" --jq '.state' 2>/dev/null || echo "unknown")
-            echo "  $wf: $STATE"
-            if [ "$STATE" = "disabled_inactivity" ] || [ "$STATE" = "disabled_manually" ]; then
-              echo "  → Re-enabling $wf ..."
-              gh api --method PUT "repos/$REPO/actions/workflows/$wf/enable" && echo "  ✅ Enabled" || echo "  ❌ Failed to enable"
+            if [ "$STATE" = "disabled_inactivity" ]; then
+              # GitHub auto-disabled due to 60-day inactivity → safe to re-enable
+              echo "  $wf: disabled_inactivity → re-enabling automatically"
+              gh api --method PUT "repos/$REPO/actions/workflows/$wf/enable" \
+                && echo "  ✅ Re-enabled" \
+                || echo "  ❌ Failed to re-enable"
+            elif [ "$STATE" = "disabled_manually" ]; then
+              # Manually disabled → do NOT touch; flag for notification
+              echo "  $wf: disabled_manually → skipped (intentional?)"
+              NEEDS_ALERT=true
+            else
+              echo "  $wf: $STATE"
             fi
           done
+
+          if [ "$NEEDS_ALERT" = "true" ]; then
+            echo ""
+            echo "⚠️  One or more workflows are manually disabled."
+            echo "If this was unintentional, re-enable them from:"
+            echo "https://github.com/$REPO/actions"
+          fi
           echo "Done."
