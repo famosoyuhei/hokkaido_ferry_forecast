@@ -1,0 +1,157 @@
+name: Railway Health Check
+
+on:
+  schedule:
+    # Every 30 minutes
+    - cron: '*/30 * * * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    name: Check Railway App Health
+
+    steps:
+      - name: Check app is responding
+        id: check
+        run: |
+          echo "Checking Railway app health..."
+          APP_URL="https://web-production-a628.up.railway.app/api/stats"
+
+          HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" --max-time 30 "$APP_URL" || echo "000")
+          BODY=$(cat /tmp/response.txt 2>/dev/null || echo "")
+
+          echo "HTTP status: $HTTP_CODE"
+          echo "Response: $BODY"
+          echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
+          echo "response_body=$BODY" >> $GITHUB_OUTPUT
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "status=DOWN" >> $GITHUB_OUTPUT
+            echo "::warning::Railway app returned HTTP $HTTP_CODE"
+          else
+            echo "status=UP" >> $GITHUB_OUTPUT
+            echo "App is healthy (HTTP 200)"
+          fi
+
+      - name: Verify response has forecast data
+        id: verify_data
+        if: steps.check.outputs.status == 'UP'
+        run: |
+          BODY='${{ steps.check.outputs.response_body }}'
+          # Check that forecast_days field exists and is non-zero
+          if echo "$BODY" | grep -q '"forecast_days"'; then
+            DAYS=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('forecast_days',0))" 2>/dev/null || echo "0")
+            echo "forecast_days=$DAYS" >> $GITHUB_OUTPUT
+            if [ "$DAYS" -lt "1" ] 2>/dev/null; then
+              echo "data_ok=false" >> $GITHUB_OUTPUT
+              echo "::warning::forecast_days=$DAYS (データが空です)"
+            else
+              echo "data_ok=true" >> $GITHUB_OUTPUT
+              echo "Data OK: forecast_days=$DAYS"
+            fi
+          else
+            echo "data_ok=false" >> $GITHUB_OUTPUT
+            echo "::warning::forecast_days field not found in response"
+          fi
+
+      - name: Create GitHub Issue on failure
+        if: steps.check.outputs.status == 'DOWN' || steps.verify_data.outputs.data_ok == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ steps.check.outputs.status }}';
+            const httpCode = '${{ steps.check.outputs.http_code }}';
+            const dataOk = '${{ steps.verify_data.outputs.data_ok }}';
+            const forecastDays = '${{ steps.verify_data.outputs.forecast_days }}';
+
+            const now = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+
+            let title, body;
+
+            if (status === 'DOWN') {
+              title = `[ALERT] Railway app is down - ${now} JST`;
+              body = `## Railway アプリダウン検知
+
+            **検知時刻**: ${now} JST
+            **HTTP ステータス**: ${httpCode}
+            **URL**: https://web-production-a628.up.railway.app/api/stats
+
+            ## 即時対応手順
+
+            1. https://railway.app にログインしてデプロイログを確認
+            2. エラーの種類を特定（\`DEPLOYMENT_RUNBOOK.md\` 参照）
+            3. 必要であればロールバック:
+               \`\`\`bash
+               git revert HEAD --no-edit
+               git push origin main
+               \`\`\`
+
+            詳細: [DEPLOYMENT_RUNBOOK.md](https://github.com/famosoyuhei/hokkaido_ferry_forecast/blob/main/DEPLOYMENT_RUNBOOK.md)
+            `;
+            } else {
+              title = `[ALERT] Railway app has no forecast data - ${now} JST`;
+              body = `## 予報データ空白検知
+
+            **検知時刻**: ${now} JST
+            **HTTP ステータス**: 200 (起動中)
+            **forecast_days**: ${forecastDays || '0'}
+
+            アプリは起動しているが、予報データが空です。
+
+            ## 考えられる原因
+
+            - Volume がマウントされていない（DB が空）
+            - データ収集 Cron が長期間失敗している
+
+            ## 対処手順
+
+            1. Railway管理画面で Volume の状態を確認
+            2. GitHub Actions → \`Scheduled Data Collection\` を手動実行
+            3. \`/api/stats\` を再確認
+
+            詳細: [DEPLOYMENT_RUNBOOK.md](https://github.com/famosoyuhei/hokkaido_ferry_forecast/blob/main/DEPLOYMENT_RUNBOOK.md)
+            `;
+            }
+
+            // Check if an open issue already exists for this alert type
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'alert'
+            });
+
+            const existingAlert = issues.data.find(issue =>
+              issue.title.startsWith('[ALERT]') &&
+              issue.created_at > new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+            );
+
+            if (existingAlert) {
+              console.log(`Alert issue already open: #${existingAlert.number}`);
+            } else {
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['alert']
+              });
+              console.log(`Created issue #${issue.data.number}: ${title}`);
+            }
+
+      - name: Log health check result
+        if: always()
+        run: |
+          STATUS='${{ steps.check.outputs.status }}'
+          HTTP='${{ steps.check.outputs.http_code }}'
+          DATA_OK='${{ steps.verify_data.outputs.data_ok }}'
+          NOW=$(TZ='Asia/Tokyo' date '+%Y-%m-%d %H:%M JST')
+
+          if [ "$STATUS" = "UP" ] && [ "$DATA_OK" = "true" ]; then
+            echo "✅ [$NOW] App healthy (HTTP $HTTP)"
+          else
+            echo "❌ [$NOW] App problem detected (HTTP $HTTP, data_ok=$DATA_OK)"
+          fi
