@@ -42,15 +42,16 @@
 
 ---
 
-### 役割2：実測気象データ収集 ⚠️ **重大な問題あり**
+### 役割2：実測気象データ収集 ✅ **2026-05-03 修正済み**
 
-| 項目 | 現状 | あるべき姿 |
-|------|------|-----------|
-| スクリプト | `actual_weather_collector.py` | 同左（要修正） |
+| 項目 | 内容 |
+|------|------|
+| スクリプト | `actual_weather_collector.py` |
 | 実行 | GitHub Actions `actual-weather-collection.yml`（毎日07:30 JST） |
-| 取得地点 | **稚内港のみ（座標1点）** | **4港それぞれ** |
-| 取得頻度 | 1時間ごと（ERA5再解析） | 同左でよい |
-| 波高取得 | 稚内沖のみ | 各港沖 |
+| 取得地点 | **4港（稚内・鴛泊・沓形・香深）** |
+| 取得頻度 | 1時間ごと（ERA5再解析） |
+| 波高取得 | 各港沖（Marine Archive API） |
+| DBスキーマ | `UNIQUE(date, hour, location)` — 既存データは自動移行 |
 
 **問題の詳細**：
 
@@ -85,28 +86,15 @@ WAKKANAI = {'lat': 45.415, 'lon': 141.673}
 
 ---
 
-### 役割4：Hindcast精度照合 ⚠️ **問題あり**
+### 役割4：Hindcast精度照合 ✅ **2026-05-03 修正済み**
 
-| 項目 | 現状 | あるべき姿 |
-|------|------|-----------|
-| スクリプト | `unified_accuracy_tracker.py` | 同左（要修正） |
-| 実行 | `actual-weather-collection.yml`（役割2と同一ワークフロー） | 同左 |
-| 気象データ | **稚内のみ・1日の平均値** | **出発時刻に近い時間帯の値** |
-| ルート別気象 | ❌ 全ルート共通（稚内の気象を使用） | ✅ ルートごとに出発港・到着港の気象を使用 |
-
-**問題の詳細**：
-
-```python
-# unified_accuracy_tracker.py:172-179 現状
-SELECT AVG(wind_speed), AVG(wave_height), AVG(visibility)
-FROM actual_weather
-WHERE date = ?
-# → 00:00〜23:00の全時間帯の平均。出発時刻との対応がない。
-# → 稚内の気象のみ。鴛泊・沓形・香深の気象を使っていない。
-```
-
-例：06:55発の稚内→鴛泊便について、実際には06時台の稚内・鴛泊両港の気象で判断すべきだが、
-現状は0〜23時の稚内平均値だけで判定している。
+| 項目 | 内容 |
+|------|------|
+| スクリプト | `unified_accuracy_tracker.py` |
+| 実行 | `actual-weather-collection.yml`（役割2と同一ワークフロー） |
+| 気象データ | **便ごとに出発港×出発時刻（±1h）の実測値** |
+| ルート別気象 | ✅ `ROUTE_DEPARTURE_PORT` マッピングで出発港を特定 |
+| 精度単位 | **便単位**（旧：1日1ルートの多数決 → 新：1便1レコード） |
 
 ---
 
@@ -232,9 +220,9 @@ accuracy-tracking.yml          → 役割4のみ（精度照合）     07:30 JST
 |-----------|------|------|---------|
 | `weather_forecast_collector.py` | 予報収集・リスク計算 | ✅ 稼働中 | なし |
 | `improved_ferry_collector.py` | 実運航データ収集 | ✅ 稼働中 | なし |
-| `actual_weather_collector.py` | 実測気象収集 | ⚠️ 部分稼働 | 稚内のみ・4港未対応 |
-| `unified_accuracy_tracker.py` | Hindcast精度照合 | ⚠️ 部分稼働 | 日平均値・稚内のみ使用 |
-| `backfill_actual_weather.py` | 実測気象の一括取得 | ✅ 利用可能 | 4港対応後に再実行が必要 |
+| `actual_weather_collector.py` | 実測気象収集 | ✅ 稼働中 | 4港対応済み（2026-05-03） |
+| `unified_accuracy_tracker.py` | Hindcast精度照合 | ✅ 稼働中 | 便単位・出発港×出発時刻対応済み（2026-05-03） |
+| `backfill_actual_weather.py` | 実測気象の一括取得 | ✅ 利用可能 | 4港対応済み・2026-04-05以降を再実行推奨 |
 | `auto_threshold_adjuster.py` | 閾値の自動調整 | 🔴 未稼働 | 精度データ蓄積後に使用予定 |
 | `ml_threshold_optimizer.py` | ML閾値最適化 | 🔴 未稼働 | Phase 3（将来） |
 | `notification_service.py` | 通知送信 | 🔴 未稼働 | 将来実装 |
@@ -246,3 +234,4 @@ accuracy-tracking.yml          → 役割4のみ（精度照合）     07:30 JST
 | 日付 | バージョン | 変更内容 |
 |------|----------|---------|
 | 2026-05-03 | 1.0 | 初版作成。現状の問題点（稚内のみ・日平均値）と改善ロードマップを文書化 |
+| 2026-05-03 | 1.1 | 役割2・4の修正を実装・反映。全スクリプトを稼働中に更新 |

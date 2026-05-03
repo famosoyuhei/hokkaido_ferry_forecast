@@ -2,7 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 Unified Accuracy Tracker
-Integrates multiple databases to calculate comprehensive accuracy metrics
+Calculates hindcast accuracy per sailing:
+  - For each actual sailing, fetch weather from its departure port at departure hour
+  - Compute hindcast risk from actual weather
+  - Compare to actual operated/cancelled outcome
 """
 
 import sys
@@ -16,30 +19,33 @@ from typing import Dict, List, Tuple, Optional
 import pytz
 
 class UnifiedAccuracyTracker:
-    """Unified accuracy tracking across multiple databases"""
+
+    # Maps route name → departure port (matches actual_weather location keys)
+    ROUTE_DEPARTURE_PORT = {
+        'wakkanai_oshidomari': 'wakkanai',
+        'oshidomari_wakkanai': 'oshidomari',
+        'wakkanai_kafuka':     'wakkanai',
+        'kafuka_wakkanai':     'kafuka',
+        'wakkanai_kutsugata':  'wakkanai',
+        'kutsugata_wakkanai':  'kutsugata',
+        'oshidomari_kafuka':   'oshidomari',
+        'kafuka_oshidomari':   'kafuka',
+    }
 
     def __init__(self):
-        # Database paths
         data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')
-        self.forecast_db = os.path.join(data_dir, "ferry_weather_forecast.db")
-        self.real_data_db = os.path.join(data_dir, "heartland_ferry_real_data.db")
-
-        # Initialize tables
-        self.init_accuracy_tables()
-
-        # JST timezone
+        self.forecast_db  = os.path.join(data_dir, 'ferry_weather_forecast.db')
+        self.real_data_db = os.path.join(data_dir, 'heartland_ferry_real_data.db')
         self.jst = pytz.timezone('Asia/Tokyo')
-
+        self.init_accuracy_tables()
         print(f"Initialized UnifiedAccuracyTracker")
-        print(f"  Forecast DB: {self.forecast_db}")
+        print(f"  Forecast DB:  {self.forecast_db}")
         print(f"  Real Data DB: {self.real_data_db}")
 
     def init_accuracy_tables(self):
-        """Initialize accuracy tracking tables"""
         conn = sqlite3.connect(self.forecast_db)
         cursor = conn.cursor()
 
-        # Unified operation accuracy table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS unified_operation_accuracy (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,26 +53,22 @@ class UnifiedAccuracyTracker:
                 route TEXT NOT NULL,
                 departure_time TEXT,
 
-                -- Prediction
                 predicted_risk TEXT,
                 predicted_score REAL,
                 predicted_wind REAL,
                 predicted_wave REAL,
                 predicted_visibility REAL,
 
-                -- Actual
-                actual_status TEXT,  -- OPERATED or CANCELLED
+                actual_status TEXT,
                 actual_wind REAL,
                 actual_wave REAL,
                 actual_visibility REAL,
 
-                -- Accuracy metrics
                 is_correct BOOLEAN,
-                false_positive BOOLEAN,  -- Predicted HIGH but operated
-                false_negative BOOLEAN,  -- Predicted LOW but cancelled
+                false_positive BOOLEAN,
+                false_negative BOOLEAN,
                 prediction_error REAL,
 
-                -- Metadata
                 calculated_at TEXT,
                 data_source TEXT,
 
@@ -74,29 +76,24 @@ class UnifiedAccuracyTracker:
             )
         ''')
 
-        # Daily summary table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS unified_daily_summary (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 summary_date TEXT NOT NULL UNIQUE,
 
-                -- Overall metrics
                 total_predictions INTEGER,
                 correct_predictions INTEGER,
                 accuracy_rate REAL,
 
-                -- Confusion matrix
-                true_positives INTEGER,   -- Predicted HIGH, actually cancelled
-                true_negatives INTEGER,   -- Predicted LOW, actually operated
-                false_positives INTEGER,  -- Predicted HIGH, actually operated
-                false_negatives INTEGER,  -- Predicted LOW, actually cancelled
+                true_positives INTEGER,
+                true_negatives INTEGER,
+                false_positives INTEGER,
+                false_negatives INTEGER,
 
-                -- Derived metrics
-                precision_score REAL,  -- TP / (TP + FP)
-                recall_score REAL,     -- TP / (TP + FN)
-                f1_score REAL,         -- 2 * (precision * recall) / (precision + recall)
+                precision_score REAL,
+                recall_score REAL,
+                f1_score REAL,
 
-                -- Weather accuracy
                 avg_wind_error REAL,
                 avg_wave_error REAL,
                 avg_visibility_error REAL,
@@ -105,7 +102,6 @@ class UnifiedAccuracyTracker:
             )
         ''')
 
-        # Risk level accuracy table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS risk_level_accuracy (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -130,8 +126,9 @@ class UnifiedAccuracyTracker:
         conn.close()
         print("Accuracy tables initialized")
 
+    # ------------------------------------------------------------------
     def _calc_risk(self, wind: float, wave: Optional[float], vis: Optional[float]):
-        """Inline risk calculation (mirrors weather_forecast_collector logic)."""
+        """Risk calculation (mirrors weather_forecast_collector logic)."""
         score = 0
         if wind >= 35:   score += 70
         elif wind >= 30: score += 60
@@ -155,58 +152,67 @@ class UnifiedAccuracyTracker:
         else:             risk = 'MINIMAL'
         return risk, score
 
+    def _get_sailing_weather(self, cursor, date: str, port: str, dep_hour: int):
+        """
+        Fetch actual weather for a port at departure hour.
+        Falls back to dep_hour±1 if exact hour has no data.
+        Handles both old schema (no location column) and new schema.
+        """
+        for h in [dep_hour, dep_hour - 1, dep_hour + 1]:
+            if not (0 <= h <= 23):
+                continue
+            try:
+                cursor.execute('''
+                    SELECT wind_speed, wave_height, visibility
+                    FROM actual_weather
+                    WHERE date = ? AND location = ? AND hour = ?
+                ''', (date, port, h))
+            except Exception:
+                # location column not yet present — fall back to old schema (wakkanai only)
+                cursor.execute('''
+                    SELECT wind_speed, wave_height, visibility
+                    FROM actual_weather
+                    WHERE date = ? AND hour = ?
+                ''', (date, h))
+            row = cursor.fetchone()
+            if row and row[0] is not None:
+                return row[0], row[1], row[2]
+        return None, None, None
+
+    # ------------------------------------------------------------------
     def calculate_daily_accuracy(self, target_date: Optional[str] = None) -> Dict:
-        """Calculate accuracy for a specific date"""
+        """Calculate per-sailing hindcast accuracy for target_date."""
 
         if target_date is None:
-            # Yesterday (data should be available)
             yesterday = datetime.now(self.jst) - timedelta(days=1)
             target_date = yesterday.strftime('%Y-%m-%d')
 
         print(f"\nCalculating accuracy for {target_date}...")
 
-        # --- Actual weather for target_date (daily averages) ---
+        # --- Actual sailings ---
+        real_conn = sqlite3.connect(self.real_data_db)
+        real_cursor = real_conn.cursor()
+        real_cursor.execute('''
+            SELECT route, departure_time, is_cancelled
+            FROM ferry_status_enhanced
+            WHERE scrape_date = ?
+            ORDER BY route, departure_time
+        ''', (target_date,))
+        sailings = real_cursor.fetchall()
+        real_conn.close()
+
+        if not sailings:
+            print(f"  No actual sailing data for {target_date}")
+            return {}
+
+        routes_with_data = len(set(s[0] for s in sailings))
+        print(f"  Found {len(sailings)} sailings across {routes_with_data} routes")
+
+        # --- Forecasts (one per route, latest forecast_hour) ---
         forecast_conn = sqlite3.connect(self.forecast_db)
         forecast_cursor = forecast_conn.cursor()
-
         forecast_cursor.execute('''
             SELECT
-                AVG(wind_speed)   as actual_wind,
-                AVG(wave_height)  as actual_wave,
-                AVG(visibility)   as actual_vis
-            FROM actual_weather
-            WHERE date = ?
-        ''', (target_date,))
-        row = forecast_cursor.fetchone()
-        actual_wind_measured = row[0] if row and row[0] is not None else None
-        actual_wave_measured = row[1] if row and row[1] is not None else None
-        actual_vis_measured  = row[2] if row and row[2] is not None else None
-
-        if actual_wind_measured is not None:
-            w = f"{actual_wave_measured:.2f}m" if actual_wave_measured is not None else "N/A"
-            v = f"{actual_vis_measured:.1f}km" if actual_vis_measured is not None else "N/A"
-            print(f"  Actual weather: wind={actual_wind_measured:.1f}m/s wave={w} vis={v}")
-        else:
-            print(f"  [WARNING] No actual weather data for {target_date} "
-                  f"(run actual_weather_collector.py first)")
-
-        # --- Hindcast: what would our model predict using ACTUAL weather? ---
-        hindcast_risk = None
-        hindcast_score = None
-        use_hindcast = actual_wind_measured is not None
-
-        if use_hindcast:
-            hindcast_risk, hindcast_score = self._calc_risk(
-                actual_wind_measured,
-                actual_wave_measured,
-                actual_vis_measured
-            )
-            print(f"  Hindcast risk (actual weather): {hindcast_risk} (score={hindcast_score:.1f})")
-
-        # --- Forecast-based predictions (for reference) ---
-        forecast_cursor.execute('''
-            SELECT
-                cf.forecast_for_date,
                 cf.route,
                 cf.risk_level,
                 cf.risk_score,
@@ -224,118 +230,81 @@ class UnifiedAccuracyTracker:
             AND cf.route = latest.route
             AND cf.forecast_hour = latest.max_hour
         ''', (target_date,))
+        forecast_by_route = {row[0]: row[1:] for row in forecast_cursor.fetchall()}
+        print(f"  Found {len(forecast_by_route)} route forecasts")
 
-        predictions = forecast_cursor.fetchall()
-        print(f"  Found {len(predictions)} forecast predictions")
-
-        if not predictions:
-            print(f"  No predictions found for {target_date}")
-            forecast_conn.close()
-            return {}
-
-        # Get actual operations from real data DB
-        real_conn = sqlite3.connect(self.real_data_db)
-        real_cursor = real_conn.cursor()
-
-        real_cursor.execute('''
-            SELECT
-                scrape_date,
-                route,
-                departure_time,
-                operational_status,
-                is_cancelled
-            FROM ferry_status_enhanced
-            WHERE scrape_date = ?
-        ''', (target_date,))
-
-        # Group actual operations by route
-        actual_ops_by_route = {}
-        for row in real_cursor.fetchall():
-            date, route, dep_time, status, is_cancelled = row
-            if route not in actual_ops_by_route:
-                actual_ops_by_route[route] = []
-            actual_ops_by_route[route].append({
-                'departure_time': dep_time,
-                'status': 'CANCELLED' if is_cancelled else 'OPERATED',
-                'is_cancelled': is_cancelled
-            })
-
-        real_conn.close()
-        print(f"  Found {sum(len(ops) for ops in actual_ops_by_route.values())} actual operations across {len(actual_ops_by_route)} routes")
-
-        # Match predictions with actual
-        matched = 0
-        correct = 0
-        false_positives = 0
-        false_negatives = 0
-        true_positives = 0
-        true_negatives = 0
+        # --- Per-sailing evaluation ---
+        matched = correct = tp = tn = fp = fn = 0
+        hindcast_used = 0
 
         unified_conn = sqlite3.connect(self.forecast_db)
         unified_cursor = unified_conn.cursor()
 
-        for pred in predictions:
-            pred_date, route, risk, score, wind, wave, vis = pred
+        for route, dep_time, is_cancelled in sailings:
+            dep_port = self.ROUTE_DEPARTURE_PORT.get(route)
+            dep_hour = int(dep_time[:2]) if dep_time and len(dep_time) >= 2 else 6
 
-            if route in actual_ops_by_route:
-                route_ops = actual_ops_by_route[route]
-                cancelled_count = sum(1 for op in route_ops if op['is_cancelled'])
-                operated_count  = len(route_ops) - cancelled_count
-                route_mostly_cancelled = cancelled_count > operated_count
+            # Get sailing-specific weather from departure port at departure time
+            wind, wave, vis = self._get_sailing_weather(
+                forecast_cursor, target_date, dep_port, dep_hour
+            )
 
-                # Use hindcast (actual weather) when available; else fall back to forecast risk
-                eval_risk  = hindcast_risk  if use_hindcast else risk
-                eval_score = hindcast_score if use_hindcast else score
+            use_hindcast = (wind is not None and dep_port is not None)
 
-                predicted_high_risk = eval_risk in ['HIGH', 'MEDIUM']
-                is_correct = (predicted_high_risk and route_mostly_cancelled) or \
-                             (not predicted_high_risk and not route_mostly_cancelled)
+            if use_hindcast:
+                eval_risk, eval_score = self._calc_risk(wind, wave, vis)
+                hindcast_used += 1
+            else:
+                # Fall back to forecast risk for this route
+                if route not in forecast_by_route:
+                    continue
+                eval_risk  = forecast_by_route[route][0]
+                eval_score = forecast_by_route[route][1]
+                wind = forecast_by_route[route][2]
+                wave = forecast_by_route[route][3]
+                vis  = forecast_by_route[route][4]
 
-                if predicted_high_risk and route_mostly_cancelled:
-                    true_positives += 1
-                elif predicted_high_risk and not route_mostly_cancelled:
-                    false_positives += 1
-                elif not predicted_high_risk and route_mostly_cancelled:
-                    false_negatives += 1
-                else:
-                    true_negatives += 1
+            actual_cancelled = bool(is_cancelled)
+            predicted_high   = eval_risk in ['HIGH', 'MEDIUM']
+            is_correct = (predicted_high == actual_cancelled)
 
-                if is_correct:
-                    correct += 1
-                matched += 1
+            if   predicted_high and     actual_cancelled: tp += 1
+            elif predicted_high and not actual_cancelled: fp += 1
+            elif not predicted_high and actual_cancelled: fn += 1
+            else:                                         tn += 1
 
-                unified_cursor.execute('''
-                    INSERT OR REPLACE INTO unified_operation_accuracy
-                    (operation_date, route, departure_time,
-                     predicted_risk, predicted_score, predicted_wind, predicted_wave, predicted_visibility,
-                     actual_status, actual_wind, actual_wave, actual_visibility,
-                     is_correct, false_positive, false_negative,
-                     calculated_at, data_source)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    pred_date, route, f"{cancelled_count}/{len(route_ops)} cancelled",
-                    eval_risk, eval_score,
-                    actual_wind_measured if use_hindcast else wind,
-                    actual_wave_measured if use_hindcast else wave,
-                    actual_vis_measured  if use_hindcast else vis,
-                    'MOSTLY_CANCELLED' if route_mostly_cancelled else 'MOSTLY_OPERATED',
-                    actual_wind_measured, actual_wave_measured, actual_vis_measured,
-                    is_correct,
-                    predicted_high_risk and not route_mostly_cancelled,
-                    not predicted_high_risk and route_mostly_cancelled,
-                    datetime.now(self.jst).isoformat(),
-                    'hindcast' if use_hindcast else 'forecast'
-                ))
+            if is_correct:
+                correct += 1
+            matched += 1
+
+            unified_cursor.execute('''
+                INSERT OR REPLACE INTO unified_operation_accuracy
+                (operation_date, route, departure_time,
+                 predicted_risk, predicted_score, predicted_wind, predicted_wave, predicted_visibility,
+                 actual_status, actual_wind, actual_wave, actual_visibility,
+                 is_correct, false_positive, false_negative,
+                 calculated_at, data_source)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                target_date, route, dep_time,
+                eval_risk, eval_score, wind, wave, vis,
+                'CANCELLED' if actual_cancelled else 'OPERATED',
+                wind, wave, vis,
+                is_correct,
+                predicted_high and not actual_cancelled,
+                not predicted_high and actual_cancelled,
+                datetime.now(self.jst).isoformat(),
+                'hindcast' if use_hindcast else 'forecast',
+            ))
 
         unified_conn.commit()
 
-        # Calculate metrics
+        # --- Aggregate metrics ---
         accuracy_rate = (correct / matched * 100) if matched > 0 else 0
-        precision = (true_positives / (true_positives + false_positives)) if (true_positives + false_positives) > 0 else 0
-        recall = (true_positives / (true_positives + false_negatives)) if (true_positives + false_negatives) > 0 else 0
-        f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+        recall    = tp / (tp + fn) if (tp + fn) > 0 else 0
+        f1        = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
 
-        # Store daily summary
         unified_cursor.execute('''
             INSERT OR REPLACE INTO unified_daily_summary
             (summary_date, total_predictions, correct_predictions, accuracy_rate,
@@ -344,7 +313,7 @@ class UnifiedAccuracyTracker:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             target_date, matched, correct, accuracy_rate,
-            true_positives, true_negatives, false_positives, false_negatives,
+            tp, tn, fp, fn,
             precision, recall, f1,
             datetime.now(self.jst).isoformat()
         ))
@@ -353,37 +322,31 @@ class UnifiedAccuracyTracker:
         unified_conn.close()
         forecast_conn.close()
 
-        results = {
-            'date': target_date,
-            'matched': matched,
-            'correct': correct,
-            'accuracy_rate': accuracy_rate,
-            'true_positives': true_positives,
-            'true_negatives': true_negatives,
-            'false_positives': false_positives,
-            'false_negatives': false_negatives,
-            'precision': precision,
-            'recall': recall,
-            'f1_score': f1
+        print(f"  Hindcast used for {hindcast_used}/{matched} sailings")
+        print(f"  Accuracy: {accuracy_rate:.1f}%  "
+              f"Precision: {precision:.3f}  Recall: {recall:.3f}  F1: {f1:.3f}")
+        print(f"  TP={tp} TN={tn} FP={fp} FN={fn}")
+
+        return {
+            'date':            target_date,
+            'matched':         matched,
+            'correct':         correct,
+            'accuracy_rate':   accuracy_rate,
+            'true_positives':  tp,
+            'true_negatives':  tn,
+            'false_positives': fp,
+            'false_negatives': fn,
+            'precision':       precision,
+            'recall':          recall,
+            'f1_score':        f1,
         }
 
-        print(f"\n  Results:")
-        print(f"    Matched: {matched}")
-        print(f"    Correct: {correct}")
-        print(f"    Accuracy: {accuracy_rate:.1f}%")
-        print(f"    Precision: {precision:.3f}")
-        print(f"    Recall: {recall:.3f}")
-        print(f"    F1 Score: {f1:.3f}")
-
-        return results
-
+    # ------------------------------------------------------------------
     def calculate_weekly_summary(self) -> Dict:
-        """Calculate weekly summary"""
         conn = sqlite3.connect(self.forecast_db)
         cursor = conn.cursor()
 
-        # Last 7 days
-        end_date = datetime.now(self.jst)
+        end_date   = datetime.now(self.jst)
         start_date = end_date - timedelta(days=7)
 
         cursor.execute('''
@@ -394,7 +357,7 @@ class UnifiedAccuracyTracker:
                 SUM(CASE WHEN false_negative = 1 THEN 1 ELSE 0 END) as fn
             FROM unified_operation_accuracy
             WHERE operation_date >= ?
-            AND operation_date < ?
+              AND operation_date <  ?
         ''', (start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
 
         row = cursor.fetchone()
@@ -403,20 +366,17 @@ class UnifiedAccuracyTracker:
         if row and row[0]:
             total, correct, fp, fn = row
             accuracy = (correct / total * 100) if total > 0 else 0
-
             return {
-                'period': f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
-                'total': total,
-                'correct': correct,
-                'accuracy_rate': accuracy,
+                'period':          f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+                'total':           total,
+                'correct':         correct,
+                'accuracy_rate':   accuracy,
                 'false_positives': fp,
-                'false_negatives': fn
+                'false_negatives': fn,
             }
-        else:
-            return {}
+        return {}
 
     def generate_report(self) -> str:
-        """Generate accuracy report"""
         report = []
         report.append("=" * 80)
         report.append("UNIFIED ACCURACY TRACKER REPORT")
@@ -424,38 +384,35 @@ class UnifiedAccuracyTracker:
         report.append(f"Generated: {datetime.now(self.jst).strftime('%Y-%m-%d %H:%M:%S JST')}")
         report.append("")
 
-        # Yesterday's accuracy
         yesterday = (datetime.now(self.jst) - timedelta(days=1)).strftime('%Y-%m-%d')
         daily_result = self.calculate_daily_accuracy(yesterday)
 
         if daily_result:
             report.append(f"Daily Accuracy ({yesterday}):")
-            report.append(f"  Predictions matched: {daily_result['matched']}")
+            report.append(f"  Sailings matched: {daily_result['matched']}")
             report.append(f"  Accuracy: {daily_result['accuracy_rate']:.1f}%")
             report.append(f"  Precision: {daily_result['precision']:.3f}")
-            report.append(f"  Recall: {daily_result['recall']:.3f}")
-            report.append(f"  F1 Score: {daily_result['f1_score']:.3f}")
+            report.append(f"  Recall:    {daily_result['recall']:.3f}")
+            report.append(f"  F1 Score:  {daily_result['f1_score']:.3f}")
             report.append("")
 
-        # Weekly summary
         weekly = self.calculate_weekly_summary()
         if weekly:
             report.append("Weekly Summary (Last 7 days):")
             report.append(f"  Period: {weekly['period']}")
-            report.append(f"  Total predictions: {weekly['total']}")
+            report.append(f"  Total sailings: {weekly['total']}")
             report.append(f"  Accuracy: {weekly['accuracy_rate']:.1f}%")
             report.append(f"  False Positives: {weekly['false_positives']}")
             report.append(f"  False Negatives: {weekly['false_negatives']}")
             report.append("")
 
         report.append("=" * 80)
-
         return "\n".join(report)
 
 
+# ------------------------------------------------------------------
 def main():
-    """Main execution.
-
+    """
     Usage:
         python unified_accuracy_tracker.py                        # yesterday only
         python unified_accuracy_tracker.py 2026-04-05            # single date
@@ -471,39 +428,32 @@ def main():
 
     args = sys.argv[1:]
     if len(args) >= 2:
-        start_str = args[0]
-        end_str   = args[1]
+        start_str, end_str = args[0], args[1]
     elif len(args) == 1:
-        start_str = args[0]
-        end_str   = args[0]
+        start_str = end_str = args[0]
     else:
-        start_str = yesterday_str
-        end_str   = yesterday_str
+        start_str = end_str = yesterday_str
 
     tracker = UnifiedAccuracyTracker()
 
-    # Loop over requested date range
-    current = date_cls.fromisoformat(start_str)
-    end_d   = date_cls.fromisoformat(end_str)
+    current  = date_cls.fromisoformat(start_str)
+    end_d    = date_cls.fromisoformat(end_str)
     days_done = 0
     while current <= end_d:
         tracker.calculate_daily_accuracy(current.strftime('%Y-%m-%d'))
-        current += timedelta(days=1)
+        current   += timedelta(days=1)
         days_done += 1
 
     print(f"\nProcessed {days_done} day(s) from {start_str} to {end_str}")
 
-    # Generate and print report
     report = tracker.generate_report()
     print("\n")
     print(report)
 
-    # Save report to file
-    report_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')
-    report_file = os.path.join(report_dir, "accuracy_report.txt")
+    report_dir  = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')
+    report_file = os.path.join(report_dir, 'accuracy_report.txt')
     with open(report_file, 'w', encoding='utf-8') as f:
         f.write(report)
-
     print(f"\nReport saved to: {report_file}")
     print("\nUnified Accuracy Tracker completed successfully!")
 

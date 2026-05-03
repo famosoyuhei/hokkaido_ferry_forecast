@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Backfill Actual Weather Data
-Fetches historical measured weather (wind, wave, visibility) from
+Backfill Actual Weather Data (4 ports)
+Fetches historical measured weather for all ferry ports from
 Open-Meteo Archive + Marine APIs and stores in actual_weather table.
 
 Usage:
-    python backfill_actual_weather.py                  # 2025-10-01 to yesterday
-    python backfill_actual_weather.py 2025-08-01       # custom start date
+    python backfill_actual_weather.py                         # 2026-04-05 to yesterday
+    python backfill_actual_weather.py 2025-10-01              # custom start date
     python backfill_actual_weather.py 2025-10-01 2026-01-01  # custom range
+
+Note: default start is 2026-04-05 (first date with reliable ferry status data).
 """
 
 import sys
@@ -22,7 +24,13 @@ import time
 from datetime import datetime, timedelta, date
 import pytz
 
-WAKKANAI = {'lat': 45.415, 'lon': 141.673}
+LOCATIONS = {
+    'wakkanai':   {'lat': 45.415, 'lon': 141.673},
+    'oshidomari': {'lat': 45.200, 'lon': 141.216},
+    'kutsugata':  {'lat': 45.393, 'lon': 141.107},
+    'kafuka':     {'lat': 45.298, 'lon': 141.036},
+}
+
 JST = pytz.timezone('Asia/Tokyo')
 
 
@@ -32,48 +40,90 @@ def get_db_path():
 
 
 def init_table(db_path):
+    """Create or migrate actual_weather table to 4-port schema."""
     conn = sqlite3.connect(db_path)
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS actual_weather (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            date         TEXT NOT NULL,
-            hour         INTEGER NOT NULL,
-            wind_speed   REAL,
-            wave_height  REAL,
-            visibility   REAL,
-            collected_at TEXT NOT NULL,
-            UNIQUE(date, hour)
-        )
-    ''')
-    conn.commit()
+    cur = conn.cursor()
+
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='actual_weather'")
+    table_exists = cur.fetchone() is not None
+
+    if table_exists:
+        cur.execute("PRAGMA table_info(actual_weather)")
+        cols = [row[1] for row in cur.fetchall()]
+        if 'location' not in cols:
+            print("Migrating actual_weather table to 4-port schema...")
+            conn.execute("ALTER TABLE actual_weather RENAME TO actual_weather_old")
+            conn.execute('''
+                CREATE TABLE actual_weather (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date         TEXT NOT NULL,
+                    hour         INTEGER NOT NULL,
+                    location     TEXT NOT NULL DEFAULT 'wakkanai',
+                    wind_speed   REAL,
+                    wave_height  REAL,
+                    visibility   REAL,
+                    collected_at TEXT NOT NULL,
+                    UNIQUE(date, hour, location)
+                )
+            ''')
+            conn.execute('''
+                INSERT INTO actual_weather
+                    (date, hour, location, wind_speed, wave_height, visibility, collected_at)
+                SELECT date, hour, 'wakkanai', wind_speed, wave_height, visibility, collected_at
+                FROM actual_weather_old
+            ''')
+            conn.execute("DROP TABLE actual_weather_old")
+            conn.commit()
+            print("Migration complete.")
+    else:
+        conn.execute('''
+            CREATE TABLE actual_weather (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                date         TEXT NOT NULL,
+                hour         INTEGER NOT NULL,
+                location     TEXT NOT NULL DEFAULT 'wakkanai',
+                wind_speed   REAL,
+                wave_height  REAL,
+                visibility   REAL,
+                collected_at TEXT NOT NULL,
+                UNIQUE(date, hour, location)
+            )
+        ''')
+        conn.commit()
+
     conn.close()
 
 
-def already_collected(db_path, date_str):
-    """Return True if this date already has 20+ records (already backfilled)."""
+def already_collected(db_path, date_str, loc_name):
+    """Return True if this date+location already has 20+ records."""
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
-    cur.execute('SELECT COUNT(*) FROM actual_weather WHERE date = ?', (date_str,))
-    count = cur.fetchone()[0]
+    try:
+        cur.execute(
+            'SELECT COUNT(*) FROM actual_weather WHERE date = ? AND location = ?',
+            (date_str, loc_name)
+        )
+        count = cur.fetchone()[0]
+    except Exception:
+        count = 0
     conn.close()
     return count >= 20
 
 
-def fetch_chunk(start_str, end_str):
-    """Fetch wind+visibility and wave height for a date range. Returns dict[date][hour]."""
+def fetch_chunk(start_str, end_str, loc_name, loc_coords):
+    """Fetch wind+visibility+wave for a date range at one location."""
     result = {}
 
-    # Wind + visibility (Archive API)
     try:
         r = requests.get(
             'https://archive-api.open-meteo.com/v1/archive',
             params={
-                'latitude': WAKKANAI['lat'],
-                'longitude': WAKKANAI['lon'],
-                'start_date': start_str,
-                'end_date': end_str,
-                'hourly': ['windspeed_10m', 'visibility'],
-                'timezone': 'Asia/Tokyo',
+                'latitude':       loc_coords['lat'],
+                'longitude':      loc_coords['lon'],
+                'start_date':     start_str,
+                'end_date':       end_str,
+                'hourly':         ['windspeed_10m', 'visibility'],
+                'timezone':       'Asia/Tokyo',
                 'windspeed_unit': 'ms',
             },
             timeout=60
@@ -86,21 +136,20 @@ def fetch_chunk(start_str, end_str):
                 'wind_speed': w,
                 'visibility': v / 1000 if v is not None else None,
             }
-        print(f"  Archive:  {len(h['time'])} records ({start_str} - {end_str})")
+        print(f"    Archive: {len(h['time'])} records", end='')
     except Exception as e:
-        print(f"  [ERROR] Archive API: {e}")
+        print(f"    [ERROR] Archive API ({loc_name}): {e}", end='')
 
-    # Wave height (Marine API)
     try:
         r = requests.get(
             'https://marine-api.open-meteo.com/v1/marine',
             params={
-                'latitude': WAKKANAI['lat'],
-                'longitude': WAKKANAI['lon'],
+                'latitude':   loc_coords['lat'],
+                'longitude':  loc_coords['lon'],
                 'start_date': start_str,
-                'end_date': end_str,
-                'hourly': ['wave_height'],
-                'timezone': 'Asia/Tokyo',
+                'end_date':   end_str,
+                'hourly':     ['wave_height'],
+                'timezone':   'Asia/Tokyo',
             },
             timeout=60
         )
@@ -110,15 +159,15 @@ def fetch_chunk(start_str, end_str):
             d, hr = t[:10], int(t[11:13])
             result.setdefault(d, {}).setdefault(hr, {})
             result[d][hr]['wave_height'] = w
-        print(f"  Marine:   {len(h['time'])} records ({start_str} - {end_str})")
+        print(f"  Marine: {len(h['time'])} records")
     except Exception as e:
-        print(f"  [ERROR] Marine API: {e}")
+        print(f"  [ERROR] Marine API ({loc_name}): {e}")
 
     return result
 
 
-def save_chunk(db_path, chunk_data):
-    """Save chunk data to actual_weather table. Returns count of saved records."""
+def save_chunk(db_path, chunk_data, loc_name):
+    """Save chunk data for one location. Returns count of saved records."""
     now_str = datetime.now(JST).isoformat()
     conn = sqlite3.connect(db_path)
     saved = 0
@@ -131,9 +180,9 @@ def save_chunk(db_path, chunk_data):
                 continue
             conn.execute('''
                 INSERT OR REPLACE INTO actual_weather
-                (date, hour, wind_speed, wave_height, visibility, collected_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (date_str, hour, wind, wave, vis, now_str))
+                (date, hour, location, wind_speed, wave_height, visibility, collected_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (date_str, hour, loc_name, wind, wave, vis, now_str))
             saved += 1
     conn.commit()
     conn.close()
@@ -141,17 +190,17 @@ def save_chunk(db_path, chunk_data):
 
 
 def main():
-    # Parse arguments
     args = sys.argv[1:]
     if len(args) >= 2:
         start_str = args[0]
-        end_str = args[1]
+        end_str   = args[1]
     elif len(args) == 1:
         start_str = args[0]
-        end_str = (datetime.now(JST) - timedelta(days=1)).strftime('%Y-%m-%d')
+        end_str   = (datetime.now(JST) - timedelta(days=1)).strftime('%Y-%m-%d')
     else:
-        start_str = '2025-10-01'
-        end_str = (datetime.now(JST) - timedelta(days=1)).strftime('%Y-%m-%d')
+        # Default: 2026-04-05 = first date with reliable ferry scraper data
+        start_str = '2026-04-05'
+        end_str   = (datetime.now(JST) - timedelta(days=1)).strftime('%Y-%m-%d')
 
     db_path = get_db_path()
     init_table(db_path)
@@ -160,50 +209,64 @@ def main():
     end_date   = date.fromisoformat(end_str)
     total_days = (end_date - start_date).days + 1
 
-    print(f"Backfilling actual weather: {start_str} to {end_str} ({total_days} days)")
+    print(f"Backfilling actual weather: {start_str} to {end_str} ({total_days} days, 4 ports)")
     print(f"DB: {db_path}")
     print()
 
-    # Process in 30-day chunks to stay within API limits
-    chunk_days = 30
-    current = start_date
-    total_saved = 0
-    chunks_done = 0
+    chunk_days  = 30
+    grand_total = 0
 
-    while current <= end_date:
-        chunk_end = min(current + timedelta(days=chunk_days - 1), end_date)
-        chunk_start_str = current.strftime('%Y-%m-%d')
-        chunk_end_str   = chunk_end.strftime('%Y-%m-%d')
+    for loc_name, loc_coords in LOCATIONS.items():
+        print(f"=== {loc_name} ===")
+        current     = start_date
+        loc_total   = 0
+        chunks_done = 0
 
-        print(f"Chunk {chunks_done+1}: {chunk_start_str} - {chunk_end_str}")
+        while current <= end_date:
+            chunk_end        = min(current + timedelta(days=chunk_days - 1), end_date)
+            chunk_start_str  = current.strftime('%Y-%m-%d')
+            chunk_end_str    = chunk_end.strftime('%Y-%m-%d')
 
-        chunk_data = fetch_chunk(chunk_start_str, chunk_end_str)
-        saved = save_chunk(db_path, chunk_data)
-        total_saved += saved
-        chunks_done += 1
+            # Skip chunks where all dates are already collected
+            dates_in_chunk = [(current + timedelta(days=i)).strftime('%Y-%m-%d')
+                              for i in range((chunk_end - current).days + 1)]
+            if all(already_collected(db_path, d, loc_name) for d in dates_in_chunk):
+                print(f"  Chunk {chunks_done+1} ({chunk_start_str}~{chunk_end_str}): already collected, skip")
+                current      = chunk_end + timedelta(days=1)
+                chunks_done += 1
+                continue
 
-        print(f"  Saved {saved} records this chunk")
+            print(f"  Chunk {chunks_done+1}: {chunk_start_str} - {chunk_end_str}", end='  ')
+            chunk_data = fetch_chunk(chunk_start_str, chunk_end_str, loc_name, loc_coords)
+            saved      = save_chunk(db_path, chunk_data, loc_name)
+            loc_total  += saved
+            chunks_done += 1
+            print(f"  → {saved} records saved")
 
-        current = chunk_end + timedelta(days=1)
+            current = chunk_end + timedelta(days=1)
+            if current <= end_date:
+                time.sleep(0.5)
 
-        # Brief pause between chunks to be polite to the API
-        if current <= end_date:
-            time.sleep(1)
+        print(f"  {loc_name}: {loc_total} records total\n")
+        grand_total += loc_total
 
-    print()
-    print(f"Backfill complete: {total_saved} total records saved across {chunks_done} chunks")
+    print(f"Backfill complete: {grand_total} records saved across 4 ports")
 
     # Summary from DB
     conn = sqlite3.connect(db_path)
-    cur = conn.cursor()
+    cur  = conn.cursor()
     cur.execute('''
-        SELECT MIN(date), MAX(date), COUNT(DISTINCT date), COUNT(*)
+        SELECT location, MIN(date), MAX(date), COUNT(DISTINCT date), COUNT(*)
         FROM actual_weather
+        GROUP BY location
+        ORDER BY location
     ''')
-    row = cur.fetchone()
+    rows = cur.fetchall()
     conn.close()
-    if row[0]:
-        print(f"DB now covers: {row[0]} to {row[1]} ({row[2]} days, {row[3]} hourly records)")
+    if rows:
+        print("\nDB coverage per port:")
+        for loc, dmin, dmax, days, records in rows:
+            print(f"  {loc:12s}: {dmin} ~ {dmax}  ({days} days, {records} hourly records)")
 
 
 if __name__ == '__main__':
