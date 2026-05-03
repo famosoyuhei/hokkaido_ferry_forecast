@@ -14,6 +14,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 import sqlite3
 import os
+import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional
 import pytz
@@ -242,7 +243,9 @@ class UnifiedAccuracyTracker:
 
         for route, dep_time, is_cancelled in sailings:
             dep_port = self.ROUTE_DEPARTURE_PORT.get(route)
-            dep_hour = int(dep_time[:2]) if dep_time and len(dep_time) >= 2 else 6
+            # dep_time may contain parentheses e.g. "(13:25" — extract first integer
+            m = re.search(r'(\d{1,2}):', dep_time or '')
+            dep_hour = int(m.group(1)) if m else 6
 
             # Get sailing-specific weather from departure port at departure time
             wind, wave, vis = self._get_sailing_weather(
