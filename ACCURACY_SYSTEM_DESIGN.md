@@ -1,6 +1,6 @@
 # 精度追跡システム 設計仕様書
 
-**最終更新**: 2026-05-03  
+**最終更新**: 2026-05-03（v1.3）  
 **バージョン**: 1.0  
 **目的**: 役割分担・現状の問題点・改善ロードマップを一元管理する
 
@@ -86,15 +86,18 @@ WAKKANAI = {'lat': 45.415, 'lon': 141.673}
 
 ---
 
-### 役割4：Hindcast精度照合 ✅ **2026-05-03 修正済み**
+### 役割4：Hindcast精度照合 ✅ **2026-05-03 修正済み（v2）**
 
 | 項目 | 内容 |
 |------|------|
 | スクリプト | `unified_accuracy_tracker.py` |
-| 実行 | `actual-weather-collection.yml`（役割2と同一ワークフロー） |
+| 実行 | `accuracy-tracking.yml`（役割2から分離済み）07:30 JST |
 | 気象データ | **便ごとに出発港×出発時刻（±1h）の実測値** |
 | ルート別気象 | ✅ `ROUTE_DEPARTURE_PORT` マッピングで出発港を特定 |
+| 礼文ルート強化 | ✅ `ROUTE_DESTINATION_PORT` + MAX(出発港, 香深) で最悪値を使用 |
 | 精度単位 | **便単位**（旧：1日1ルートの多数決 → 新：1便1レコード） |
+| 整備ドック検出 | ✅ `is_likely_maintenance` フラグ。4/5〜15 + 全便欠航 + 風速<15m/s → フラグ |
+| Precision/Recall | 整備フラグ付き日は P/R/F1 の計算から除外（Accuracy は全便対象） |
 
 ---
 
@@ -104,10 +107,8 @@ WAKKANAI = {'lat': 45.415, 'lon': 141.673}
 |------------|------|-------------|------|
 | `data-collection.yml` | 役割3（予報収集） | 05:00/11:00/17:00/23:00 | ✅ |
 | `ferry-collection.yml` | 役割1（実運航収集） | 06:00 | ✅ |
-| `actual-weather-collection.yml` | 役割2＋4（実測気象＋精度照合） | 07:30 | ⚠️ 1つのワークフローに2役が混在 |
-
-**問題**：`actual-weather-collection.yml` が役割2（収集）と役割4（照合）を兼ねており、
-片方が失敗した場合の切り分けが困難。分離を推奨。
+| `actual-weather-collection.yml` | 役割2のみ（実測気象収集） | 07:00 | ✅ 分離済み |
+| `accuracy-tracking.yml` | 役割4のみ（精度照合） | 07:30 | ✅ 新設（2026-05-03） |
 
 ---
 
@@ -173,12 +174,11 @@ WHERE date = ? AND location = ? AND hour = ?
 
 ### 優先度 中：ワークフローの分離
 
-**現状**：`actual-weather-collection.yml` が実測収集＋精度照合を兼務  
-**改善案**：2つに分離
+✅ **2026-05-03 完了**
 
 ```
-actual-weather-collection.yml  → 役割2のみ（実測気象収集）07:00 JST
-accuracy-tracking.yml          → 役割4のみ（精度照合）     07:30 JST（収集完了後）
+actual-weather-collection.yml  → 役割2のみ（実測気象収集）07:00 JST → /admin/run-actual-weather
+accuracy-tracking.yml          → 役割4のみ（精度照合）     07:30 JST → /admin/run-accuracy-only
 ```
 
 ---
@@ -261,7 +261,7 @@ accuracy-tracking.yml          → 役割4のみ（精度照合）     07:30 JST
 | `weather_forecast_collector.py` | 予報収集・リスク計算 | ✅ 稼働中 | なし |
 | `improved_ferry_collector.py` | 実運航データ収集 | ✅ 稼働中 | なし |
 | `actual_weather_collector.py` | 実測気象収集 | ✅ 稼働中 | 4港対応済み（2026-05-03） |
-| `unified_accuracy_tracker.py` | Hindcast精度照合 | ✅ 稼働中 | 便単位・出発港×出発時刻対応済み（2026-05-03） |
+| `unified_accuracy_tracker.py` | Hindcast精度照合 | ✅ 稼働中 | 礼文MAX気象・整備ドック検出フラグ対応済み（2026-05-03） |
 | `backfill_actual_weather.py` | 実測気象の一括取得 | ✅ 利用可能 | 4港対応済み・2026-04-05以降を再実行推奨 |
 | `auto_threshold_adjuster.py` | 閾値の自動調整 | 🔴 未稼働 | 精度データ蓄積後に使用予定 |
 | `ml_threshold_optimizer.py` | ML閾値最適化 | 🔴 未稼働 | Phase 3（将来） |
@@ -276,3 +276,4 @@ accuracy-tracking.yml          → 役割4のみ（精度照合）     07:30 JST
 | 2026-05-03 | 1.0 | 初版作成。現状の問題点（稚内のみ・日平均値）と改善ロードマップを文書化 |
 | 2026-05-03 | 1.1 | 役割2・4の修正を実装・反映。全スクリプトを稼働中に更新 |
 | 2026-05-04 | 1.2 | バックフィル完了を記録。MARITIME_RESEARCH.md 照合によるバイアス・限界事項を追加 |
+| 2026-05-03 | 1.3 | 礼文ルートMAX気象・整備ドック検出・ワークフロー分離を実装・反映 |
