@@ -19,6 +19,17 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional
 import pytz
 
+def _safe_max(a, b):
+    if a is None: return b
+    if b is None: return a
+    return max(a, b)
+
+def _safe_min(a, b):
+    if a is None: return b
+    if b is None: return a
+    return min(a, b)
+
+
 class UnifiedAccuracyTracker:
 
     # Maps route name → departure port (matches actual_weather location keys)
@@ -32,6 +43,18 @@ class UnifiedAccuracyTracker:
         'oshidomari_kafuka':   'oshidomari',
         'kafuka_oshidomari':   'kafuka',
     }
+
+    # Maps route name → destination port (for routes where both ends matter)
+    ROUTE_DESTINATION_PORT = {
+        'wakkanai_kafuka':   'kafuka',
+        'kafuka_wakkanai':   'wakkanai',
+        'oshidomari_kafuka': 'kafuka',
+        'kafuka_oshidomari': 'oshidomari',
+    }
+
+    # Annual dock maintenance window (month-day range, inclusive)
+    # Heartland Ferry typically does spring maintenance in early-mid April
+    MAINTENANCE_WINDOW = (4, 5, 4, 15)   # (start_month, start_day, end_month, end_day)
 
     def __init__(self):
         data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')
@@ -70,12 +93,20 @@ class UnifiedAccuracyTracker:
                 false_negative BOOLEAN,
                 prediction_error REAL,
 
+                is_likely_maintenance BOOLEAN DEFAULT 0,
+
                 calculated_at TEXT,
                 data_source TEXT,
 
                 UNIQUE(operation_date, route, departure_time)
             )
         ''')
+        # Add is_likely_maintenance column if upgrading from old schema
+        try:
+            cursor.execute('ALTER TABLE unified_operation_accuracy ADD COLUMN is_likely_maintenance BOOLEAN DEFAULT 0')
+            conn.commit()
+        except Exception:
+            pass  # column already exists
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS unified_daily_summary (
@@ -180,6 +211,59 @@ class UnifiedAccuracyTracker:
                 return row[0], row[1], row[2]
         return None, None, None
 
+    def _get_route_weather(self, cursor, date: str, route: str, dep_hour: int):
+        """
+        Return worst-case weather for a route:
+        - For Rebun (kafuka) routes: MAX of departure port and kafuka weather,
+          because Rebun Island has no orographic shelter and is consistently
+          windier/rougher than conditions at the departure port.
+        - For all other routes: departure port only.
+        """
+        dep_port  = self.ROUTE_DEPARTURE_PORT.get(route)
+        dest_port = self.ROUTE_DESTINATION_PORT.get(route)
+
+        wind1, wave1, vis1 = self._get_sailing_weather(cursor, date, dep_port, dep_hour)
+
+        if dest_port is None or dest_port == dep_port:
+            return wind1, wave1, vis1
+
+        wind2, wave2, vis2 = self._get_sailing_weather(cursor, date, dest_port, dep_hour)
+
+        # Take worst-case (max wind/wave, min visibility) across both ports
+        wind = _safe_max(wind1, wind2)
+        wave = _safe_max(wave1, wave2)
+        vis  = _safe_min(vis1, vis2)
+        return wind, wave, vis
+
+    def _is_maintenance_window(self, date_str: str) -> bool:
+        """Return True if date falls within the annual dock maintenance window."""
+        try:
+            from datetime import date as date_cls
+            d = date_cls.fromisoformat(date_str)
+            sm, sd, em, ed = self.MAINTENANCE_WINDOW
+            start = date_cls(d.year, sm, sd)
+            end   = date_cls(d.year, em, ed)
+            return start <= d <= end
+        except Exception:
+            return False
+
+    def _detect_maintenance_day(self, sailings, wind_values: List) -> bool:
+        """
+        Heuristic: likely dock maintenance if:
+        - ALL sailings are cancelled, AND
+        - median actual wind speed < 15 m/s (weather is calm), AND
+        - date falls within the annual maintenance window (Apr 5-15).
+        This is used to flag — not filter — the day.
+        """
+        if not sailings:
+            return False
+        if not self._is_maintenance_window(sailings[0][3]):
+            return False
+        all_cancelled = all(bool(s[2]) for s in sailings)
+        valid_winds = [w for w in wind_values if w is not None]
+        calm_weather = len(valid_winds) > 0 and (sum(valid_winds) / len(valid_winds)) < 15.0
+        return all_cancelled and calm_weather
+
     # ------------------------------------------------------------------
     def calculate_daily_accuracy(self, target_date: Optional[str] = None) -> Dict:
         """Calculate per-sailing hindcast accuracy for target_date."""
@@ -190,7 +274,7 @@ class UnifiedAccuracyTracker:
 
         print(f"\nCalculating accuracy for {target_date}...")
 
-        # --- Actual sailings ---
+        # --- Actual sailings (include target_date in tuple for maintenance detection) ---
         real_conn = sqlite3.connect(self.real_data_db)
         real_cursor = real_conn.cursor()
         real_cursor.execute('''
@@ -199,8 +283,11 @@ class UnifiedAccuracyTracker:
             WHERE scrape_date = ?
             ORDER BY route, departure_time
         ''', (target_date,))
-        sailings = real_cursor.fetchall()
+        sailings_raw = real_cursor.fetchall()
         real_conn.close()
+
+        # Attach target_date to each sailing for maintenance detection helper
+        sailings = [(r, dt, ic, target_date) for r, dt, ic in sailings_raw]
 
         if not sailings:
             print(f"  No actual sailing data for {target_date}")
@@ -234,38 +321,50 @@ class UnifiedAccuracyTracker:
         forecast_by_route = {row[0]: row[1:] for row in forecast_cursor.fetchall()}
         print(f"  Found {len(forecast_by_route)} route forecasts")
 
+        # --- First pass: collect weather for each sailing ---
+        sailing_data = []   # (route, dep_time, is_cancelled, wind, wave, vis, use_hindcast)
+        for route, dep_time, is_cancelled, _ in sailings:
+            m = re.search(r'(\d{1,2}):', dep_time or '')
+            dep_hour = int(m.group(1)) if m else 6
+
+            # Worst-case weather: for Rebun routes uses MAX(departure, kafuka) weather
+            wind, wave, vis = self._get_route_weather(
+                forecast_cursor, target_date, route, dep_hour
+            )
+
+            use_hindcast = (wind is not None and self.ROUTE_DEPARTURE_PORT.get(route) is not None)
+
+            if not use_hindcast:
+                if route not in forecast_by_route:
+                    continue
+                wind = forecast_by_route[route][2]
+                wave = forecast_by_route[route][3]
+                vis  = forecast_by_route[route][4]
+
+            sailing_data.append((route, dep_time, is_cancelled, wind, wave, vis, use_hindcast))
+
+        # --- Detect maintenance day before writing records ---
+        wind_values = [sd[3] for sd in sailing_data]
+        is_maint_day = self._detect_maintenance_day(sailings, wind_values)
+        if is_maint_day:
+            print(f"  *** Likely dock maintenance day detected — flagging all sailings ***")
+
         # --- Per-sailing evaluation ---
         matched = correct = tp = tn = fp = fn = 0
         hindcast_used = 0
+        # Separate counters that exclude maintenance days
+        matched_ex = correct_ex = tp_ex = tn_ex = fp_ex = fn_ex = 0
 
         unified_conn = sqlite3.connect(self.forecast_db)
         unified_cursor = unified_conn.cursor()
 
-        for route, dep_time, is_cancelled in sailings:
-            dep_port = self.ROUTE_DEPARTURE_PORT.get(route)
-            # dep_time may contain parentheses e.g. "(13:25" — extract first integer
-            m = re.search(r'(\d{1,2}):', dep_time or '')
-            dep_hour = int(m.group(1)) if m else 6
-
-            # Get sailing-specific weather from departure port at departure time
-            wind, wave, vis = self._get_sailing_weather(
-                forecast_cursor, target_date, dep_port, dep_hour
-            )
-
-            use_hindcast = (wind is not None and dep_port is not None)
-
+        for route, dep_time, is_cancelled, wind, wave, vis, use_hindcast in sailing_data:
             if use_hindcast:
                 eval_risk, eval_score = self._calc_risk(wind, wave, vis)
                 hindcast_used += 1
             else:
-                # Fall back to forecast risk for this route
-                if route not in forecast_by_route:
-                    continue
                 eval_risk  = forecast_by_route[route][0]
                 eval_score = forecast_by_route[route][1]
-                wind = forecast_by_route[route][2]
-                wave = forecast_by_route[route][3]
-                vis  = forecast_by_route[route][4]
 
             actual_cancelled = bool(is_cancelled)
             predicted_high   = eval_risk in ['HIGH', 'MEDIUM']
@@ -280,14 +379,24 @@ class UnifiedAccuracyTracker:
                 correct += 1
             matched += 1
 
+            # Exclude maintenance-flagged days from clean metrics
+            if not is_maint_day:
+                if   predicted_high and     actual_cancelled: tp_ex += 1
+                elif predicted_high and not actual_cancelled: fp_ex += 1
+                elif not predicted_high and actual_cancelled: fn_ex += 1
+                else:                                         tn_ex += 1
+                if is_correct: correct_ex += 1
+                matched_ex += 1
+
             unified_cursor.execute('''
                 INSERT OR REPLACE INTO unified_operation_accuracy
                 (operation_date, route, departure_time,
                  predicted_risk, predicted_score, predicted_wind, predicted_wave, predicted_visibility,
                  actual_status, actual_wind, actual_wave, actual_visibility,
                  is_correct, false_positive, false_negative,
+                 is_likely_maintenance,
                  calculated_at, data_source)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 target_date, route, dep_time,
                 eval_risk, eval_score, wind, wave, vis,
@@ -296,16 +405,18 @@ class UnifiedAccuracyTracker:
                 is_correct,
                 predicted_high and not actual_cancelled,
                 not predicted_high and actual_cancelled,
+                1 if is_maint_day else 0,
                 datetime.now(self.jst).isoformat(),
                 'hindcast' if use_hindcast else 'forecast',
             ))
 
         unified_conn.commit()
 
-        # --- Aggregate metrics ---
+        # --- Aggregate metrics (use maintenance-excluded counts for precision/recall) ---
         accuracy_rate = (correct / matched * 100) if matched > 0 else 0
-        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-        recall    = tp / (tp + fn) if (tp + fn) > 0 else 0
+        # Use clean (non-maintenance) counts for precision/recall/F1
+        precision = tp_ex / (tp_ex + fp_ex) if (tp_ex + fp_ex) > 0 else 0
+        recall    = tp_ex / (tp_ex + fn_ex) if (tp_ex + fn_ex) > 0 else 0
         f1        = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
 
         unified_cursor.execute('''
@@ -316,7 +427,7 @@ class UnifiedAccuracyTracker:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             target_date, matched, correct, accuracy_rate,
-            tp, tn, fp, fn,
+            tp_ex, tn_ex, fp_ex, fn_ex,
             precision, recall, f1,
             datetime.now(self.jst).isoformat()
         ))
@@ -325,23 +436,25 @@ class UnifiedAccuracyTracker:
         unified_conn.close()
         forecast_conn.close()
 
-        print(f"  Hindcast used for {hindcast_used}/{matched} sailings")
+        maint_note = ' [MAINTENANCE DAY — excluded from P/R/F1]' if is_maint_day else ''
+        print(f"  Hindcast used for {hindcast_used}/{matched} sailings{maint_note}")
         print(f"  Accuracy: {accuracy_rate:.1f}%  "
               f"Precision: {precision:.3f}  Recall: {recall:.3f}  F1: {f1:.3f}")
-        print(f"  TP={tp} TN={tn} FP={fp} FN={fn}")
+        print(f"  TP={tp_ex} TN={tn_ex} FP={fp_ex} FN={fn_ex} (excl. maintenance)")
 
         return {
-            'date':            target_date,
-            'matched':         matched,
-            'correct':         correct,
-            'accuracy_rate':   accuracy_rate,
-            'true_positives':  tp,
-            'true_negatives':  tn,
-            'false_positives': fp,
-            'false_negatives': fn,
-            'precision':       precision,
-            'recall':          recall,
-            'f1_score':        f1,
+            'date':                  target_date,
+            'matched':               matched,
+            'correct':               correct,
+            'accuracy_rate':         accuracy_rate,
+            'true_positives':        tp_ex,
+            'true_negatives':        tn_ex,
+            'false_positives':       fp_ex,
+            'false_negatives':       fn_ex,
+            'precision':             precision,
+            'recall':                recall,
+            'f1_score':              f1,
+            'is_likely_maintenance': is_maint_day,
         }
 
     # ------------------------------------------------------------------

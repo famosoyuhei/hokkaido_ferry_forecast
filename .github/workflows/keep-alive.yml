@@ -47,6 +47,7 @@ jobs:
             "data-collection.yml"
             "ferry-collection.yml"
             "actual-weather-collection.yml"
+            "accuracy-tracking.yml"
             "health-check.yml"
           )
 

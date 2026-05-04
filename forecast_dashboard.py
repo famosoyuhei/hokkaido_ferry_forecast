@@ -808,6 +808,79 @@ def admin_run_accuracy_tracking():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/admin/run-actual-weather')
+def admin_run_actual_weather():
+    """Run only actual_weather_collector.py (separated from accuracy tracking)."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ['python', 'actual_weather_collector.py'],
+            capture_output=True, text=True, timeout=180
+        )
+        lines = result.stdout.strip().split('\n')
+        records_added = 0
+        for line in lines:
+            if 'Inserted' in line or 'inserted' in line or 'records' in line.lower():
+                import re as _re
+                m = _re.search(r'(\d+)', line)
+                if m:
+                    records_added = int(m.group(1))
+                    break
+        return jsonify({
+            'status': 'success' if result.returncode == 0 else 'error',
+            'returncode': result.returncode,
+            'records_added': records_added,
+            'stdout': result.stdout[-3000:],
+            'stderr': result.stderr[-1000:],
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/admin/run-accuracy-only')
+def admin_run_accuracy_only():
+    """Run only unified_accuracy_tracker.py for yesterday (separated from weather collection)."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ['python', 'unified_accuracy_tracker.py'],
+            capture_output=True, text=True, timeout=180
+        )
+        # Parse key metrics from stdout
+        accuracy = precision = recall = f1 = None
+        is_maint = False
+        for line in result.stdout.split('\n'):
+            if 'Accuracy:' in line and 'Precision:' in line:
+                import re as _re
+                m = _re.search(r'Accuracy:\s*([\d.]+)%', line)
+                if m: accuracy = float(m.group(1))
+                m = _re.search(r'Precision:\s*([\d.]+)', line)
+                if m: precision = float(m.group(1))
+                m = _re.search(r'Recall:\s*([\d.]+)', line)
+                if m: recall = float(m.group(1))
+                m = _re.search(r'F1:\s*([\d.]+)', line)
+                if m: f1 = float(m.group(1))
+            if 'MAINTENANCE' in line.upper():
+                is_maint = True
+        return jsonify({
+            'status': 'success' if result.returncode == 0 else 'error',
+            'returncode': result.returncode,
+            'result': {
+                'accuracy_rate': accuracy,
+                'precision': precision,
+                'recall': recall,
+                'f1_score': f1,
+                'is_likely_maintenance': is_maint,
+            },
+            'stdout': result.stdout[-3000:],
+            'stderr': result.stderr[-1000:],
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
 @app.route('/admin/run-bulk-accuracy')
 def admin_run_bulk_accuracy():
     """Re-calculate accuracy for a date range using backfilled actual weather."""
