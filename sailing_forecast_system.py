@@ -658,9 +658,9 @@ class SailingForecastSystem:
             elif wind_speed >= 15:
                 risk_score += 20
             elif wind_speed >= 12:
-                risk_score += 25          # winter-only
+                risk_score += 15          # winter-only (< 15 m/s tier)
             elif wind_speed >= 8:
-                risk_score += 15          # winter-only
+                risk_score += 10          # winter-only
 
             if wave_height is not None:
                 if wave_height >= 4.0:
@@ -674,7 +674,15 @@ class SailingForecastSystem:
                 elif wave_height >= 1.5:
                     risk_score += 10      # winter-only
 
+            # Apply ×1.2 multiplier (wind + wave only)
             risk_score = int(risk_score * 1.2)
+
+            # Visibility applied after multiplier but before level determination
+            if visibility and visibility < 1.0:
+                risk_score += 20
+                risk_factors.append(f"視界不良 ({visibility:.1f}km)")
+            elif visibility and visibility < 3.0:
+                risk_score += 10
 
             if risk_score >= 60:
                 risk_level = "HIGH"
@@ -714,6 +722,13 @@ class SailingForecastSystem:
                 elif wave_height >= 2.0:
                     risk_score += 15
 
+            # Visibility applied before level determination
+            if visibility and visibility < 1.0:
+                risk_score += 20
+                risk_factors.append(f"視界不良 ({visibility:.1f}km)")
+            elif visibility and visibility < 3.0:
+                risk_score += 10
+
             if risk_score >= 70:
                 risk_level = "HIGH"
             elif risk_score >= 40:
@@ -722,13 +737,6 @@ class SailingForecastSystem:
                 risk_level = "LOW"
             else:
                 risk_level = "MINIMAL"
-
-        # Visibility (both seasons)
-        if visibility and visibility < 1.0:
-            risk_score += 20
-            risk_factors.append(f"視界不良 ({visibility:.1f}km)")
-        elif visibility and visibility < 3.0:
-            risk_score += 10
 
         weather_data = {
             'wind_speed': wind_speed,

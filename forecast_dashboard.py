@@ -167,21 +167,27 @@ class ForecastDashboard:
         cursor = conn.cursor()
 
         cursor.execute('''
-            SELECT cf.route, cf.risk_level, cf.risk_score,
-                   cf.wind_forecast, cf.wave_forecast,
-                   cf.visibility_forecast, cf.recommended_action
-            FROM cancellation_forecast cf
-            JOIN (
-                SELECT route, MAX(risk_score) AS max_score, MIN(id) AS tie_id
+            WITH ranked AS (
+                SELECT route, risk_level, risk_score,
+                       wind_forecast, wave_forecast,
+                       visibility_forecast, recommended_action,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY route
+                           ORDER BY risk_score DESC,
+                                    forecast_hour ASC,
+                                    generated_at DESC,
+                                    id ASC
+                       ) AS rn
                 FROM cancellation_forecast
                 WHERE forecast_for_date = ?
-                GROUP BY route
-            ) m ON cf.route = m.route
-               AND cf.risk_score = m.max_score
-               AND cf.id = m.tie_id
-            WHERE cf.forecast_for_date = ?
-            ORDER BY cf.risk_score DESC
-        ''', (date, date))
+            )
+            SELECT route, risk_level, risk_score,
+                   wind_forecast, wave_forecast,
+                   visibility_forecast, recommended_action
+            FROM ranked
+            WHERE rn = 1
+            ORDER BY risk_score DESC
+        ''', (date,))
 
         routes = []
         for row in cursor.fetchall():

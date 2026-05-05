@@ -525,10 +525,10 @@ class WeatherForecastCollector:
                 risk_score += 20
                 risk_factors.append(f"Moderate wind ({wind_speed:.1f} m/s)")
             elif wind_speed >= 12:
-                risk_score += 25          # winter-only threshold
+                risk_score += 15          # winter-only threshold (< 15 m/s tier)
                 risk_factors.append(f"Winter moderate wind ({wind_speed:.1f} m/s)")
             elif wind_speed >= 8:
-                risk_score += 15          # winter-only threshold
+                risk_score += 10          # winter-only threshold
                 risk_factors.append(f"Winter light wind ({wind_speed:.1f} m/s)")
 
             # Wave: extended thresholds for winter sea state
@@ -546,8 +546,17 @@ class WeatherForecastCollector:
                     risk_score += 10      # winter-only threshold
                     risk_factors.append(f"Winter swell ({wave_height:.1f} m)")
 
-            # Apply ×1.2 multiplier then use lowered thresholds
+            # Apply ×1.2 multiplier (wind + wave only)
             risk_score = int(risk_score * 1.2)
+
+            # Visibility applied after multiplier but before level determination
+            if visibility is not None:
+                if visibility < 1.0:
+                    risk_score += 20
+                    risk_factors.append(f"Very poor visibility ({visibility:.1f} km)")
+                elif visibility < 3.0:
+                    risk_score += 10
+                    risk_factors.append(f"Poor visibility ({visibility:.1f} km)")
 
             if risk_score >= 60:
                 risk_level = "HIGH"
@@ -589,6 +598,15 @@ class WeatherForecastCollector:
                     risk_score += 15
                     risk_factors.append(f"Moderate-high waves ({wave_height:.1f} m)")
 
+            # Visibility applied before level determination
+            if visibility is not None:
+                if visibility < 1.0:
+                    risk_score += 20
+                    risk_factors.append(f"Very poor visibility ({visibility:.1f} km)")
+                elif visibility < 3.0:
+                    risk_score += 10
+                    risk_factors.append(f"Poor visibility ({visibility:.1f} km)")
+
             if risk_score >= 70:
                 risk_level = "HIGH"
             elif risk_score >= 40:
@@ -597,15 +615,6 @@ class WeatherForecastCollector:
                 risk_level = "LOW"
             else:
                 risk_level = "MINIMAL"
-
-        # Visibility (applies to both seasons)
-        if visibility is not None:
-            if visibility < 1.0:
-                risk_score += 20
-                risk_factors.append(f"Very poor visibility ({visibility:.1f} km)")
-            elif visibility < 3.0:
-                risk_score += 10
-                risk_factors.append(f"Poor visibility ({visibility:.1f} km)")
 
         return risk_level, risk_score, risk_factors
 
