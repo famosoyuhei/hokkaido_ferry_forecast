@@ -172,11 +172,13 @@ class ForecastDashboard:
                    cf.visibility_forecast, cf.recommended_action
             FROM cancellation_forecast cf
             JOIN (
-                SELECT route, MAX(risk_score) AS max_score
+                SELECT route, MAX(risk_score) AS max_score, MIN(id) AS tie_id
                 FROM cancellation_forecast
                 WHERE forecast_for_date = ?
                 GROUP BY route
-            ) m ON cf.route = m.route AND cf.risk_score = m.max_score
+            ) m ON cf.route = m.route
+               AND cf.risk_score = m.max_score
+               AND cf.id = m.tie_id
             WHERE cf.forecast_for_date = ?
             ORDER BY cf.risk_score DESC
         ''', (date, date))
@@ -563,7 +565,7 @@ def route_details(route_id):
         else:
             all_days.append({
                 'date': target_date,
-                'weekday': now_jst().date().strftime('%a'),
+                'weekday': datetime.fromisoformat(target_date).strftime('%a'),
                 'sailings': [],
                 'max_risk': 'MINIMAL'
             })

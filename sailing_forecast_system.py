@@ -630,70 +630,52 @@ class SailingForecastSystem:
 
         temperature = enroute_weather[3]
 
-        # Calculate risk score (same logic as daily forecast)
+        # Calculate risk score — mirroring weather_forecast_collector logic
         risk_score = 0
         risk_factors = []
 
-        # Wind risk
-        if wind_speed >= 35:
-            risk_score += 70
-            risk_factors.append(f"極めて強風 ({wind_speed:.1f}m/s)")
-        elif wind_speed >= 30:
-            risk_score += 60
-            risk_factors.append(f"非常に強風 ({wind_speed:.1f}m/s)")
-        elif wind_speed >= 25:
-            risk_score += 50
-            risk_factors.append(f"強風 ({wind_speed:.1f}m/s)")
-        elif wind_speed >= 20:
-            risk_score += 35
-            risk_factors.append(f"やや強風 ({wind_speed:.1f}m/s)")
-        elif wind_speed >= 15:
-            risk_score += 20
-        elif wind_speed >= 10:
-            risk_score += 10
-
-        # Wave risk
-        if wave_height >= 4.0:
-            risk_score += 40
-            risk_factors.append(f"非常に高波 ({wave_height:.1f}m)")
-        elif wave_height >= 3.0:
-            risk_score += 30
-            risk_factors.append(f"高波 ({wave_height:.1f}m)")
-        elif wave_height >= 2.0:
-            risk_score += 15
-
-        # Visibility risk
-        if visibility and visibility < 1.0:
-            risk_score += 20
-            risk_factors.append(f"視界不良 ({visibility:.1f}km)")
-        elif visibility and visibility < 3.0:
-            risk_score += 10
-
-        # Seasonal adjustment (winter: Dec-Mar)
+        # Determine season
+        is_winter = False
         try:
-            month = int(forecast_date[5:7])
-            is_winter = month in (12, 1, 2, 3)
+            is_winter = int(forecast_date[5:7]) in (12, 1, 2, 3)
         except (ValueError, IndexError):
-            is_winter = False
+            pass
 
         if is_winter:
-            if wind_speed >= 12 and wind_speed < 15:
-                risk_score += 25
-            elif wind_speed >= 8 and wind_speed < 12:
-                risk_score += 15
+            # ---- Winter scoring (single branch — no double counting) ----
+            if wind_speed >= 35:
+                risk_score += 70
+                risk_factors.append(f"極めて強風 ({wind_speed:.1f}m/s)")
+            elif wind_speed >= 30:
+                risk_score += 60
+                risk_factors.append(f"非常に強風 ({wind_speed:.1f}m/s)")
+            elif wind_speed >= 25:
+                risk_score += 50
+                risk_factors.append(f"強風 ({wind_speed:.1f}m/s)")
+            elif wind_speed >= 20:
+                risk_score += 35
+                risk_factors.append(f"やや強風 ({wind_speed:.1f}m/s)")
+            elif wind_speed >= 15:
+                risk_score += 20
+            elif wind_speed >= 12:
+                risk_score += 25          # winter-only
+            elif wind_speed >= 8:
+                risk_score += 15          # winter-only
 
-            if wave_height is not None and wave_height > 0:
-                if wave_height >= 3.0:
-                    risk_score += 35
+            if wave_height is not None:
+                if wave_height >= 4.0:
+                    risk_score += 40
+                    risk_factors.append(f"非常に高波 ({wave_height:.1f}m)")
+                elif wave_height >= 3.0:
+                    risk_score += 35      # winter: higher
+                    risk_factors.append(f"高波 ({wave_height:.1f}m)[冬]")
                 elif wave_height >= 2.0:
-                    risk_score += 20
+                    risk_score += 20      # winter: higher
                 elif wave_height >= 1.5:
-                    risk_score += 10
+                    risk_score += 10      # winter-only
 
             risk_score = int(risk_score * 1.2)
 
-        # Determine risk level
-        if is_winter:
             if risk_score >= 60:
                 risk_level = "HIGH"
             elif risk_score >= 35:
@@ -702,7 +684,36 @@ class SailingForecastSystem:
                 risk_level = "LOW"
             else:
                 risk_level = "MINIMAL"
+
         else:
+            # ---- Standard scoring ----
+            if wind_speed >= 35:
+                risk_score += 70
+                risk_factors.append(f"極めて強風 ({wind_speed:.1f}m/s)")
+            elif wind_speed >= 30:
+                risk_score += 60
+                risk_factors.append(f"非常に強風 ({wind_speed:.1f}m/s)")
+            elif wind_speed >= 25:
+                risk_score += 50
+                risk_factors.append(f"強風 ({wind_speed:.1f}m/s)")
+            elif wind_speed >= 20:
+                risk_score += 35
+                risk_factors.append(f"やや強風 ({wind_speed:.1f}m/s)")
+            elif wind_speed >= 15:
+                risk_score += 20
+            elif wind_speed >= 10:
+                risk_score += 10
+
+            if wave_height is not None:
+                if wave_height >= 4.0:
+                    risk_score += 40
+                    risk_factors.append(f"非常に高波 ({wave_height:.1f}m)")
+                elif wave_height >= 3.0:
+                    risk_score += 30
+                    risk_factors.append(f"高波 ({wave_height:.1f}m)")
+                elif wave_height >= 2.0:
+                    risk_score += 15
+
             if risk_score >= 70:
                 risk_level = "HIGH"
             elif risk_score >= 40:
@@ -711,6 +722,13 @@ class SailingForecastSystem:
                 risk_level = "LOW"
             else:
                 risk_level = "MINIMAL"
+
+        # Visibility (both seasons)
+        if visibility and visibility < 1.0:
+            risk_score += 20
+            risk_factors.append(f"視界不良 ({visibility:.1f}km)")
+        elif visibility and visibility < 3.0:
+            risk_score += 10
 
         weather_data = {
             'wind_speed': wind_speed,
@@ -728,7 +746,7 @@ class SailingForecastSystem:
         cursor = conn.cursor()
 
         # Clear old forecasts
-        cursor.execute('DELETE FROM sailing_forecast WHERE forecast_date < date("now")')
+        cursor.execute('DELETE FROM sailing_forecast WHERE forecast_date < ?', (today_jst_str(),))
 
         generated = 0
         today = now_jst().date()

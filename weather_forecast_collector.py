@@ -218,14 +218,26 @@ class WeatherForecastCollector:
                     pops = area.get('pops', [])  # Probability of precipitation
                     temps = area.get('temps', [])
 
+                    # Naive reference time (JST) for timedelta comparisons
+                    _now_naive = now_jst().replace(tzinfo=None)
+
                     # Process each time point
                     for i, time_define in enumerate(time_defines):
-                        # Parse time string - handle both formats
+                        # Parse time string — always produce a naive datetime
                         if '+' in time_define or 'Z' in time_define:
                             time_str = time_define.replace('Z', '+00:00')
-                            forecast_time = datetime.fromisoformat(time_str)
-                            # Convert to naive datetime (JST)
-                            forecast_time = forecast_time.replace(tzinfo=None)
+                            _aware = datetime.fromisoformat(time_str)
+                            # Convert aware UTC/+09:00 → naive JST equivalent
+                            from datetime import timezone as _tz
+                            utc_offset = _aware.utcoffset()
+                            if utc_offset is not None:
+                                _aware_utc = _aware - utc_offset
+                                import pytz as _pytz
+                                forecast_time = _aware_utc.replace(tzinfo=_tz.utc).astimezone(
+                                    _pytz.timezone('Asia/Tokyo')
+                                ).replace(tzinfo=None)
+                            else:
+                                forecast_time = _aware.replace(tzinfo=None)
                         else:
                             forecast_time = datetime.fromisoformat(time_define)
 
@@ -242,8 +254,8 @@ class WeatherForecastCollector:
                         # Parse wave height
                         wave_min, wave_max = self.parse_wave_height(wave) if wave else (1.0, 2.0)
 
-                        # Calculate hours ahead
-                        hours_ahead = int((forecast_time - now_jst()).total_seconds() / 3600)
+                        # Calculate hours ahead (both naive)
+                        hours_ahead = int((forecast_time - _now_naive).total_seconds() / 3600)
 
                         forecast_record = {
                             'forecast_date': forecast_time.date().isoformat(),
@@ -328,10 +340,12 @@ class WeatherForecastCollector:
             except Exception as e:
                 print(f"[WARNING] Marine API failed, wave height unavailable: {e}")
 
+            _now_naive = now_jst().replace(tzinfo=None)
             forecasts = []
             for i, time_str in enumerate(times):
                 forecast_time = datetime.fromisoformat(time_str)
-                hours_ahead = int((forecast_time - now_jst()).total_seconds() / 3600)
+                # Open-Meteo times are naive ISO strings — compare against naive JST
+                hours_ahead = int((forecast_time - _now_naive).total_seconds() / 3600)
                 if hours_ahead < 0:
                     continue
 
@@ -484,81 +498,57 @@ class WeatherForecastCollector:
         risk_score = 0
         risk_factors = []
 
-        # Wind speed (primary factor)
-        if wind_speed >= 35:
-            risk_score += 70
-            risk_factors.append(f"Extreme wind ({wind_speed:.1f} m/s)")
-        elif wind_speed >= 30:
-            risk_score += 60
-            risk_factors.append(f"Very dangerous wind ({wind_speed:.1f} m/s)")
-        elif wind_speed >= 25:
-            risk_score += 50
-            risk_factors.append(f"Very strong wind ({wind_speed:.1f} m/s)")
-        elif wind_speed >= 20:
-            risk_score += 35
-            risk_factors.append(f"Strong wind ({wind_speed:.1f} m/s)")
-        elif wind_speed >= 15:
-            risk_score += 20
-            risk_factors.append(f"Moderate wind ({wind_speed:.1f} m/s)")
-        elif wind_speed >= 10:
-            risk_score += 10
-
-        # Wave height — from Marine API (real data, not 1.5m floor)
-        if wave_height is not None:
-            if wave_height >= 4.0:
-                risk_score += 40
-                risk_factors.append(f"Very high waves ({wave_height:.1f} m)")
-            elif wave_height >= 3.0:
-                risk_score += 30
-                risk_factors.append(f"High waves ({wave_height:.1f} m)")
-            elif wave_height >= 2.0:
-                risk_score += 15
-                risk_factors.append(f"Moderate-high waves ({wave_height:.1f} m)")
-
-        # Visibility
-        if visibility is not None:
-            if visibility < 1.0:
-                risk_score += 20
-                risk_factors.append(f"Very poor visibility ({visibility:.1f} km)")
-            elif visibility < 3.0:
-                risk_score += 10
-                risk_factors.append(f"Poor visibility ({visibility:.1f} km)")
-
-        # Seasonal adjustment (winter: Dec-Mar)
+        # Determine season (winter = Dec-Mar)
+        is_winter = False
         if forecast_date:
             try:
-                month = int(forecast_date[5:7])
-                is_winter = month in (12, 1, 2, 3)
+                is_winter = int(forecast_date[5:7]) in (12, 1, 2, 3)
             except (ValueError, IndexError):
-                is_winter = False
-        else:
-            is_winter = False
+                pass
 
         if is_winter:
-            # Additional wind thresholds (lower start point)
-            if wind_speed >= 12 and wind_speed < 15:
-                risk_score += 25
+            # ---- Winter scoring (single branch — no double counting) ----
+            # Wind: starts at 8 m/s; same high-end table as summer
+            if wind_speed >= 35:
+                risk_score += 70
+                risk_factors.append(f"Extreme wind ({wind_speed:.1f} m/s)")
+            elif wind_speed >= 30:
+                risk_score += 60
+                risk_factors.append(f"Very dangerous wind ({wind_speed:.1f} m/s)")
+            elif wind_speed >= 25:
+                risk_score += 50
+                risk_factors.append(f"Very strong wind ({wind_speed:.1f} m/s)")
+            elif wind_speed >= 20:
+                risk_score += 35
+                risk_factors.append(f"Strong wind ({wind_speed:.1f} m/s)")
+            elif wind_speed >= 15:
+                risk_score += 20
+                risk_factors.append(f"Moderate wind ({wind_speed:.1f} m/s)")
+            elif wind_speed >= 12:
+                risk_score += 25          # winter-only threshold
                 risk_factors.append(f"Winter moderate wind ({wind_speed:.1f} m/s)")
-            elif wind_speed >= 8 and wind_speed < 12:
-                risk_score += 15
+            elif wind_speed >= 8:
+                risk_score += 15          # winter-only threshold
                 risk_factors.append(f"Winter light wind ({wind_speed:.1f} m/s)")
 
-            # Wave additional scoring for lower thresholds
+            # Wave: extended thresholds for winter sea state
             if wave_height is not None:
-                if wave_height >= 3.0:
-                    risk_score += 35
+                if wave_height >= 4.0:
+                    risk_score += 40
+                    risk_factors.append(f"Very high waves ({wave_height:.1f} m)")
+                elif wave_height >= 3.0:
+                    risk_score += 35      # winter: higher than summer's 30
+                    risk_factors.append(f"High waves ({wave_height:.1f} m) [winter]")
                 elif wave_height >= 2.0:
-                    risk_score += 20
+                    risk_score += 20      # winter: higher than summer's 15
+                    risk_factors.append(f"Moderate-high waves ({wave_height:.1f} m) [winter]")
                 elif wave_height >= 1.5:
-                    risk_score += 10
+                    risk_score += 10      # winter-only threshold
+                    risk_factors.append(f"Winter swell ({wave_height:.1f} m)")
 
-            # Apply winter multiplier
+            # Apply ×1.2 multiplier then use lowered thresholds
             risk_score = int(risk_score * 1.2)
-            if is_winter and wave_height is not None and wave_height >= 1.5:
-                risk_factors.append("Winter sea-state adjustment applied")
 
-        # Risk level (lower thresholds in winter scenario)
-        if is_winter:
             if risk_score >= 60:
                 risk_level = "HIGH"
             elif risk_score >= 35:
@@ -567,7 +557,38 @@ class WeatherForecastCollector:
                 risk_level = "LOW"
             else:
                 risk_level = "MINIMAL"
+
         else:
+            # ---- Summer / standard scoring ----
+            if wind_speed >= 35:
+                risk_score += 70
+                risk_factors.append(f"Extreme wind ({wind_speed:.1f} m/s)")
+            elif wind_speed >= 30:
+                risk_score += 60
+                risk_factors.append(f"Very dangerous wind ({wind_speed:.1f} m/s)")
+            elif wind_speed >= 25:
+                risk_score += 50
+                risk_factors.append(f"Very strong wind ({wind_speed:.1f} m/s)")
+            elif wind_speed >= 20:
+                risk_score += 35
+                risk_factors.append(f"Strong wind ({wind_speed:.1f} m/s)")
+            elif wind_speed >= 15:
+                risk_score += 20
+                risk_factors.append(f"Moderate wind ({wind_speed:.1f} m/s)")
+            elif wind_speed >= 10:
+                risk_score += 10
+
+            if wave_height is not None:
+                if wave_height >= 4.0:
+                    risk_score += 40
+                    risk_factors.append(f"Very high waves ({wave_height:.1f} m)")
+                elif wave_height >= 3.0:
+                    risk_score += 30
+                    risk_factors.append(f"High waves ({wave_height:.1f} m)")
+                elif wave_height >= 2.0:
+                    risk_score += 15
+                    risk_factors.append(f"Moderate-high waves ({wave_height:.1f} m)")
+
             if risk_score >= 70:
                 risk_level = "HIGH"
             elif risk_score >= 40:
@@ -576,6 +597,15 @@ class WeatherForecastCollector:
                 risk_level = "LOW"
             else:
                 risk_level = "MINIMAL"
+
+        # Visibility (applies to both seasons)
+        if visibility is not None:
+            if visibility < 1.0:
+                risk_score += 20
+                risk_factors.append(f"Very poor visibility ({visibility:.1f} km)")
+            elif visibility < 3.0:
+                risk_score += 10
+                risk_factors.append(f"Poor visibility ({visibility:.1f} km)")
 
         return risk_level, risk_score, risk_factors
 
@@ -638,7 +668,8 @@ class WeatherForecastCollector:
 
             # Calculate confidence based on forecast horizon
             # Confidence decreases with time
-            horizon_days = (datetime.fromisoformat(forecast_date) - now_jst()).days
+            # forecast_date is a naive date string; compare against naive today
+            horizon_days = (datetime.fromisoformat(forecast_date) - datetime.fromisoformat(today_jst_str())).days
             confidence = max(0.5, 1.0 - (horizon_days * 0.07))
 
             # Save forecast for each route
