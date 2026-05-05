@@ -8,6 +8,7 @@ This module extends the daily forecast to provide predictions for each individua
 import sqlite3
 import os
 from datetime import datetime, timedelta
+from jst_utils import now_jst, today_jst_str, jst_isoformat
 from typing import List, Dict, Tuple, Optional
 
 class SailingForecastSystem:
@@ -82,7 +83,7 @@ class SailingForecastSystem:
 
         # Default to current year and next year
         if start_year is None:
-            start_year = datetime.now().year
+            start_year = now_jst().year
         if end_year is None:
             end_year = start_year + 1
 
@@ -668,15 +669,48 @@ class SailingForecastSystem:
         elif visibility and visibility < 3.0:
             risk_score += 10
 
+        # Seasonal adjustment (winter: Dec-Mar)
+        try:
+            month = int(forecast_date[5:7])
+            is_winter = month in (12, 1, 2, 3)
+        except (ValueError, IndexError):
+            is_winter = False
+
+        if is_winter:
+            if wind_speed >= 12 and wind_speed < 15:
+                risk_score += 25
+            elif wind_speed >= 8 and wind_speed < 12:
+                risk_score += 15
+
+            if wave_height is not None and wave_height > 0:
+                if wave_height >= 3.0:
+                    risk_score += 35
+                elif wave_height >= 2.0:
+                    risk_score += 20
+                elif wave_height >= 1.5:
+                    risk_score += 10
+
+            risk_score = int(risk_score * 1.2)
+
         # Determine risk level
-        if risk_score >= 70:
-            risk_level = "HIGH"
-        elif risk_score >= 40:
-            risk_level = "MEDIUM"
-        elif risk_score >= 20:
-            risk_level = "LOW"
+        if is_winter:
+            if risk_score >= 60:
+                risk_level = "HIGH"
+            elif risk_score >= 35:
+                risk_level = "MEDIUM"
+            elif risk_score >= 15:
+                risk_level = "LOW"
+            else:
+                risk_level = "MINIMAL"
         else:
-            risk_level = "MINIMAL"
+            if risk_score >= 70:
+                risk_level = "HIGH"
+            elif risk_score >= 40:
+                risk_level = "MEDIUM"
+            elif risk_score >= 20:
+                risk_level = "LOW"
+            else:
+                risk_level = "MINIMAL"
 
         weather_data = {
             'wind_speed': wind_speed,
@@ -697,7 +731,7 @@ class SailingForecastSystem:
         cursor.execute('DELETE FROM sailing_forecast WHERE forecast_date < date("now")')
 
         generated = 0
-        today = datetime.now().date()
+        today = now_jst().date()
 
         for day_offset in range(days_ahead):
             forecast_date = (today + timedelta(days=day_offset)).isoformat()
@@ -770,7 +804,7 @@ class SailingForecastSystem:
         conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
 
-        today = datetime.now().date()
+        today = now_jst().date()
         end_date = (today + timedelta(days=days_ahead)).isoformat()
 
         # Get max coverage date
@@ -807,7 +841,7 @@ class SailingForecastSystem:
             cutoff_date: Date before which schedules should be deprecated (default: yesterday)
         """
         if cutoff_date is None:
-            cutoff_date = (datetime.now().date() - timedelta(days=1)).isoformat()
+            cutoff_date = (now_jst().date() - timedelta(days=1)).isoformat()
 
         conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
@@ -844,7 +878,7 @@ def main():
 
         # Auto-populate for current and next year
         print("\n[INFO] Auto-populating timetable for current and next year...")
-        current_year = datetime.now().year
+        current_year = now_jst().year
         system.populate_timetable(start_year=current_year, end_year=current_year + 1)
     else:
         print(f"[OK] Timetable coverage is sufficient until {coverage['covered_until']}")

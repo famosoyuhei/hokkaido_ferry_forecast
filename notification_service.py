@@ -15,12 +15,14 @@ import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import requests
+from jst_utils import now_jst, today_jst_str, jst_isoformat, days_from_today_jst
 
 class NotificationService:
     """Multi-channel notification service for ferry cancellation alerts"""
 
     def __init__(self):
-        self.db_file = "ferry_weather_forecast.db"
+        data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+        self.db_file = os.path.join(data_dir, 'ferry_weather_forecast.db')
 
         # Notification channels configuration
         self.channels = {
@@ -55,7 +57,7 @@ class NotificationService:
         conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
 
-        end_date = (datetime.now() + timedelta(days=days_ahead)).date().isoformat()
+        end_date = days_from_today_jst(days_ahead)
 
         cursor.execute('''
             SELECT DISTINCT
@@ -68,12 +70,12 @@ class NotificationService:
                 COUNT(DISTINCT route) as affected_routes,
                 MIN(recommended_action) as action
             FROM cancellation_forecast
-            WHERE forecast_for_date >= date('now')
+            WHERE forecast_for_date >= ?
             AND forecast_for_date <= ?
             AND risk_level IN ('HIGH', 'MEDIUM')
             GROUP BY forecast_for_date, risk_level
             ORDER BY forecast_for_date, avg_risk_score DESC
-        ''', (end_date,))
+        ''', (today_jst_str(), end_date))
 
         high_risk_days = []
         for row in cursor.fetchall():
@@ -100,7 +102,7 @@ class NotificationService:
 
         # Header
         message = "🚢 **フェリー欠航リスク警報**\n"
-        message += f"発報時刻: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+        message += f"発報時刻: {now_jst().strftime('%Y-%m-%d %H:%M JST')}\n\n"
 
         # Count by risk level
         high_count = sum(1 for d in high_risk_days if d['risk_level'] == 'HIGH')
@@ -276,7 +278,7 @@ class NotificationService:
 
         print("=" * 80)
         print("FERRY CANCELLATION NOTIFICATION CHECK")
-        print(f"Check time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"Check time: {now_jst().strftime('%Y-%m-%d %H:%M:%S JST')}")
         print("=" * 80)
 
         # Get high-risk days

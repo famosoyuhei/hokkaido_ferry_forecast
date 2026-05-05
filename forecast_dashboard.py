@@ -5,17 +5,43 @@ Ferry Forecast Dashboard
 Web interface for 7-day ferry cancellation predictions
 """
 
+import os
+from functools import wraps
 from flask import Flask, render_template, jsonify, request, send_from_directory
 import sqlite3
 from datetime import datetime, timedelta
 import json
 from pathlib import Path
+from jst_utils import now_jst, today_jst_str, jst_isoformat, days_from_today_jst
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 
 # Ensure static directory exists
 Path('static').mkdir(exist_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Admin authentication
+# ---------------------------------------------------------------------------
+def _check_admin_token() -> bool:
+    """Return True if the request carries a valid ADMIN_TOKEN."""
+    expected = os.environ.get('ADMIN_TOKEN', '')
+    if not expected:
+        # Token not configured → open access (dev/local)
+        return True
+    provided = request.headers.get('X-Admin-Token') or request.args.get('token', '')
+    return provided == expected
+
+
+def require_admin(f):
+    """Decorator: reject requests without a valid ADMIN_TOKEN with 403."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not _check_admin_token():
+            return jsonify({'status': 'error', 'error': 'Unauthorized'}), 403
+        return f(*args, **kwargs)
+    return wrapper
 
 class ForecastDashboard:
     """Dashboard data provider"""
@@ -45,11 +71,11 @@ class ForecastDashboard:
                 AVG(temperature_forecast) as temp,
                 COUNT(DISTINCT route) as routes
             FROM cancellation_forecast
-            WHERE forecast_for_date >= date('now')
-            AND forecast_for_date <= date('now', '+7 days')
+            WHERE forecast_for_date >= ?
+            AND forecast_for_date <= ?
             GROUP BY forecast_for_date, risk_level
             ORDER BY forecast_for_date, avg_risk DESC
-        ''')
+        ''', (today_jst_str(), days_from_today_jst(7)))
 
         forecasts = {}
         for row in cursor.fetchall():
@@ -91,7 +117,7 @@ class ForecastDashboard:
     def get_today_detail(self):
         """Get detailed forecast for today"""
 
-        today = datetime.now().date().isoformat()
+        today = today_jst_str()
 
         conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
@@ -135,25 +161,25 @@ class ForecastDashboard:
         """Get forecast by route"""
 
         if date is None:
-            date = datetime.now().date().isoformat()
+            date = today_jst_str()
 
         conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
 
         cursor.execute('''
-            SELECT
-                route,
-                risk_level,
-                risk_score,
-                wind_forecast,
-                wave_forecast,
-                visibility_forecast,
-                recommended_action
-            FROM cancellation_forecast
-            WHERE forecast_for_date = ?
-            GROUP BY route
-            ORDER BY risk_score DESC
-        ''', (date,))
+            SELECT cf.route, cf.risk_level, cf.risk_score,
+                   cf.wind_forecast, cf.wave_forecast,
+                   cf.visibility_forecast, cf.recommended_action
+            FROM cancellation_forecast cf
+            JOIN (
+                SELECT route, MAX(risk_score) AS max_score
+                FROM cancellation_forecast
+                WHERE forecast_for_date = ?
+                GROUP BY route
+            ) m ON cf.route = m.route AND cf.risk_score = m.max_score
+            WHERE cf.forecast_for_date = ?
+            ORDER BY cf.risk_score DESC
+        ''', (date, date))
 
         routes = []
         for row in cursor.fetchall():
@@ -299,8 +325,8 @@ class ForecastDashboard:
             SELECT COUNT(DISTINCT forecast_for_date)
             FROM cancellation_forecast
             WHERE risk_level = 'HIGH'
-            AND forecast_for_date >= date('now')
-        ''')
+            AND forecast_for_date >= ?
+        ''', (today_jst_str(),))
         high_risk_days = cursor.fetchone()[0]
 
         # Last collection
@@ -445,7 +471,7 @@ def api_today():
 @app.route('/api/routes')
 def api_routes():
     """API endpoint for route forecasts"""
-    date = request.args.get('date', datetime.now().date().isoformat())
+    date = request.args.get('date', today_jst_str())
     return jsonify(dashboard.get_routes_forecast(date))
 
 @app.route('/route/<route_id>')
@@ -485,10 +511,10 @@ def route_details(route_id):
             recommended_action
         FROM sailing_forecast
         WHERE route = ?
-        AND forecast_date >= date('now')
-        AND forecast_date <= date('now', '+7 days')
+        AND forecast_date >= ?
+        AND forecast_date <= ?
         ORDER BY forecast_date, departure_time
-    ''', (route_id,))
+    ''', (route_id, today_jst_str(), days_from_today_jst(7)))
 
     rows = cursor.fetchall()
     conn.close()
@@ -529,7 +555,7 @@ def route_details(route_id):
     # Fill in missing dates with no sailings
     all_days = []
     for i in range(7):
-        target_date = (datetime.now().date() + timedelta(days=i)).isoformat()
+        target_date = days_from_today_jst(i)
         existing_day = next((d for d in forecast_list if d['date'] == target_date), None)
 
         if existing_day:
@@ -537,7 +563,7 @@ def route_details(route_id):
         else:
             all_days.append({
                 'date': target_date,
-                'weekday': (datetime.now().date() + timedelta(days=i)).strftime('%a'),
+                'weekday': now_jst().date().strftime('%a'),
                 'sailings': [],
                 'max_risk': 'MINIMAL'
             })
@@ -633,7 +659,7 @@ def api_sailings():
     db_file = os.path.join(data_dir, "ferry_weather_forecast.db")
 
     # Get date parameter (default: today)
-    date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+    date_str = request.args.get('date', now_jst().strftime('%Y-%m-%d'))
 
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
@@ -684,6 +710,7 @@ def api_sailings():
     })
 
 @app.route('/admin/env')
+@require_admin
 def admin_env():
     """Admin endpoint to check environment variables"""
     import os
@@ -701,6 +728,7 @@ def admin_env():
     })
 
 @app.route('/admin/collect-data')
+@require_admin
 def admin_collect_data():
     """Admin endpoint to trigger data collection"""
     import subprocess
@@ -723,17 +751,18 @@ def admin_collect_data():
             'stdout': result.stdout,
             'stderr': result.stderr,
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
     except Exception as e:
         return jsonify({
             'status': 'error',
             'error': str(e),
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         }), 500
 
 @app.route('/admin/collect-ferry-data')
+@require_admin
 def admin_collect_ferry_data():
     """Admin endpoint to collect actual ferry operations data"""
     import subprocess
@@ -754,17 +783,18 @@ def admin_collect_ferry_data():
             'stdout': result.stdout[-1000:] if result.stdout else '',
             'stderr': result.stderr[-1000:] if result.stderr else '',
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
     except Exception as e:
         return jsonify({
             'status': 'error',
             'error': str(e),
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         }), 500
 
 @app.route('/admin/run-accuracy-tracking')
+@require_admin
 def admin_run_accuracy_tracking():
     """Admin endpoint to run all accuracy tracking scripts"""
     import subprocess
@@ -799,16 +829,17 @@ def admin_run_accuracy_tracking():
             'status': 'success',
             'scripts_run': results,
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
     except Exception as e:
         return jsonify({
             'status': 'error',
             'error': str(e),
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         }), 500
 
 @app.route('/admin/run-actual-weather')
+@require_admin
 def admin_run_actual_weather():
     """Run only actual_weather_collector.py (separated from accuracy tracking)."""
     import subprocess
@@ -832,13 +863,14 @@ def admin_run_actual_weather():
             'records_added': records_added,
             'stdout': result.stdout[-3000:],
             'stderr': result.stderr[-1000:],
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
 
 @app.route('/admin/run-accuracy-only')
+@require_admin
 def admin_run_accuracy_only():
     """Run only unified_accuracy_tracker.py for yesterday (separated from weather collection)."""
     import subprocess
@@ -875,13 +907,14 @@ def admin_run_accuracy_only():
             },
             'stdout': result.stdout[-3000:],
             'stderr': result.stderr[-1000:],
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
 
 @app.route('/admin/run-bulk-accuracy')
+@require_admin
 def admin_run_bulk_accuracy():
     """Re-calculate accuracy for a date range using backfilled actual weather."""
     import subprocess
@@ -913,6 +946,7 @@ def admin_run_bulk_accuracy():
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
 @app.route('/admin/ferry-status-raw')
+@require_admin
 def admin_ferry_status_raw():
     """Return raw ferry_status_enhanced records for a given date."""
     from flask import request as flask_request
@@ -942,6 +976,7 @@ def admin_ferry_status_raw():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/run-backfill')
+@require_admin
 def admin_run_backfill():
     """Admin endpoint to backfill historical actual weather data."""
     import subprocess
@@ -972,6 +1007,7 @@ def admin_run_backfill():
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
 @app.route('/admin/generate-sailing-forecasts')
+@require_admin
 def admin_generate_sailing_forecasts():
     """Admin endpoint to generate sailing-level forecasts"""
     import os
@@ -993,69 +1029,53 @@ def admin_generate_sailing_forecasts():
             'stderr': result.stderr[-1000:] if result.stderr else '',
             'returncode': result.returncode,
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
     except Exception as e:
         return jsonify({
             'status': 'error',
             'error': str(e),
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         }), 500
 
 @app.route('/admin/init-accuracy-tables')
+@require_admin
 def admin_init_accuracy_tables():
-    """Admin endpoint to initialize accuracy tracking tables"""
+    """Admin endpoint to initialize accuracy tracking tables via unified_accuracy_tracker."""
     import os
     import subprocess
+    from jst_utils import jst_isoformat
 
     data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
 
     try:
-        # Run all initialization scripts
-        results = {}
+        result = subprocess.run(
+            ['python', 'unified_accuracy_tracker.py'],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
 
-        scripts = [
-            'sailing_forecast_system.py',  # Initialize sailing forecast first
-            'operation_accuracy_calculator.py',
-            'dual_accuracy_tracker.py',
-            'auto_threshold_adjuster.py'
-        ]
-
-        for script in scripts:
-            result = subprocess.run(
-                ['python', script],
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
-
-            results[script] = {
-                'status': 'success' if result.returncode == 0 else 'error',
-                'returncode': result.returncode,
-                'stdout': result.stdout[-500:] if result.stdout else '',  # Last 500 chars
-                'stderr': result.stderr[-500:] if result.stderr else ''
-            }
-
-        # Check if tables were created
+        # Check which accuracy tables exist
         conn = sqlite3.connect(os.path.join(data_dir, "ferry_weather_forecast.db"))
         cursor = conn.cursor()
-
         cursor.execute("""
             SELECT name FROM sqlite_master
             WHERE type='table'
             AND (name LIKE '%accuracy%' OR name LIKE '%threshold%')
             ORDER BY name
         """)
-
         tables = [row[0] for row in cursor.fetchall()]
         conn.close()
 
         return jsonify({
-            'status': 'success',
+            'status': 'success' if result.returncode == 0 else 'error',
             'tables_created': tables,
-            'scripts_run': results,
+            'returncode': result.returncode,
+            'stdout': result.stdout[-500:],
+            'stderr': result.stderr[-500:],
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
 
     except Exception as e:
@@ -1063,10 +1083,11 @@ def admin_init_accuracy_tables():
             'status': 'error',
             'error': str(e),
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         }), 500
 
 @app.route('/admin/analyze-accuracy')
+@require_admin
 def admin_analyze_accuracy():
     """Admin endpoint to run accuracy analysis"""
     import subprocess
@@ -1089,7 +1110,7 @@ def admin_analyze_accuracy():
             'output': result.stdout,
             'errors': result.stderr,
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
 
     except Exception as e:
@@ -1097,10 +1118,11 @@ def admin_analyze_accuracy():
             'status': 'error',
             'error': str(e),
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         }), 500
 
 @app.route('/admin/debug-accuracy-data')
+@require_admin
 def admin_debug_accuracy_data():
     """Admin endpoint to run debug script"""
     import subprocess
@@ -1123,7 +1145,7 @@ def admin_debug_accuracy_data():
             'output': result.stdout,
             'errors': result.stderr,
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
 
     except Exception as e:
@@ -1131,10 +1153,11 @@ def admin_debug_accuracy_data():
             'status': 'error',
             'error': str(e),
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         }), 500
 
 @app.route('/admin/test-ferry-db-path')
+@require_admin
 def admin_test_ferry_db_path():
     """Admin endpoint to test ferry DB path"""
     import subprocess
@@ -1157,7 +1180,7 @@ def admin_test_ferry_db_path():
             'output': result.stdout,
             'errors': result.stderr,
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
 
     except Exception as e:
@@ -1165,10 +1188,11 @@ def admin_test_ferry_db_path():
             'status': 'error',
             'error': str(e),
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         }), 500
 
 @app.route('/admin/check-route-names')
+@require_admin
 def admin_check_route_names():
     """Admin endpoint to check route name mappings"""
     import subprocess
@@ -1191,7 +1215,7 @@ def admin_check_route_names():
             'output': result.stdout,
             'errors': result.stderr,
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
 
     except Exception as e:
@@ -1199,10 +1223,11 @@ def admin_check_route_names():
             'status': 'error',
             'error': str(e),
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         }), 500
 
 @app.route('/admin/check-prediction-count')
+@require_admin
 def admin_check_prediction_count():
     """Admin endpoint to check prediction counts with/without DISTINCT"""
     import subprocess
@@ -1225,7 +1250,7 @@ def admin_check_prediction_count():
             'output': result.stdout,
             'errors': result.stderr,
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
 
     except Exception as e:
@@ -1233,10 +1258,11 @@ def admin_check_prediction_count():
             'status': 'error',
             'error': str(e),
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         }), 500
 
 @app.route('/admin/investigate-bad-day')
+@require_admin
 def admin_investigate_bad_day():
     """Admin endpoint to investigate why certain days had low accuracy"""
     import subprocess
@@ -1259,7 +1285,7 @@ def admin_investigate_bad_day():
             'output': result.stdout,
             'errors': result.stderr,
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
 
     except Exception as e:
@@ -1267,10 +1293,11 @@ def admin_investigate_bad_day():
             'status': 'error',
             'error': str(e),
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         }), 500
 
 @app.route('/admin/analyze-threshold-accuracy')
+@require_admin
 def admin_analyze_threshold_accuracy():
     """Admin endpoint to analyze threshold accuracy by weather conditions"""
     import subprocess
@@ -1293,7 +1320,7 @@ def admin_analyze_threshold_accuracy():
             'output': result.stdout,
             'errors': result.stderr,
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
 
     except Exception as e:
@@ -1301,10 +1328,11 @@ def admin_analyze_threshold_accuracy():
             'status': 'error',
             'error': str(e),
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         }), 500
 
 @app.route('/admin/analyze-monthly')
+@require_admin
 def admin_analyze_monthly():
     """Admin endpoint to analyze monthly cancellation patterns"""
     try:
@@ -1318,12 +1346,13 @@ def admin_analyze_monthly():
             'status': 'success' if result.returncode == 0 else 'error',
             'output': result.stdout,
             'errors': result.stderr,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
 @app.route('/admin/validate-seasonal-fix')
+@require_admin
 def admin_validate_seasonal_fix():
     """Admin endpoint to validate seasonal adjustment fixes historical errors"""
     try:
@@ -1341,7 +1370,7 @@ def admin_validate_seasonal_fix():
             'errors': result.stderr,
             'returncode': result.returncode,
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         })
 
     except subprocess.TimeoutExpired:
@@ -1349,17 +1378,18 @@ def admin_validate_seasonal_fix():
             'status': 'timeout',
             'error': 'Script execution timed out after 30 seconds',
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         }), 504
     except Exception as e:
         return jsonify({
             'status': 'error',
             'error': str(e),
             'data_directory': data_dir,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': jst_isoformat()
         }), 500
 
 @app.route('/admin/db-coverage')
+@require_admin
 def admin_db_coverage():
     """Show date coverage of all key tables in both DBs."""
     import os

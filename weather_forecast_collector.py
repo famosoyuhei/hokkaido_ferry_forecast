@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import warnings
 warnings.filterwarnings('ignore')
+from jst_utils import now_jst, today_jst_str, jst_isoformat
 
 class WeatherForecastCollector:
     """Integrated weather forecast collector using JMA + Open-Meteo APIs"""
@@ -195,7 +196,7 @@ class WeatherForecastCollector:
 
             latest = data[0]
             publishing_office = latest.get('publishingOffice', 'Unknown')
-            report_datetime = latest.get('reportDatetime', datetime.now().isoformat())
+            report_datetime = latest.get('reportDatetime', jst_isoformat())
 
             print(f"[OK] Forecast from: {publishing_office}")
             print(f"[OK] Issued at: {report_datetime}")
@@ -242,7 +243,7 @@ class WeatherForecastCollector:
                         wave_min, wave_max = self.parse_wave_height(wave) if wave else (1.0, 2.0)
 
                         # Calculate hours ahead
-                        hours_ahead = int((forecast_time - datetime.now()).total_seconds() / 3600)
+                        hours_ahead = int((forecast_time - now_jst()).total_seconds() / 3600)
 
                         forecast_record = {
                             'forecast_date': forecast_time.date().isoformat(),
@@ -256,7 +257,7 @@ class WeatherForecastCollector:
                             'weather_text': weather,
                             'pop': float(pop) if pop and pop != '' else None,
                             'jma_issued_at': report_datetime,
-                            'collected_at': datetime.now().isoformat(),
+                            'collected_at': jst_isoformat(),
                             'forecast_horizon': hours_ahead,
                             'data_source': 'JMA'
                         }
@@ -330,7 +331,7 @@ class WeatherForecastCollector:
             forecasts = []
             for i, time_str in enumerate(times):
                 forecast_time = datetime.fromisoformat(time_str)
-                hours_ahead = int((forecast_time - datetime.now()).total_seconds() / 3600)
+                hours_ahead = int((forecast_time - now_jst()).total_seconds() / 3600)
                 if hours_ahead < 0:
                     continue
 
@@ -347,7 +348,7 @@ class WeatherForecastCollector:
                     'wind_direction_deg': wind_dirs[i] if i < len(wind_dirs) else None,
                     'wave_height_min': wave_height,
                     'wave_height_max': wave_height,
-                    'collected_at': datetime.now().isoformat(),
+                    'collected_at': jst_isoformat(),
                     'forecast_horizon': hours_ahead,
                     'data_source': 'Open-Meteo'
                 }
@@ -523,15 +524,58 @@ class WeatherForecastCollector:
                 risk_score += 10
                 risk_factors.append(f"Poor visibility ({visibility:.1f} km)")
 
-        # Risk level
-        if risk_score >= 70:
-            risk_level = "HIGH"
-        elif risk_score >= 40:
-            risk_level = "MEDIUM"
-        elif risk_score >= 20:
-            risk_level = "LOW"
+        # Seasonal adjustment (winter: Dec-Mar)
+        if forecast_date:
+            try:
+                month = int(forecast_date[5:7])
+                is_winter = month in (12, 1, 2, 3)
+            except (ValueError, IndexError):
+                is_winter = False
         else:
-            risk_level = "MINIMAL"
+            is_winter = False
+
+        if is_winter:
+            # Additional wind thresholds (lower start point)
+            if wind_speed >= 12 and wind_speed < 15:
+                risk_score += 25
+                risk_factors.append(f"Winter moderate wind ({wind_speed:.1f} m/s)")
+            elif wind_speed >= 8 and wind_speed < 12:
+                risk_score += 15
+                risk_factors.append(f"Winter light wind ({wind_speed:.1f} m/s)")
+
+            # Wave additional scoring for lower thresholds
+            if wave_height is not None:
+                if wave_height >= 3.0:
+                    risk_score += 35
+                elif wave_height >= 2.0:
+                    risk_score += 20
+                elif wave_height >= 1.5:
+                    risk_score += 10
+
+            # Apply winter multiplier
+            risk_score = int(risk_score * 1.2)
+            if is_winter and wave_height is not None and wave_height >= 1.5:
+                risk_factors.append("Winter sea-state adjustment applied")
+
+        # Risk level (lower thresholds in winter scenario)
+        if is_winter:
+            if risk_score >= 60:
+                risk_level = "HIGH"
+            elif risk_score >= 35:
+                risk_level = "MEDIUM"
+            elif risk_score >= 15:
+                risk_level = "LOW"
+            else:
+                risk_level = "MINIMAL"
+        else:
+            if risk_score >= 70:
+                risk_level = "HIGH"
+            elif risk_score >= 40:
+                risk_level = "MEDIUM"
+            elif risk_score >= 20:
+                risk_level = "LOW"
+            else:
+                risk_level = "MINIMAL"
 
         return risk_level, risk_score, risk_factors
 
@@ -554,11 +598,11 @@ class WeatherForecastCollector:
                 AVG(visibility) as visibility,
                 AVG(temperature) as temperature
             FROM weather_forecast
-            WHERE forecast_date >= date('now')
+            WHERE forecast_date >= ?
             GROUP BY forecast_date, forecast_hour, location
             HAVING wind_speed IS NOT NULL OR wave_height IS NOT NULL
             ORDER BY forecast_date, forecast_hour
-        ''')
+        ''', (today_jst_str(),))
 
         forecasts = cursor.fetchall()
         generated = 0
@@ -594,7 +638,7 @@ class WeatherForecastCollector:
 
             # Calculate confidence based on forecast horizon
             # Confidence decreases with time
-            horizon_days = (datetime.fromisoformat(forecast_date) - datetime.now()).days
+            horizon_days = (datetime.fromisoformat(forecast_date) - now_jst()).days
             confidence = max(0.5, 1.0 - (horizon_days * 0.07))
 
             # Save forecast for each route
@@ -611,7 +655,7 @@ class WeatherForecastCollector:
                         forecast_date, forecast_hour, route,
                         risk_level, risk_score, json.dumps(risk_factors),
                         wind_speed, wave_height, visibility, temperature,
-                        action, confidence, datetime.now().isoformat()
+                        action, confidence, jst_isoformat()
                     ))
                     generated += 1
 
@@ -633,7 +677,7 @@ class WeatherForecastCollector:
         cursor.execute('''
             INSERT INTO forecast_collection_log (timestamp, data_source, status, records_added, error_message)
             VALUES (?, ?, ?, ?, ?)
-        ''', (datetime.now().isoformat(), data_source, status, records, error))
+        ''', (jst_isoformat(), data_source, status, records, error))
 
         conn.commit()
         conn.close()
@@ -643,7 +687,7 @@ class WeatherForecastCollector:
 
         print("=" * 80)
         print("WEATHER FORECAST COLLECTION - JMA + OPEN-METEO INTEGRATION")
-        print(f"Collection time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"Collection time: {now_jst().strftime('%Y-%m-%d %H:%M:%S')}")
         print("=" * 80)
 
         total_saved = 0

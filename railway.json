@@ -29,16 +29,8 @@
       "schedule": "0 14 * * *"
     },
     "accuracy_tracking": {
-      "command": "python accuracy_tracker.py",
+      "command": "python unified_accuracy_tracker.py",
       "schedule": "0 22 * * *"
-    },
-    "operation_accuracy": {
-      "command": "python operation_accuracy_calculator.py",
-      "schedule": "15 22 * * *"
-    },
-    "ml_threshold_optimization": {
-      "command": "python auto_threshold_adjuster.py",
-      "schedule": "30 22 * * *"
     },
     "notification_morning": {
       "command": "python notification_service.py",
