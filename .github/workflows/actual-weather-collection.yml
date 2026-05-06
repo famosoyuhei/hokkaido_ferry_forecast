@@ -26,14 +26,7 @@ jobs:
             echo "Attempt $i/$MAX_RETRIES - HTTP Status: $http_code"
             if [ "$http_code" = "200" ]; then
               echo "Actual weather collection successful"
-              echo "$body" | python3 -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    print(f'  Status: {d.get(\"status\", \"?\")}')
-    print(f'  Records added: {d.get(\"records_added\", \"?\")}')
-except: pass
-" 2>/dev/null || true
+              echo "$body" | python3 -c "import sys,json;d=json.load(sys.stdin);print('  Status:',d.get('status','?'));print('  Records added:',d.get('records_added','?'))" 2>/dev/null || true
               exit 0
             fi
             echo "Failed (status $http_code). Retrying in ${RETRY_DELAY}s..."

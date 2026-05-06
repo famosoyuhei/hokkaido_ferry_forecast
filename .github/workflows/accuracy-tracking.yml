@@ -26,21 +26,7 @@ jobs:
             echo "Attempt $i/$MAX_RETRIES - HTTP Status: $http_code"
             if [ "$http_code" = "200" ]; then
               echo "Accuracy tracking successful"
-              echo "$body" | python3 -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    print(f'  Status: {d.get(\"status\", \"?\")}')
-    r = d.get('result', {})
-    if r:
-        print(f'  Accuracy: {r.get(\"accuracy_rate\", \"?\"):.1f}%')
-        print(f'  Precision: {r.get(\"precision\", \"?\"):.3f}')
-        print(f'  Recall: {r.get(\"recall\", \"?\"):.3f}')
-        print(f'  F1: {r.get(\"f1_score\", \"?\"):.3f}')
-        if r.get('is_likely_maintenance'):
-            print('  *** Maintenance day flagged — P/R/F1 excluded from metrics ***')
-except: pass
-" 2>/dev/null || true
+              echo "$body" | python3 -c "import sys,json;d=json.load(sys.stdin);r=d.get('result',{});print('  Status:',d.get('status','?'));r and print('  Accuracy:',r.get('accuracy_rate','?'),'%  P:',round(r.get('precision',0),3),'R:',round(r.get('recall',0),3),'F1:',round(r.get('f1_score',0),3));r.get('is_likely_maintenance') and print('  *** Maintenance day — P/R/F1 excluded ***')" 2>/dev/null || true
               exit 0
             fi
             echo "Failed (status $http_code). Retrying in ${RETRY_DELAY}s..."
