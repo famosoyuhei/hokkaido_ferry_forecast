@@ -20,7 +20,9 @@ jobs:
           MAX_RETRIES=3
           RETRY_DELAY=30
           for i in $(seq 1 $MAX_RETRIES); do
-            response=$(curl -s -w "\n%{http_code}" --max-time 60 https://web-production-a628.up.railway.app/admin/collect-ferry-data)
+            response=$(curl -s -w "\n%{http_code}" --max-time 60 \
+              -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+              "https://web-production-a628.up.railway.app/admin/collect-ferry-data")
             http_code=$(echo "$response" | tail -n 1)
             body=$(echo "$response" | head -n -1)
             echo "Attempt $i/$MAX_RETRIES - HTTP Status: $http_code"
