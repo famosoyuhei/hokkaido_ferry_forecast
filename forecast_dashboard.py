@@ -854,7 +854,7 @@ def admin_run_actual_weather():
     try:
         result = subprocess.run(
             ['python', 'actual_weather_collector.py'],
-            capture_output=True, text=True, timeout=180
+            capture_output=True, text=True, timeout=270
         )
         lines = result.stdout.strip().split('\n')
         records_added = 0
