@@ -110,35 +110,44 @@ def already_collected(db_path, date_str, loc_name):
     return count >= 20
 
 
+_WIND_VIS_URLS = [
+    'https://archive-api.open-meteo.com/v1/archive',   # ERA5 reanalysis (primary)
+    'https://api.open-meteo.com/v1/forecast',           # Forecast API fallback (past_days)
+]
+
 def fetch_chunk(start_str, end_str, loc_name, loc_coords):
     """Fetch wind+visibility+wave for a date range at one location."""
     result = {}
 
-    try:
-        r = requests.get(
-            'https://archive-api.open-meteo.com/v1/archive',
-            params={
-                'latitude':       loc_coords['lat'],
-                'longitude':      loc_coords['lon'],
-                'start_date':     start_str,
-                'end_date':       end_str,
-                'hourly':         ['windspeed_10m', 'visibility'],
-                'timezone':       'Asia/Tokyo',
-                'windspeed_unit': 'ms',
-            },
-            timeout=60
-        )
-        r.raise_for_status()
-        h = r.json()['hourly']
-        for t, w, v in zip(h['time'], h['windspeed_10m'], h['visibility']):
-            d, hr = t[:10], int(t[11:13])
-            result.setdefault(d, {})[hr] = {
-                'wind_speed': w,
-                'visibility': v / 1000 if v is not None else None,
-            }
-        print(f"    Archive: {len(h['time'])} records", end='')
-    except Exception as e:
-        print(f"    [ERROR] Archive API ({loc_name}): {e}", end='')
+    wind_params = {
+        'latitude':       loc_coords['lat'],
+        'longitude':      loc_coords['lon'],
+        'start_date':     start_str,
+        'end_date':       end_str,
+        'hourly':         ['windspeed_10m', 'visibility'],
+        'timezone':       'Asia/Tokyo',
+        'windspeed_unit': 'ms',
+    }
+    fetched_wind = False
+    for url in _WIND_VIS_URLS:
+        try:
+            r = requests.get(url, params=wind_params, timeout=60)
+            r.raise_for_status()
+            h = r.json()['hourly']
+            for t, w, v in zip(h['time'], h['windspeed_10m'], h['visibility']):
+                d, hr = t[:10], int(t[11:13])
+                result.setdefault(d, {})[hr] = {
+                    'wind_speed': w,
+                    'visibility': v / 1000 if v is not None else None,
+                }
+            source = 'Archive' if url == _WIND_VIS_URLS[0] else f'Forecast(fallback)'
+            print(f"    {source}: {len(h['time'])} records", end='')
+            fetched_wind = True
+            break
+        except Exception as e:
+            if url == _WIND_VIS_URLS[-1]:
+                print(f"    [ERROR] Wind/Vis APIs all failed ({loc_name}): {e}", end='')
+            continue
 
     try:
         r = requests.get(

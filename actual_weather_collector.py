@@ -89,31 +89,45 @@ class ActualWeatherCollector:
         print(f"DB: {self.db_file}")
 
     # ------------------------------------------------------------------
+    _ARCHIVE_PARAMS = {
+        'hourly':         ['windspeed_10m', 'visibility'],
+        'timezone':       'Asia/Tokyo',
+        'windspeed_unit': 'ms',
+    }
+    _ARCHIVE_URLS = [
+        'https://archive-api.open-meteo.com/v1/archive',      # ERA5 reanalysis (primary)
+        'https://api.open-meteo.com/v1/forecast',              # Forecast API fallback (past_days)
+    ]
+
     def _fetch_archive(self, date_str: str, loc: dict) -> dict:
-        """Wind + visibility from Open-Meteo Archive (ERA5 reanalysis)."""
-        r = requests.get(
-            'https://archive-api.open-meteo.com/v1/archive',
-            params={
-                'latitude':       loc['lat'],
-                'longitude':      loc['lon'],
-                'start_date':     date_str,
-                'end_date':       date_str,
-                'hourly':         ['windspeed_10m', 'visibility'],
-                'timezone':       'Asia/Tokyo',
-                'windspeed_unit': 'ms',
-            },
-            timeout=30
-        )
-        r.raise_for_status()
-        h = r.json()['hourly']
-        result = {}
-        for t, w, v in zip(h['time'], h['windspeed_10m'], h['visibility']):
-            hour = int(t[11:13])
-            result[hour] = {
-                'wind_speed': w,
-                'visibility': v / 1000 if v is not None else None,  # m -> km
-            }
-        return result
+        """Wind + visibility — tries Archive API first, falls back to Forecast API."""
+        params = {
+            'latitude':       loc['lat'],
+            'longitude':      loc['lon'],
+            'start_date':     date_str,
+            'end_date':       date_str,
+            **self._ARCHIVE_PARAMS,
+        }
+        last_exc = None
+        for url in self._ARCHIVE_URLS:
+            try:
+                r = requests.get(url, params=params, timeout=30)
+                r.raise_for_status()
+                h = r.json()['hourly']
+                result = {}
+                for t, w, v in zip(h['time'], h['windspeed_10m'], h['visibility']):
+                    hour = int(t[11:13])
+                    result[hour] = {
+                        'wind_speed': w,
+                        'visibility': v / 1000 if v is not None else None,  # m -> km
+                    }
+                if url != self._ARCHIVE_URLS[0]:
+                    print(f"[fallback:{url.split('/')[2]}] ", end='', flush=True)
+                return result
+            except Exception as e:
+                last_exc = e
+                continue
+        raise last_exc
 
     def _fetch_marine(self, date_str: str, loc: dict) -> dict:
         """Wave height from Open-Meteo Marine Archive."""
