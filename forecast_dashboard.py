@@ -901,7 +901,7 @@ def admin_run_accuracy_only():
                 if m: recall = float(m.group(1))
                 m = _re.search(r'F1:\s*([\d.]+)', line)
                 if m: f1 = float(m.group(1))
-            if 'MAINTENANCE' in line.upper():
+            if 'LIKELY DOCK MAINTENANCE' in line.upper():
                 is_maint = True
         return jsonify({
             'status': 'success' if result.returncode == 0 else 'error',
