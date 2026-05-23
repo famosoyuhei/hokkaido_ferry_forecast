@@ -132,9 +132,12 @@ def fetch_chunk(start_str, end_str, loc_name, loc_coords):
         'windspeed_unit': 'ms',
     }
     fetched_wind = False
-    for url in _WIND_VIS_URLS:
+    for i, url in enumerate(_WIND_VIS_URLS):
+        # Primary (archive) gets a short timeout so we fail fast to the fallback.
+        # The fallback (forecast API) gets the full timeout.
+        req_timeout = 5 if i < len(_WIND_VIS_URLS) - 1 else 60
         try:
-            r = requests.get(url, params=wind_params, timeout=60)
+            r = requests.get(url, params=wind_params, timeout=req_timeout)
             r.raise_for_status()
             h = r.json()['hourly']
             for t, w, v in zip(h['time'], h['windspeed_10m'], h['visibility']):
@@ -143,12 +146,12 @@ def fetch_chunk(start_str, end_str, loc_name, loc_coords):
                     'wind_speed': w,
                     'visibility': v / 1000 if v is not None else None,
                 }
-            source = 'Archive' if url == _WIND_VIS_URLS[0] else f'Forecast(fallback)'
+            source = 'Archive' if i == 0 else 'Forecast(fallback)'
             print(f"    {source}: {len(h['time'])} records", end='')
             fetched_wind = True
             break
         except Exception as e:
-            if url == _WIND_VIS_URLS[-1]:
+            if i == len(_WIND_VIS_URLS) - 1:
                 print(f"    [ERROR] Wind/Vis APIs all failed ({loc_name}): {e}", end='')
             continue
 

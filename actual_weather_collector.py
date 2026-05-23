@@ -109,9 +109,12 @@ class ActualWeatherCollector:
             **self._ARCHIVE_PARAMS,
         }
         last_exc = None
-        for url in self._ARCHIVE_URLS:
+        for i, url in enumerate(self._ARCHIVE_URLS):
+            # Primary (archive) gets a short timeout so we fail fast to the fallback.
+            # The fallback (forecast API) gets the full timeout.
+            req_timeout = 5 if i < len(self._ARCHIVE_URLS) - 1 else 30
             try:
-                r = requests.get(url, params=params, timeout=30)
+                r = requests.get(url, params=params, timeout=req_timeout)
                 r.raise_for_status()
                 h = r.json()['hourly']
                 result = {}
@@ -121,7 +124,7 @@ class ActualWeatherCollector:
                         'wind_speed': w,
                         'visibility': v / 1000 if v is not None else None,  # m -> km
                     }
-                if url != self._ARCHIVE_URLS[0]:
+                if i > 0:
                     print(f"[fallback:{url.split('/')[2]}] ", end='', flush=True)
                 return result
             except Exception as e:
