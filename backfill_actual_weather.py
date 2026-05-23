@@ -95,12 +95,15 @@ def init_table(db_path):
 
 
 def already_collected(db_path, date_str, loc_name):
-    """Return True if this date+location already has 20+ records."""
+    """Return True only if date+location has 20+ records WITH wind_speed data.
+    Wave-height-only records (wind_speed IS NULL) are NOT considered complete.
+    """
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     try:
         cur.execute(
-            'SELECT COUNT(*) FROM actual_weather WHERE date = ? AND location = ?',
+            '''SELECT COUNT(*) FROM actual_weather
+               WHERE date = ? AND location = ? AND wind_speed IS NOT NULL''',
             (date_str, loc_name)
         )
         count = cur.fetchone()[0]
