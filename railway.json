@@ -5,7 +5,7 @@
     ]
   },
   "deploy": {
-    "startCommand": "gunicorn --bind 0.0.0.0:$PORT forecast_dashboard:app"
+    "startCommand": "gunicorn --bind 0.0.0.0:$PORT --timeout 300 forecast_dashboard:app"
   },
   "cron": {
     "ferry_collection": {
