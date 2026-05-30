@@ -13,6 +13,7 @@ import requests
 import sqlite3
 import json
 import re
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -36,9 +37,11 @@ class WeatherForecastCollector:
         self.openmeteo_marine_url = "https://marine-api.open-meteo.com/v1/marine"
         self.locations = {
             'wakkanai': {'lat': 45.415, 'lon': 141.673, 'name': '稚内'},
-            'rishiri': {'lat': 45.180, 'lon': 141.240, 'name': '利尻'},
-            'rebun': {'lat': 45.300, 'lon': 141.040, 'name': '礼文'}
+            'oshidomari': {'lat': 45.200, 'lon': 141.216, 'name': '鴛泊'},
+            'kutsugata': {'lat': 45.393, 'lon': 141.107, 'name': '沓形'},
+            'kafuka': {'lat': 45.298, 'lon': 141.036, 'name': '香深'}
         }
+        self.port_location_names = {key: value['name'] for key, value in self.locations.items()}
 
         # Database - use volume path if available
         import os
@@ -91,6 +94,23 @@ class WeatherForecastCollector:
                 data_source TEXT
             )
         ''')
+        self._add_missing_columns(cursor, 'weather_forecast', {
+            'wind_gusts': 'REAL',
+            'precipitation': 'REAL',
+            'snowfall': 'REAL',
+            'pressure_msl': 'REAL',
+            'source_time': 'TEXT',
+            'valid_time': 'TEXT',
+            'wave_direction': 'REAL',
+            'wave_period': 'REAL',
+            'wind_wave_height': 'REAL',
+            'wind_wave_direction': 'REAL',
+            'wind_wave_period': 'REAL',
+            'swell_wave_height': 'REAL',
+            'swell_wave_direction': 'REAL',
+            'swell_wave_period': 'REAL',
+            'sea_surface_temperature': 'REAL'
+        })
 
         # Cancellation risk forecast table
         cursor.execute('''
@@ -116,6 +136,53 @@ class WeatherForecastCollector:
             )
         ''')
 
+        # Sailing-time weather assignment table. Each scheduled sailing is expanded
+        # into departure/destination/via ports and hourly records across the sailing window.
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sailing_weather_forecast (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                service_date TEXT NOT NULL,
+                route TEXT NOT NULL,
+                departure_time TEXT NOT NULL,
+                arrival_time TEXT NOT NULL,
+                port_role TEXT NOT NULL,
+                port_key TEXT NOT NULL,
+                port_name TEXT,
+                forecast_hour INTEGER NOT NULL,
+                scheduled_reference_time TEXT,
+                window_start_time TEXT,
+                window_end_time TEXT,
+                minutes_from_departure INTEGER,
+                via_oshidomari BOOLEAN DEFAULT 0,
+
+                wind_speed REAL,
+                wind_direction REAL,
+                wind_gusts REAL,
+                wave_height REAL,
+                wave_direction REAL,
+                wave_period REAL,
+                wind_wave_height REAL,
+                swell_wave_height REAL,
+                visibility REAL,
+                precipitation REAL,
+                snowfall REAL,
+                temperature REAL,
+                pressure_msl REAL,
+                weather_code TEXT,
+
+                source TEXT,
+                source_time TEXT,
+                valid_time TEXT,
+                assigned_at TEXT,
+
+                UNIQUE(service_date, route, departure_time, port_role, port_key, forecast_hour)
+            )
+        ''')
+        self._add_missing_columns(cursor, 'sailing_weather_forecast', {
+            'window_start_time': 'TEXT',
+            'window_end_time': 'TEXT'
+        })
+
         # Collection log
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS forecast_collection_log (
@@ -131,6 +198,40 @@ class WeatherForecastCollector:
         conn.commit()
         conn.close()
         print("[OK] Forecast database initialized")
+
+    def _add_missing_columns(self, cursor, table: str, columns: Dict[str, str]):
+        """Add backward-compatible columns to an existing SQLite table."""
+
+        cursor.execute(f"PRAGMA table_info({table})")
+        existing = {row[1] for row in cursor.fetchall()}
+        for column, column_type in columns.items():
+            if column not in existing:
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
+
+    def _snowfall_mm(self, value):
+        """Normalize Open-Meteo snowfall from cm to mm."""
+
+        return value * 10 if value is not None else None
+
+    def _get_json_with_retry(self, url: str, params: Dict, timeout: int = 30, attempts: int = 3):
+        """Fetch JSON with short retries for API throttling or transient gateway errors."""
+
+        last_error = None
+        for attempt in range(1, attempts + 1):
+            try:
+                response = requests.get(url, params=params, timeout=timeout)
+                if response.status_code == 200:
+                    return response.json()
+                last_error = Exception(f"HTTP {response.status_code}")
+                if response.status_code not in (429, 502, 503, 504):
+                    break
+            except Exception as e:
+                last_error = e
+
+            if attempt < attempts:
+                time.sleep(2 * attempt)
+
+        raise last_error
 
     def parse_wind_speed(self, wind_text: str) -> Tuple[float, float]:
         """Parse JMA wind speed text to numeric range"""
@@ -261,6 +362,7 @@ class WeatherForecastCollector:
                             'forecast_date': forecast_time.date().isoformat(),
                             'forecast_hour': forecast_time.hour,
                             'location': area_name,
+                            'valid_time': forecast_time.isoformat(),
                             'wind_speed_text': wind,
                             'wind_speed_min': wind_min,
                             'wind_speed_max': wind_max,
@@ -269,6 +371,7 @@ class WeatherForecastCollector:
                             'weather_text': weather,
                             'pop': float(pop) if pop and pop != '' else None,
                             'jma_issued_at': report_datetime,
+                            'source_time': report_datetime,
                             'collected_at': jst_isoformat(),
                             'forecast_horizon': hours_ahead,
                             'data_source': 'JMA'
@@ -299,46 +402,74 @@ class WeatherForecastCollector:
         print(f"\n[INFO] Collecting Open-Meteo forecast for {location['name']}")
 
         try:
-            # Fetch weather forecast (wind, visibility, temperature)
+            # Fetch weather forecast variables required by the AI employee rules.
+            hourly_weather = [
+                'temperature_2m',
+                'precipitation',
+                'snowfall',
+                'weather_code',
+                'pressure_msl',
+                'wind_speed_10m',
+                'wind_direction_10m',
+                'wind_gusts_10m',
+                'visibility'
+            ]
             params = {
                 'latitude': location['lat'],
                 'longitude': location['lon'],
-                'hourly': ['temperature_2m', 'windspeed_10m', 'winddirection_10m', 'visibility'],
+                'hourly': hourly_weather,
                 'forecast_days': 7,
-                'timezone': 'Asia/Tokyo'
+                'timezone': 'Asia/Tokyo',
+                'wind_speed_unit': 'ms'
             }
-            response = requests.get(self.openmeteo_url, params=params, timeout=30)
-            if response.status_code != 200:
-                raise Exception(f"HTTP {response.status_code}")
-            data = response.json()
+            data = self._get_json_with_retry(self.openmeteo_url, params=params, timeout=30)
             hourly = data.get('hourly', {})
 
             times = hourly.get('time', [])
             temps = hourly.get('temperature_2m', [])
-            wind_speeds = hourly.get('windspeed_10m', [])
-            wind_dirs = hourly.get('winddirection_10m', [])
+            precipitations = hourly.get('precipitation', [])
+            snowfalls = hourly.get('snowfall', [])
+            weather_codes = hourly.get('weather_code', [])
+            pressures = hourly.get('pressure_msl', [])
+            wind_speeds = hourly.get('wind_speed_10m', [])
+            wind_dirs = hourly.get('wind_direction_10m', [])
+            wind_gusts = hourly.get('wind_gusts_10m', [])
             visibilities = hourly.get('visibility', [])
 
-            # Fetch wave height from Marine API (separate endpoint)
+            # Fetch marine variables from Marine API (separate endpoint)
+            hourly_marine = [
+                'wave_height',
+                'wave_direction',
+                'wave_period',
+                'wind_wave_height',
+                'wind_wave_direction',
+                'wind_wave_period',
+                'swell_wave_height',
+                'swell_wave_direction',
+                'swell_wave_period',
+                'sea_surface_temperature'
+            ]
             marine_params = {
                 'latitude': location['lat'],
                 'longitude': location['lon'],
-                'hourly': ['wave_height'],
+                'hourly': hourly_marine,
                 'forecast_days': 7,
                 'timezone': 'Asia/Tokyo'
             }
-            wave_by_time = {}
+            marine_by_time = {}
             try:
-                marine_response = requests.get(self.openmeteo_marine_url, params=marine_params, timeout=30)
-                if marine_response.status_code == 200:
-                    marine_data = marine_response.json()
-                    marine_hourly = marine_data.get('hourly', {})
-                    marine_times = marine_hourly.get('time', [])
-                    marine_waves = marine_hourly.get('wave_height', [])
-                    wave_by_time = {t: w for t, w in zip(marine_times, marine_waves) if w is not None}
-                    print(f"[OK] Marine API: {len(wave_by_time)} wave height records")
+                marine_data = self._get_json_with_retry(self.openmeteo_marine_url, params=marine_params, timeout=30)
+                marine_hourly = marine_data.get('hourly', {})
+                marine_times = marine_hourly.get('time', [])
+                for idx, marine_time in enumerate(marine_times):
+                    marine_by_time[marine_time] = {
+                        key: values[idx] if idx < len(values) else None
+                        for key, values in marine_hourly.items()
+                        if key != 'time'
+                    }
+                print(f"[OK] Marine API: {len(marine_by_time)} marine records")
             except Exception as e:
-                print(f"[WARNING] Marine API failed, wave height unavailable: {e}")
+                print(f"[WARNING] Marine API failed, marine variables unavailable: {e}")
 
             _now_naive = now_jst().replace(tzinfo=None)
             forecasts = []
@@ -349,20 +480,37 @@ class WeatherForecastCollector:
                 if hours_ahead < 0:
                     continue
 
-                # Use real wave height from Marine API; fall back to None (not 1.5 default)
-                wave_height = wave_by_time.get(time_str)
+                # Use real marine values; fall back to None (not defaults)
+                marine = marine_by_time.get(time_str, {})
+                wave_height = marine.get('wave_height')
 
                 forecast_record = {
                     'forecast_date': forecast_time.date().isoformat(),
                     'forecast_hour': forecast_time.hour,
                     'location': location['name'],
+                    'valid_time': time_str,
                     'temperature': temps[i] if i < len(temps) else None,
+                    'precipitation': precipitations[i] if i < len(precipitations) else None,
+                    'snowfall': self._snowfall_mm(snowfalls[i]) if i < len(snowfalls) else None,
+                    'weather_code': weather_codes[i] if i < len(weather_codes) else None,
+                    'pressure_msl': pressures[i] if i < len(pressures) else None,
                     'visibility': visibilities[i] / 1000 if i < len(visibilities) else None,
                     'wind_speed_numeric': wind_speeds[i] if i < len(wind_speeds) else None,
                     'wind_direction_deg': wind_dirs[i] if i < len(wind_dirs) else None,
+                    'wind_gusts': wind_gusts[i] if i < len(wind_gusts) else None,
                     'wave_height_min': wave_height,
                     'wave_height_max': wave_height,
+                    'wave_direction': marine.get('wave_direction'),
+                    'wave_period': marine.get('wave_period'),
+                    'wind_wave_height': marine.get('wind_wave_height'),
+                    'wind_wave_direction': marine.get('wind_wave_direction'),
+                    'wind_wave_period': marine.get('wind_wave_period'),
+                    'swell_wave_height': marine.get('swell_wave_height'),
+                    'swell_wave_direction': marine.get('swell_wave_direction'),
+                    'swell_wave_period': marine.get('swell_wave_period'),
+                    'sea_surface_temperature': marine.get('sea_surface_temperature'),
                     'collected_at': jst_isoformat(),
+                    'source_time': jst_isoformat(),
                     'forecast_horizon': hours_ahead,
                     'data_source': 'Open-Meteo'
                 }
@@ -387,6 +535,21 @@ class WeatherForecastCollector:
 
         saved = 0
 
+        writable_columns = [
+            'forecast_date', 'forecast_hour', 'location',
+            'wind_speed_text', 'wind_speed_min', 'wind_speed_max',
+            'wind_direction', 'wave_height_min', 'wave_height_max',
+            'weather_code', 'weather_text', 'pop', 'reliability',
+            'temperature', 'visibility', 'wind_speed_numeric',
+            'wind_direction_deg', 'wind_gusts', 'precipitation',
+            'snowfall', 'pressure_msl', 'source_time', 'valid_time',
+            'wave_direction', 'wave_period', 'wind_wave_height',
+            'wind_wave_direction', 'wind_wave_period', 'swell_wave_height',
+            'swell_wave_direction', 'swell_wave_period',
+            'sea_surface_temperature', 'jma_issued_at', 'collected_at',
+            'forecast_horizon', 'data_source'
+        ]
+
         for forecast in forecasts:
             try:
                 # Check if record already exists
@@ -403,35 +566,18 @@ class WeatherForecastCollector:
 
                 if cursor.fetchone():
                     # Update existing
+                    update_columns = [
+                        column for column in writable_columns
+                        if column not in ('forecast_date', 'forecast_hour', 'location', 'data_source')
+                    ]
+                    assignments = ', '.join(f'{column} = ?' for column in update_columns)
                     cursor.execute('''
                         UPDATE weather_forecast SET
-                            wind_speed_text = ?,
-                            wind_speed_min = ?,
-                            wind_speed_max = ?,
-                            wave_height_min = ?,
-                            wave_height_max = ?,
-                            weather_text = ?,
-                            pop = ?,
-                            temperature = ?,
-                            visibility = ?,
-                            wind_speed_numeric = ?,
-                            wind_direction_deg = ?,
-                            collected_at = ?
+                            __ASSIGNMENTS__
                         WHERE forecast_date = ? AND forecast_hour = ?
                         AND location = ? AND data_source = ?
-                    ''', (
-                        forecast.get('wind_speed_text'),
-                        forecast.get('wind_speed_min'),
-                        forecast.get('wind_speed_max'),
-                        forecast.get('wave_height_min'),
-                        forecast.get('wave_height_max'),
-                        forecast.get('weather_text'),
-                        forecast.get('pop'),
-                        forecast.get('temperature'),
-                        forecast.get('visibility'),
-                        forecast.get('wind_speed_numeric'),
-                        forecast.get('wind_direction_deg'),
-                        forecast.get('collected_at'),
+                    '''.replace('__ASSIGNMENTS__', assignments), (
+                        *[forecast.get(column) for column in update_columns],
                         forecast.get('forecast_date'),
                         forecast.get('forecast_hour'),
                         forecast.get('location'),
@@ -439,37 +585,13 @@ class WeatherForecastCollector:
                     ))
                 else:
                     # Insert new
+                    placeholders = ', '.join('?' for _ in writable_columns)
+                    column_names = ', '.join(writable_columns)
                     cursor.execute('''
-                        INSERT INTO weather_forecast (
-                            forecast_date, forecast_hour, location,
-                            wind_speed_text, wind_speed_min, wind_speed_max,
-                            wave_height_min, wave_height_max,
-                            weather_text, pop,
-                            temperature, visibility,
-                            wind_speed_numeric, wind_direction_deg,
-                            jma_issued_at, collected_at,
-                            forecast_horizon, data_source
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        forecast.get('forecast_date'),
-                        forecast.get('forecast_hour'),
-                        forecast.get('location'),
-                        forecast.get('wind_speed_text'),
-                        forecast.get('wind_speed_min'),
-                        forecast.get('wind_speed_max'),
-                        forecast.get('wave_height_min'),
-                        forecast.get('wave_height_max'),
-                        forecast.get('weather_text'),
-                        forecast.get('pop'),
-                        forecast.get('temperature'),
-                        forecast.get('visibility'),
-                        forecast.get('wind_speed_numeric'),
-                        forecast.get('wind_direction_deg'),
-                        forecast.get('jma_issued_at'),
-                        forecast.get('collected_at'),
-                        forecast.get('forecast_horizon'),
-                        forecast.get('data_source')
-                    ))
+                        INSERT INTO weather_forecast (__COLUMNS__)
+                        VALUES (__PLACEHOLDERS__)
+                    '''.replace('__COLUMNS__', column_names).replace('__PLACEHOLDERS__', placeholders),
+                    tuple(forecast.get(column) for column in writable_columns))
 
                 saved += 1
 
@@ -618,6 +740,167 @@ class WeatherForecastCollector:
 
         return risk_level, risk_score, risk_factors
 
+    def _load_2026_timetable(self) -> Dict:
+        timetable_path = Path(__file__).parent / 'skills' / 'ferry-cancellation-research' / 'references' / 'heartland_2026_timetable.json'
+        with open(timetable_path, encoding='utf-8') as f:
+            return json.load(f)
+
+    def _scheduled_sailings_for_date(self, service_date: str) -> List[Dict]:
+        target = datetime.fromisoformat(service_date).date()
+        timetable = self._load_2026_timetable()
+        for schedule in timetable.get('schedules', []):
+            start = datetime.fromisoformat(schedule['start_date']).date()
+            end = datetime.fromisoformat(schedule['end_date']).date()
+            if start <= target <= end:
+                sailings = []
+                for route, rows in schedule.get('sailings', {}).items():
+                    for row in rows:
+                        meta = row[2] if len(row) > 2 and isinstance(row[2], dict) else {}
+                        sailings.append({
+                            'service_date': service_date,
+                            'route': route,
+                            'departure_time': row[0],
+                            'arrival_time': row[1],
+                            'via_oshidomari': bool(meta.get('via_oshidomari'))
+                        })
+                return sailings
+        return []
+
+    def _route_ports(self, route: str, via_oshidomari: bool = False) -> List[Tuple[str, str]]:
+        departure, arrival = route.split('_', 1)
+        ports = [('departure', departure)]
+        if via_oshidomari:
+            ports.append(('via', 'oshidomari'))
+        ports.append(('arrival', arrival))
+        return ports
+
+    def _hours_for_window(self, start: datetime, end: datetime) -> List[int]:
+        hours = []
+        current = start.replace(minute=0, second=0, microsecond=0)
+        while current <= end:
+            hours.append(current.hour)
+            current += timedelta(hours=1)
+        return sorted(set(hours))
+
+    def _role_window(self, service_date: str, route: str, departure_time: str, arrival_time: str, role: str) -> Tuple[datetime, datetime]:
+        departure = datetime.fromisoformat(f'{service_date}T{departure_time}')
+        arrival = datetime.fromisoformat(f'{service_date}T{arrival_time}')
+        if arrival < departure:
+            arrival += timedelta(days=1)
+        if role == 'departure':
+            return departure, departure
+        if role == 'arrival':
+            return arrival, arrival
+        if route == 'wakkanai_kafuka':
+            return departure + timedelta(minutes=100), departure + timedelta(minutes=125)
+        if route == 'kafuka_wakkanai':
+            return departure + timedelta(minutes=45), departure + timedelta(minutes=70)
+        midpoint = departure + ((arrival - departure) / 2)
+        return midpoint, midpoint
+
+    def _minutes_from_departure(self, service_date: str, departure_time: str, reference_time: str) -> int:
+        departure = datetime.fromisoformat(f'{service_date}T{departure_time}')
+        reference = datetime.fromisoformat(f'{service_date}T{reference_time}')
+        if reference < departure:
+            reference += timedelta(days=1)
+        return int((reference - departure).total_seconds() / 60)
+
+    def generate_sailing_weather_forecasts(self):
+        """Assign hourly port forecasts to each scheduled sailing's ports and sailing window."""
+
+        print("\n[INFO] Generating sailing-time weather assignments")
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+
+        generated = 0
+        start_date = datetime.fromisoformat(today_jst_str()).date()
+        service_dates = [(start_date + timedelta(days=offset)).isoformat() for offset in range(7)]
+
+        for service_date in service_dates:
+            for sailing in self._scheduled_sailings_for_date(service_date):
+                route = sailing['route']
+                departure_time = sailing['departure_time']
+                arrival_time = sailing['arrival_time']
+                via_oshidomari = sailing['via_oshidomari']
+                for role, port_key in self._route_ports(route, via_oshidomari):
+                    port_name = self.port_location_names.get(port_key)
+                    if port_name is None:
+                        print(f"[WARNING] Unknown port key for sailing assignment: {port_key}")
+                        continue
+
+                    window_start, window_end = self._role_window(
+                        service_date, route, departure_time, arrival_time, role
+                    )
+                    hours = self._hours_for_window(window_start, window_end)
+                    reference_time = window_start.strftime('%H:%M') if role != 'via' else (
+                        window_start + ((window_end - window_start) / 2)
+                    ).strftime('%H:%M')
+                    window_start_time = window_start.strftime('%H:%M')
+                    window_end_time = window_end.strftime('%H:%M')
+                    minutes_from_departure = self._minutes_from_departure(
+                        service_date, departure_time, reference_time
+                    )
+
+                    for forecast_hour in hours:
+                        cursor.execute('''
+                            SELECT
+                                COALESCE(wind_speed_numeric, wind_speed_max) AS wind_speed,
+                                wind_direction_deg,
+                                wind_gusts,
+                                wave_height_max,
+                                wave_direction,
+                                wave_period,
+                                wind_wave_height,
+                                swell_wave_height,
+                                visibility,
+                                precipitation,
+                                snowfall,
+                                temperature,
+                                pressure_msl,
+                                weather_code,
+                                data_source,
+                                source_time,
+                                valid_time
+                            FROM weather_forecast
+                            WHERE forecast_date = ?
+                              AND forecast_hour = ?
+                              AND location = ?
+                            ORDER BY
+                                CASE data_source WHEN 'Open-Meteo' THEN 0 ELSE 1 END,
+                                collected_at DESC
+                            LIMIT 1
+                        ''', (service_date, forecast_hour, port_name))
+                        row = cursor.fetchone()
+                        if not row:
+                            continue
+
+                        cursor.execute('''
+                            INSERT OR REPLACE INTO sailing_weather_forecast (
+                                service_date, route, departure_time, arrival_time,
+                                port_role, port_key, port_name, forecast_hour,
+                                scheduled_reference_time, window_start_time, window_end_time,
+                                minutes_from_departure, via_oshidomari,
+                                wind_speed, wind_direction, wind_gusts,
+                                wave_height, wave_direction, wave_period,
+                                wind_wave_height, swell_wave_height, visibility,
+                                precipitation, snowfall, temperature, pressure_msl,
+                                weather_code, source, source_time, valid_time, assigned_at
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (
+                            service_date, route, departure_time, arrival_time,
+                            role, port_key, port_name, forecast_hour,
+                            reference_time, window_start_time, window_end_time,
+                            minutes_from_departure, int(via_oshidomari),
+                            *row,
+                            jst_isoformat()
+                        ))
+                        generated += 1
+
+        conn.commit()
+        conn.close()
+        print(f"[OK] Generated {generated} sailing-time weather assignments")
+        return generated
+
     def generate_cancellation_forecasts(self):
         """Generate cancellation risk forecasts from weather data"""
 
@@ -647,8 +930,8 @@ class WeatherForecastCollector:
         generated = 0
 
         ferry_routes = [
-            'wakkanai_oshidomari', 'wakkanai_kafuka',
-            'oshidomari_wakkanai', 'kafuka_wakkanai',
+            'wakkanai_oshidomari', 'wakkanai_kafuka', 'wakkanai_kutsugata',
+            'oshidomari_wakkanai', 'kafuka_wakkanai', 'kutsugata_wakkanai',
             'oshidomari_kafuka', 'kafuka_oshidomari'
         ]
 
@@ -749,11 +1032,13 @@ class WeatherForecastCollector:
 
         # Generate cancellation risk forecasts
         risk_count = self.generate_cancellation_forecasts()
+        sailing_weather_count = self.generate_sailing_weather_forecasts()
 
         print("\n" + "=" * 80)
         print(f"[SUCCESS] Collection completed")
         print(f"  Weather forecasts saved: {total_saved}")
         print(f"  Cancellation forecasts generated: {risk_count}")
+        print(f"  Sailing-time weather assignments generated: {sailing_weather_count}")
         print(f"  Database: {self.db_file}")
         print("=" * 80)
 

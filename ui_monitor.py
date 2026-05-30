@@ -20,14 +20,9 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 import json
 import os
 import sqlite3
-import requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from jst_utils import now_jst, today_jst_str
-
-DASHBOARD_URL = os.getenv(
-    'DASHBOARD_URL', 'https://web-production-a628.up.railway.app'
-).rstrip('/')
 
 EXPECTED_ROUTES = {
     'wakkanai_oshidomari', 'oshidomari_wakkanai',
@@ -55,48 +50,39 @@ class UiMonitor:
         self.results: Dict = {}
 
     # ------------------------------------------------------------------
-    # 1. API エンドポイント確認
+    # 1. DB 接続 + 基本テーブル確認
     # ------------------------------------------------------------------
 
-    def check_api_health(self) -> Dict:
-        """各APIエンドポイントを叩いてステータスコードとキー存在を確認する。"""
-        endpoints = {
-            '/api/stats':    ['total_forecasts', 'last_update'],
-            '/api/forecast': None,          # list か dict を期待
-            '/api/today':    None,
-            '/api/routes':   None,
-        }
-        report = {}
-        for path, required_keys in endpoints.items():
-            url = DASHBOARD_URL + path
-            try:
-                r = requests.get(url, timeout=10)
-                ok = r.status_code == 200
-                body = None
-                missing_keys = []
-                if ok:
-                    try:
-                        body = r.json()
-                        if required_keys:
-                            missing_keys = [
-                                k for k in required_keys
-                                if k not in (body if isinstance(body, dict) else {})
-                            ]
-                    except Exception:
-                        ok = False
-                report[path] = {
-                    'status_code': r.status_code,
-                    'ok': ok and not missing_keys,
-                    'missing_keys': missing_keys,
-                    'response_ms': int(r.elapsed.total_seconds() * 1000),
-                }
-            except requests.exceptions.RequestException as e:
-                report[path] = {
-                    'status_code': None,
-                    'ok': False,
-                    'error': str(e),
-                }
-        return report
+    def check_db_health(self) -> Dict:
+        """
+        SQLite DB に接続できるか、主要テーブルが存在するか確認する。
+        HTTP 経由では呼ばず、DB を直接クエリする。
+        （HTTP ループバックは gunicorn 1ワーカー構成でデッドロックするため使用しない）
+        """
+        if not os.path.exists(self.forecast_db):
+            return {
+                'ok': False,
+                'error': f'DB not found: {self.forecast_db}',
+                'tables': {},
+            }
+        try:
+            conn = sqlite3.connect(self.forecast_db)
+            rows = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+            ).fetchall()
+            conn.close()
+
+            tables = {r[0] for r in rows}
+            required = {'weather_forecast', 'cancellation_forecast', 'forecast_collection_log'}
+            missing = required - tables
+
+            return {
+                'ok': len(missing) == 0,
+                'tables_found': sorted(tables),
+                'tables_missing': sorted(missing),
+            }
+        except Exception as e:
+            return {'ok': False, 'error': str(e)}
 
     # ------------------------------------------------------------------
     # 2. データ鮮度チェック
@@ -268,7 +254,7 @@ class UiMonitor:
         print('=' * 72)
 
         checks = {
-            'api_health':        ('APIエンドポイント',     self.check_api_health),
+            'db_health':         ('DB接続・テーブル確認',   self.check_db_health),
             'data_freshness':    ('データ鮮度',             self.check_data_freshness),
             'route_coverage':    ('航路カバレッジ',         self.check_route_coverage),
             'risk_level_valid':  ('リスクレベル妥当性',     self.check_risk_level_validity),
@@ -287,26 +273,21 @@ class UiMonitor:
 
             report['checks'][key] = result
 
-            # api_health は各エンドポイントを個別表示
-            if key == 'api_health':
-                for path, info in result.items():
-                    status = '✅' if info.get('ok') else '❌'
-                    ms = info.get('response_ms', '-')
-                    print(f'  {status} {path} ({ms}ms)')
-                    if not info.get('ok'):
-                        all_ok = False
-                        if info.get('missing_keys'):
-                            print(f'     missing keys: {info["missing_keys"]}')
-                        if info.get('error'):
-                            print(f'     error: {info["error"]}')
-            else:
-                ok = result.get('ok', False)
-                status = '✅' if ok else '❌'
-                if not ok:
-                    all_ok = False
-                print(f'  {status}', end=' ')
+            ok = result.get('ok', False)
+            status = '✅' if ok else '❌'
+            if not ok:
+                all_ok = False
+            print(f'  {status}', end=' ')
 
-                if key == 'data_freshness':
+            if key == 'db_health':
+                if ok:
+                    print(f"テーブル: {result.get('tables_found', [])}")
+                else:
+                    print(result.get('error', 'NG'))
+                    if result.get('tables_missing'):
+                        print(f'     不足テーブル: {result["tables_missing"]}')
+
+            elif key == 'data_freshness':
                     if ok:
                         print(f"最終収集: {result.get('last_success', '不明')} "
                               f"({result.get('staleness_hours', '?')}時間前)")
