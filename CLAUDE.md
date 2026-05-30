@@ -763,15 +763,21 @@ git diff railway.json
 
 # 2. 不要なファイルが含まれていないか確認
 git status
+git ls-files | grep "\.db$"   # DBファイルが0件であること
 
-# 3. テスト実行（ローカル）
-python forecast_dashboard.py  # 起動確認
-curl http://localhost:5000/api/stats  # API確認
+# 3. 変更した Python ファイルを構文チェック（必須）
+python -m py_compile <変更したファイル>.py
 
-# 4. コミット
-git add .
+# 4. 変更した GitHub Actions YAML を検証（必須）
+python -c "import yaml; data=yaml.safe_load(open('.github/workflows/<変更したファイル>.yml', encoding='utf-8')); print('jobs:', list(data.get('jobs', {}).keys())); print('on:', data.get(True))"
+
+# 5. コミット
+git add <具体的なファイル名>   # git add . は使わない（意図しないファイルを含めない）
 git commit -m "説明的なコミットメッセージ"
 git push
+
+# 6. Railway の動作確認（push 後5分以上待つ）
+curl https://web-production-a628.up.railway.app/api/stats
 ```
 
 ### コーディング規約
@@ -780,6 +786,69 @@ git push
 - 文字エンコーディング: UTF-8
 - コメント: 日本語OK（ユーザー向けプロジェクト）
 - Docstring: 英語推奨（機能説明）
+
+### ⚠️ やってはいけないパターン（2026-05-30 追加）
+
+以下は実際に問題を引き起こしたパターン。同じ失敗を繰り返さないこと。
+
+#### 1. GitHub Actions `run:` ブロックにマルチライン Python を埋め込む
+
+```yaml
+# ❌ 壊れる: 列0から始まる行が YAML リテラルブロックを終了させる
+run: |
+  echo "$body" | python3 -c "
+import sys, json         ← 列0 → YAMLパースエラー
+d = json.load(sys.stdin)
+"
+
+# ✅ 正解: 1行に圧縮する
+run: |
+  echo "$body" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('key'))"
+```
+
+#### 2. GitHub Actions YAML で `needs: []`（空配列）を書く
+
+```yaml
+# ❌ 壊れる: GitHub Actions スキーマがリジェクトする
+needs: []
+
+# ✅ 正解: 依存がなければ needs フィールド自体を省略する
+```
+
+#### 3. Flask の admin エンドポイント内から自分自身に HTTP リクエスト
+
+```python
+# ❌ デッドロック: gunicorn 1ワーカーが外→内のリクエストで詰まる
+@app.route('/admin/run-check')
+def run_check():
+    r = requests.get('https://web-production-a628.up.railway.app/api/stats')  # タイムアウト
+
+# ✅ 正解: DB を直接クエリする
+@app.route('/admin/run-check')
+def run_check():
+    conn = sqlite3.connect(db_path)
+    row = conn.execute('SELECT COUNT(*) FROM cancellation_forecast').fetchone()
+```
+
+#### 4. subprocess で `python` コマンドを使う
+
+```python
+# ❌ Railway 環境で正しい Python が使われない場合がある
+subprocess.run(['python', 'script.py'])
+
+# ✅ 正解: sys.executable と絶対パスを使う
+import sys, os
+subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'script.py')])
+```
+
+#### 5. push 直後に Railway エンドポイントをテストする
+
+```
+push → すぐ curl → 古いコードが動いている → "バグが直っていない" と誤判断
+
+✅ 正解: push 後5分待ってから確認する
+Railway のビルドログで "Deploy successful" を確認してから実行する
+```
 
 ---
 

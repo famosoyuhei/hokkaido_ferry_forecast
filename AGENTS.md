@@ -40,6 +40,7 @@
 
 ## ハードルール（必ず守る）
 
+### データ・セキュリティ
 1. **DBファイルをコミットしない** — `.db` ファイルは Railway Volume で管理。`git ls-files | grep .db` でゼロであることを確認。
 2. **JST を必ず明示する** — `datetime.now()` は Railway では UTC。`datetime.now(pytz.timezone('Asia/Tokyo'))` を使う。
 3. **欠損値を 0 で埋めない** — 風速・波高・視程の欠損は NULL として保存し、精度計算から除外する。
@@ -48,6 +49,44 @@
 6. **2026-04-05 以前のデータを精度計算に使わない** — それ以前はスクレイパーのバグで全便欠航と誤記録されている。
 7. **APIキー・シークレットをコミットしない** — `railway.json` は APIキーなしの Public 用。
 8. **モデル閾値はデータ確認後に調整する** — 誤ったデータでのチューニングは逆効果。データの正確性を先に確認する。
+
+### コミット前の必須チェック（2026-05-30 追加）
+9. **Python ファイルを編集したらコミット前に構文確認する**
+   ```bash
+   python -m py_compile <編集したファイル>.py
+   ```
+   ImportError も検知したい場合は `python -c "import <module>"` も実行する。
+
+10. **GitHub Actions の YAML を編集したら PyYAML で検証する**
+    ```bash
+    python -c "import yaml; yaml.safe_load(open('.github/workflows/<file>.yml', encoding='utf-8'))"
+    ```
+    jobs キーと on キー（PyYAML では `True` として扱われる）が存在することを確認する。
+
+11. **GitHub Actions `run: |` ブロックにマルチライン Python を埋め込まない**
+    - インデントされていない行（列0から始まる `import sys` など）がYAML ブロックを壊す。
+    - 単一行 `python3 -c "import sys,json; ..."` にするか、外部スクリプトを呼ぶ。
+
+### Flask/Railway での実装ルール（2026-05-30 追加）
+12. **Flask 内から同一サーバーの HTTP エンドポイントを呼ばない**
+    - `requests.get('https://web-production-a628.up.railway.app/api/...')` を admin エンドポイント内で実行すると gunicorn の単一ワーカーがデッドロックしてタイムアウトする。
+    - 内部チェックは必ず SQLite を直接クエリする。
+
+13. **subprocess でスクリプトを起動するときは `sys.executable` と絶対パスを使う**
+    ```python
+    # ❌ 間違い
+    subprocess.run(['python', 'script.py'])
+    # ✅ 正解
+    import sys, os
+    subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'script.py')])
+    ```
+    `python` コマンドは Railway 環境では venv の Python を指さないことがある。
+
+### Railway デプロイの確認ルール（2026-05-30 追加）
+14. **push 後、最低5分待ってから Railway エンドポイントをテストする**
+    - Railway のビルド・デプロイには通常 2〜5 分かかる。
+    - GitHub Actions のワークフローを即座に手動実行しても、デプロイ前の古いコードが動いている場合がある。
+    - 動作確認前に `/api/stats` 等で Railway が応答していることを確認する。
 
 ---
 
