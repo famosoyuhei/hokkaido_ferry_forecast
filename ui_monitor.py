@@ -288,30 +288,30 @@ class UiMonitor:
                         print(f'     不足テーブル: {result["tables_missing"]}')
 
             elif key == 'data_freshness':
-                    if ok:
-                        print(f"最終収集: {result.get('last_success', '不明')} "
-                              f"({result.get('staleness_hours', '?')}時間前)")
-                    else:
-                        print(result.get('error', result.get('warning', 'NG')))
+                if ok:
+                    print(f"最終収集: {result.get('last_success', '不明')} "
+                          f"({result.get('staleness_hours', '?')}時間前)")
+                else:
+                    print(result.get('error', result.get('warning', 'NG')))
 
-                elif key == 'route_coverage':
-                    print(f"カバレッジ: {result.get('coverage', '?')}")
-                    if result.get('missing_routes'):
-                        print(f"     未収録航路: {result['missing_routes']}")
+            elif key == 'route_coverage':
+                print(f"カバレッジ: {result.get('coverage', '?')}")
+                if result.get('missing_routes'):
+                    print(f"     未収録航路: {result['missing_routes']}")
 
-                elif key == 'risk_level_valid':
-                    counts = result.get('risk_level_counts', {})
-                    print(f"分布: {counts}")
-                    if result.get('invalid_levels'):
-                        print(f"     無効値: {result['invalid_levels']}")
+            elif key == 'risk_level_valid':
+                counts = result.get('risk_level_counts', {})
+                print(f"分布: {counts}")
+                if result.get('invalid_levels'):
+                    print(f"     無効値: {result['invalid_levels']}")
 
-                elif key == 'record_counts':
-                    print(
-                        f"週間予報: {result.get('week_cancellation_forecast', '?')}件 / "
-                        f"累計: {result.get('total_cancellation_forecast', '?')}件"
-                    )
-                    if result.get('warning'):
-                        print(f"     ⚠️  {result['warning']}")
+            elif key == 'record_counts':
+                print(
+                    f"週間予報: {result.get('week_cancellation_forecast', '?')}件 / "
+                    f"累計: {result.get('total_cancellation_forecast', '?')}件"
+                )
+                if result.get('warning'):
+                    print(f"     ⚠️  {result['warning']}")
 
         report['all_ok'] = all_ok
         print('\n' + '=' * 72)
