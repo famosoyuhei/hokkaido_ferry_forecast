@@ -49,9 +49,7 @@ print(d.get('stdout','')[-1500:])
   line-audit:
     runs-on: ubuntu-latest
     name: LINE Integration Audit
-    # LINE 朝通知（06:30 JST）の後に実行するため、ui-monitor と並行
-    # ただし07:10 UTC=22:10 UTCに揃えて実行
-    needs: []  # 独立
+    # ui-monitor と独立して並行実行
 
     steps:
       - name: Run LINE audit
