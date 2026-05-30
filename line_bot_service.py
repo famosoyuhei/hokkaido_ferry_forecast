@@ -99,6 +99,17 @@ class LineBotService:
                 updated_at    TEXT
             )
         ''')
+        # 朝通知の実行ログ（line_audit.py が参照）
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS notification_log (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_date TEXT NOT NULL,
+                sent     INTEGER NOT NULL DEFAULT 0,
+                skipped  INTEGER NOT NULL DEFAULT 0,
+                errors   INTEGER NOT NULL DEFAULT 0,
+                ran_at   TEXT NOT NULL
+            )
+        ''')
         conn.commit()
         conn.close()
 
@@ -402,6 +413,21 @@ class LineBotService:
                 print(f'[LINE] Error sending to {user_id[:12]}...: {e}')
 
         print(f'[LINE] Morning notifications done: sent={sent} skipped={skipped} errors={errors}')
+
+        # 実行ログを notification_log に保存
+        try:
+            now = datetime.now(jst).isoformat()
+            today_str = datetime.now(jst).strftime('%Y-%m-%d')
+            conn = sqlite3.connect(self.notif_db)
+            conn.execute(
+                'INSERT INTO notification_log (run_date, sent, skipped, errors, ran_at) VALUES (?, ?, ?, ?, ?)',
+                (today_str, sent, skipped, errors, now)
+            )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f'[LINE] notification_log 保存失敗: {e}')
+
         return {'sent': sent, 'skipped': skipped, 'errors': errors}
 
     def get_stats(self) -> dict:

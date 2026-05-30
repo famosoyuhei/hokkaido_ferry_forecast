@@ -1527,6 +1527,52 @@ def admin_send_line_test():
     return jsonify(result)
 
 
+@app.route('/admin/run-ui-monitor')
+@require_admin
+def admin_run_ui_monitor():
+    """UI監査AI社員（ui_monitor.py）を実行し、ダッシュボードの健全性をチェックする。"""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ['python', 'ui_monitor.py'],
+            capture_output=True, text=True, timeout=60
+        )
+        all_ok = result.returncode == 0
+        return jsonify({
+            'status': 'success' if all_ok else 'issues_found',
+            'all_ok': all_ok,
+            'returncode': result.returncode,
+            'stdout': result.stdout[-3000:],
+            'stderr': result.stderr[-500:],
+            'timestamp': jst_isoformat(),
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/admin/run-line-audit')
+@require_admin
+def admin_run_line_audit():
+    """LINE連携監査AI社員（line_audit.py）を実行し、LINE統合の健全性をチェックする。"""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ['python', 'line_audit.py'],
+            capture_output=True, text=True, timeout=60
+        )
+        all_ok = result.returncode == 0
+        return jsonify({
+            'status': 'success' if all_ok else 'issues_found',
+            'all_ok': all_ok,
+            'returncode': result.returncode,
+            'stdout': result.stdout[-3000:],
+            'stderr': result.stderr[-500:],
+            'timestamp': jst_isoformat(),
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
 @app.route('/manifest.json')
 def manifest():
     """Serve PWA manifest"""
