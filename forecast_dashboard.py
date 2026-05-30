@@ -1531,10 +1531,13 @@ def admin_send_line_test():
 @require_admin
 def admin_run_ui_monitor():
     """UI監査AI社員（ui_monitor.py）を実行し、ダッシュボードの健全性をチェックする。"""
-    import subprocess
+    import subprocess, sys, os
     try:
+        # sys.executable を使って同じ Python インタープリタで実行する
+        # (python コマンドが Python 2 にマップされる環境でも正しく動く)
+        script_path = os.path.join(os.path.dirname(__file__), 'ui_monitor.py')
         result = subprocess.run(
-            ['python', 'ui_monitor.py'],
+            [sys.executable, script_path],
             capture_output=True, text=True, timeout=60
         )
         all_ok = result.returncode == 0
