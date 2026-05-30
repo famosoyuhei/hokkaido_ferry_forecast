@@ -193,10 +193,15 @@ class LineBotService:
                 )
             self._reply(event.reply_token, msg)
 
+        elif text in ('明日', 'あした', '明日は？', '明日のリスク'):
+            msg = self._format_tomorrow_message()
+            self._reply(event.reply_token, msg)
+
         elif text in ('ヘルプ', 'help', '？', '?', 'コマンド'):
             self._reply(event.reply_token,
                 '【コマンド一覧】\n'
-                '「予報」または「今日」: 現在のリスク確認\n\n'
+                '「予報」または「今日」: 今日のリスク確認\n'
+                '「明日」: 明日のリスク確認\n\n'
                 '欠航リスクが高い日は毎朝自動通知します。\n'
                 f'詳細: {DASHBOARD_URL}'
             )
@@ -254,6 +259,68 @@ class LineBotService:
                 rows.append({'date': d, 'risk': None, 'wind': None, 'wave': None})
         conn.close()
         return rows
+
+    def _format_tomorrow_message(self) -> str:
+        """明日の全航路リスクを返す。"""
+        tomorrow = datetime.now(jst) + timedelta(days=1)
+        tomorrow_key = tomorrow.strftime('%Y-%m-%d')
+
+        conn = sqlite3.connect(self.forecast_db)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT cf.route, cf.risk_level, cf.wind_forecast, cf.wave_forecast
+            FROM cancellation_forecast cf
+            INNER JOIN (
+                SELECT forecast_for_date, route, MAX(forecast_hour) as max_hour
+                FROM cancellation_forecast
+                WHERE forecast_for_date = ?
+                GROUP BY forecast_for_date, route
+            ) latest
+            ON cf.forecast_for_date = latest.forecast_for_date
+            AND cf.route = latest.route
+            AND cf.forecast_hour = latest.max_hour
+        ''', (tomorrow_key,))
+        rows = cursor.fetchall()
+        conn.close()
+
+        tomorrow_str = tomorrow.strftime(f'%m/%d（{WEEKDAYS[tomorrow.weekday()]}）')
+
+        if not rows:
+            return (
+                f'🗓️ 明日 {tomorrow_str} の予報\n\n'
+                'まだデータがありません。\n'
+                f'詳細: {DASHBOARD_URL}'
+            )
+
+        sorted_rows = sorted(
+            rows,
+            key=lambda x: RISK_ORDER.index(x[1]) if x[1] in RISK_ORDER else 99
+        )
+
+        lines = [f'🗓️ 明日の欠航リスク', tomorrow_str, '']
+        has_alert = False
+
+        for route, risk, wind, wave in sorted_rows:
+            emoji = RISK_EMOJI.get(risk, '❓')
+            name = ROUTE_DISPLAY.get(route, route)
+            parts = []
+            if wind:
+                parts.append(f'風{wind:.0f}m/s')
+            if wave:
+                parts.append(f'波{wave:.1f}m')
+            detail = '（' + ' '.join(parts) + '）' if parts else ''
+            lines.append(f'{emoji} {name}  {risk}{detail}')
+            if risk in ('HIGH', 'MEDIUM'):
+                has_alert = True
+
+        lines.append('')
+        if has_alert:
+            lines.append('⚠️ 仕入れ計画をご確認ください')
+        else:
+            lines.append('✅ 欠航リスクは低い見込みです')
+
+        lines.append(f'詳細: {DASHBOARD_URL}')
+        return '\n'.join(lines)
 
     def _format_notification(
         self,

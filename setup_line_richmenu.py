@@ -1,0 +1,303 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+LINE リッチメニュー セットアップスクリプト
+
+使い方:
+  python setup_line_richmenu.py                        # プレースホルダー画像を自動生成して登録
+  python setup_line_richmenu.py --image richmenu.png   # 指定画像で登録（本番用）
+  python setup_line_richmenu.py --list                 # 登録済みメニューを確認
+  python setup_line_richmenu.py --delete-all           # 登録済みメニューをすべて削除
+
+必要な環境変数:
+  LINE_CHANNEL_ACCESS_TOKEN
+
+メニュー構成 (2列 × 2行, 2500×1686px):
+  ┌────────────────────┬────────────────────┐
+  │  🚢 今日のリスク確認 │  📅 週間ダッシュボード │
+  ├────────────────────┼────────────────────┤
+  │  🗓️ 明日のリスク確認 │  ❓ 使い方・ヘルプ  │
+  └────────────────────┴────────────────────┘
+"""
+
+import sys
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+import os
+import json
+import argparse
+import requests
+
+# ローカル実行時: railway_local.json または .env から環境変数を読み込む
+def _load_local_env():
+    # railway_local.json を試みる
+    local_json = os.path.join(os.path.dirname(__file__), 'railway_local.json')
+    if os.path.exists(local_json):
+        try:
+            with open(local_json, encoding='utf-8') as f:
+                data = json.load(f)
+            for k, v in data.get('variables', {}).items():
+                if k not in os.environ:
+                    os.environ[k] = str(v)
+            return
+        except Exception:
+            pass
+    # .env を試みる
+    env_file = os.path.join(os.path.dirname(__file__), '.env')
+    if os.path.exists(env_file):
+        with open(env_file, encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    k, v = line.split('=', 1)
+                    if k.strip() not in os.environ:
+                        os.environ[k.strip()] = v.strip()
+
+_load_local_env()
+
+LINE_API = 'https://api.line.me/v2/bot'
+LINE_DATA_API = 'https://api-data.line.me/v2/bot'
+DASHBOARD_URL = 'https://web-production-a628.up.railway.app/'
+
+W, H = 2500, 1686   # Large サイズ
+HW = W // 2         # 列境界 x
+HH = H // 2         # 行境界 y
+
+RICH_MENU_DEF = {
+    'size': {'width': W, 'height': H},
+    'selected': True,
+    'name': 'フェリー欠航リスク予報メニュー',
+    'chatBarText': 'メニューを開く 🚢',
+    'areas': [
+        {
+            'bounds': {'x': 0,  'y': 0,  'width': HW, 'height': HH},
+            'action': {'type': 'message', 'label': '今日のリスク確認', 'text': '予報'}
+        },
+        {
+            'bounds': {'x': HW, 'y': 0,  'width': HW, 'height': HH},
+            'action': {'type': 'uri', 'label': '週間ダッシュボード', 'uri': DASHBOARD_URL}
+        },
+        {
+            'bounds': {'x': 0,  'y': HH, 'width': HW, 'height': HH},
+            'action': {'type': 'message', 'label': '明日のリスク確認', 'text': '明日'}
+        },
+        {
+            'bounds': {'x': HW, 'y': HH, 'width': HW, 'height': HH},
+            'action': {'type': 'message', 'label': '使い方・ヘルプ', 'text': 'ヘルプ'}
+        },
+    ]
+}
+
+
+# ---------------------------------------------------------------------------
+# ヘルパー
+# ---------------------------------------------------------------------------
+
+def _headers(content_type='application/json'):
+    token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN', '')
+    if not token:
+        print('[ERROR] LINE_CHANNEL_ACCESS_TOKEN が設定されていません')
+        sys.exit(1)
+    return {'Authorization': f'Bearer {token}', 'Content-Type': content_type}
+
+
+def _check(resp, label):
+    if resp.status_code in (200, 204):
+        print(f'[OK] {label}')
+        return True
+    print(f'[ERROR] {label}: {resp.status_code} {resp.text}')
+    return False
+
+
+# ---------------------------------------------------------------------------
+# LINE API 操作
+# ---------------------------------------------------------------------------
+
+def list_rich_menus():
+    resp = requests.get(f'{LINE_API}/richmenu/list', headers=_headers())
+    if resp.status_code == 200:
+        menus = resp.json().get('richmenus', [])
+        if not menus:
+            print('登録済みのリッチメニューはありません。')
+        for m in menus:
+            print(f"  ID: {m['richMenuId']}  name: {m['name']}")
+        return menus
+    print(f'[ERROR] 一覧取得失敗: {resp.status_code} {resp.text}')
+    return []
+
+
+def delete_all_rich_menus():
+    menus = list_rich_menus()
+    for m in menus:
+        mid = m['richMenuId']
+        resp = requests.delete(f'{LINE_API}/richmenu/{mid}', headers=_headers())
+        _check(resp, f'削除: {mid}')
+
+
+def create_rich_menu() -> str:
+    resp = requests.post(
+        f'{LINE_API}/richmenu',
+        headers=_headers(),
+        data=json.dumps(RICH_MENU_DEF, ensure_ascii=False).encode('utf-8')
+    )
+    if not _check(resp, 'リッチメニュー作成'):
+        sys.exit(1)
+    menu_id = resp.json()['richMenuId']
+    print(f'  → richMenuId: {menu_id}')
+    return menu_id
+
+
+def upload_image(menu_id: str, image_path: str):
+    ext = os.path.splitext(image_path)[1].lower()
+    content_type = 'image/png' if ext == '.png' else 'image/jpeg'
+    with open(image_path, 'rb') as f:
+        resp = requests.post(
+            f'{LINE_DATA_API}/richmenu/{menu_id}/content',
+            headers={
+                'Authorization': f'Bearer {os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "")}',
+                'Content-Type': content_type,
+            },
+            data=f.read()
+        )
+    _check(resp, f'画像アップロード: {image_path}')
+
+
+def set_default_rich_menu(menu_id: str):
+    resp = requests.post(
+        f'{LINE_API}/user/all/richmenu/{menu_id}',
+        headers=_headers()
+    )
+    _check(resp, 'デフォルトメニューに設定')
+
+
+# ---------------------------------------------------------------------------
+# プレースホルダー画像生成
+# ---------------------------------------------------------------------------
+
+def generate_placeholder(output='richmenu_placeholder.png'):
+    """
+    Pillow でシンプルなプレースホルダー画像を生成する。
+    本番では、このファイルをデザインしたものに差し替えること。
+    """
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        print('[ERROR] Pillow がインストールされていません: pip install Pillow')
+        sys.exit(1)
+
+    img = Image.new('RGB', (W, H), color='#1a3a5c')  # 濃紺背景
+    draw = ImageDraw.Draw(img)
+
+    # グリッド線
+    draw.line([(HW, 0), (HW, H)], fill='#ffffff', width=4)
+    draw.line([(0, HH), (W, HH)], fill='#ffffff', width=4)
+
+    # 外枠
+    draw.rectangle([(0, 0), (W - 1, H - 1)], outline='#ffffff', width=4)
+
+    # 各ボタンの設定
+    cells = [
+        (0,  0,  '🚢', '今日のリスク確認', '#2563eb'),
+        (HW, 0,  '📅', '週間ダッシュボード', '#0891b2'),
+        (0,  HH, '🗓️', '明日のリスク確認',  '#7c3aed'),
+        (HW, HH, '❓', '使い方・ヘルプ',    '#047857'),
+    ]
+
+    try:
+        # システムフォントを試みる（なければデフォルト）
+        font_large = ImageFont.truetype('C:/Windows/Fonts/meiryo.ttc', 80)
+        font_small = ImageFont.truetype('C:/Windows/Fonts/meiryo.ttc', 56)
+    except Exception:
+        font_large = ImageFont.load_default()
+        font_small = ImageFont.load_default()
+
+    for (cx, cy, emoji, label, bg_color) in cells:
+        # セル背景
+        draw.rectangle(
+            [(cx + 6, cy + 6), (cx + HW - 6, cy + HH - 6)],
+            fill=bg_color
+        )
+        # 絵文字（大）
+        emoji_x = cx + HW // 2
+        emoji_y = cy + HH // 2 - 80
+        draw.text((emoji_x, emoji_y), emoji, fill='white',
+                  font=font_large, anchor='mm')
+        # ラベル
+        draw.text((emoji_x, cy + HH // 2 + 60), label, fill='white',
+                  font=font_small, anchor='mm')
+
+    img.save(output)
+    print(f'[OK] プレースホルダー画像を生成しました: {output}')
+    print(f'     サイズ: {W}×{H}px')
+    print(f'     ※ 本番前にデザイン済み画像に差し替えてください')
+    return output
+
+
+# ---------------------------------------------------------------------------
+# メイン
+# ---------------------------------------------------------------------------
+
+def main():
+    parser = argparse.ArgumentParser(description='LINE リッチメニュー セットアップ')
+    parser.add_argument('--image', help='アップロードする画像パス（省略時はプレースホルダーを自動生成）')
+    parser.add_argument('--list', action='store_true', help='登録済みメニューを一覧表示')
+    parser.add_argument('--delete-all', action='store_true', help='登録済みメニューをすべて削除')
+    args = parser.parse_args()
+
+    print('=' * 60)
+    print('LINE リッチメニュー セットアップ')
+    print('=' * 60)
+
+    if args.list:
+        list_rich_menus()
+        return
+
+    if args.delete_all:
+        delete_all_rich_menus()
+        return
+
+    # 既存メニューを削除してから登録（重複防止）
+    print('\n[STEP 1] 既存のリッチメニューを確認・削除...')
+    delete_all_rich_menus()
+
+    # 画像を準備
+    print('\n[STEP 2] 画像を準備...')
+    image_path = args.image
+    if not image_path:
+        image_path = generate_placeholder()
+    elif not os.path.exists(image_path):
+        print(f'[ERROR] 画像ファイルが見つかりません: {image_path}')
+        sys.exit(1)
+    else:
+        print(f'[OK] 指定画像を使用: {image_path}')
+
+    # リッチメニュー作成
+    print('\n[STEP 3] リッチメニューを作成...')
+    menu_id = create_rich_menu()
+
+    # 画像アップロード
+    print('\n[STEP 4] 画像をアップロード...')
+    upload_image(menu_id, image_path)
+
+    # デフォルト設定
+    print('\n[STEP 5] デフォルトメニューに設定...')
+    set_default_rich_menu(menu_id)
+
+    print('\n' + '=' * 60)
+    print('✅ リッチメニューの登録が完了しました')
+    print(f'   richMenuId: {menu_id}')
+    print()
+    print('ボタン動作:')
+    print('  [今日のリスク確認]  → message: 予報')
+    print('  [週間ダッシュボード] → URI: ' + DASHBOARD_URL)
+    print('  [明日のリスク確認]  → message: 明日')
+    print('  [使い方・ヘルプ]    → message: ヘルプ')
+    print()
+    print('本番画像への差し替え:')
+    print('  python setup_line_richmenu.py --image your_design.png')
+    print('=' * 60)
+
+
+if __name__ == '__main__':
+    main()
