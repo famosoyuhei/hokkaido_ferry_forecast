@@ -1387,5 +1387,6 @@ Claude Codeでこのプロジェクトを扱う際は：
 3. **データベース**: 3個のみ（`ferry_weather_forecast.db`, `heartland_ferry_real_data.db`, `notifications.db`）
 4. **セキュリティ**: `railway.json`にAPIキーを含めない（`railway_local.json`使用）
 5. **テスト**: `/api/stats`でデータ確認可能
+6. **AI社員ルール**: `docs/ai_employees/` 参照。自律実行（Codex向け）ルールは `AGENTS.md`。
 
 **注意**: Railway Cronジョブが管理画面に表示されない場合は、Railway CLIでの手動実行が必要です。

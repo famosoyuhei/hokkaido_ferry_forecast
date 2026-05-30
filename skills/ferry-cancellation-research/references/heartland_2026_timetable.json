@@ -1,0 +1,80 @@
+{
+  "source_checked_at": "2026-05-26",
+  "sources": [
+    "https://heartlandferry.jp/timetable/",
+    "https://heartlandferry.jp/timetable/time1/",
+    "https://heartlandferry.jp/timetable/time2/"
+  ],
+  "year": 2026,
+  "notes": [
+    "Date ranges are inclusive.",
+    "Timetable sailings are scheduled sailings, not operation results.",
+    "Extra sailings may operate as needed according to the official notes.",
+    "Wakkanai-Kafuka sailings marked via_oshidomari correspond to angle-bracketed sailings on the official timetable.",
+    "Rishiri-Rebun includes seasonal Kutsugata-Kafuka sailings from 2026-06-01 to 2026-09-30."
+  ],
+  "schedules": [
+    {
+      "start_date": "2026-01-01",
+      "end_date": "2026-04-27",
+      "sailings": {
+        "wakkanai_oshidomari": [["06:55", "08:35"], ["14:00", "15:40"]],
+        "oshidomari_wakkanai": [["09:05", "10:45"], ["17:30", "19:10"]],
+        "wakkanai_kafuka": [["06:35", "08:30"], ["14:10", "16:05"]],
+        "kafuka_wakkanai": [["09:00", "10:55"], ["17:05", "19:00"]],
+        "oshidomari_kafuka": [["16:00", "16:45"]],
+        "kafuka_oshidomari": [["16:25", "17:10"]]
+      }
+    },
+    {
+      "start_date": "2026-04-28",
+      "end_date": "2026-05-31",
+      "sailings": {
+        "wakkanai_oshidomari": [["06:45", "08:25"], ["10:10", "11:50"], ["14:30", "16:10"]],
+        "oshidomari_wakkanai": [["08:55", "10:35"], ["14:35", "16:15"], ["16:40", "18:20"]],
+        "wakkanai_kafuka": [["06:30", "08:25"], ["10:10", "13:00", {"via_oshidomari": true}], ["14:45", "16:40"]],
+        "kafuka_wakkanai": [["08:55", "10:50"], ["13:25", "16:15", {"via_oshidomari": true}], ["17:05", "19:00"]],
+        "oshidomari_kafuka": [["12:15", "13:00"]],
+        "kafuka_oshidomari": [["13:25", "14:10"]]
+      }
+    },
+    {
+      "start_date": "2026-06-01",
+      "end_date": "2026-09-30",
+      "sailings": {
+        "wakkanai_oshidomari": [["07:15", "08:55"], ["11:15", "12:55"], ["16:40", "18:20"]],
+        "oshidomari_wakkanai": [["08:25", "10:05"], ["12:05", "13:45"], ["16:40", "18:20"]],
+        "wakkanai_kafuka": [["06:30", "08:25"], ["10:30", "12:25"], ["14:50", "16:45"]],
+        "kafuka_wakkanai": [["08:55", "10:50"], ["14:20", "16:15"], ["17:10", "19:05"]],
+        "oshidomari_kafuka": [["09:30", "10:15"], ["13:15", "14:00"]],
+        "kafuka_oshidomari": [["10:40", "11:25"], ["15:30", "16:15"]],
+        "kutsugata_kafuka": [["14:25", "15:05"]],
+        "kafuka_kutsugata": [["12:50", "13:30"]]
+      }
+    },
+    {
+      "start_date": "2026-10-01",
+      "end_date": "2026-10-31",
+      "sailings": {
+        "wakkanai_oshidomari": [["06:45", "08:25"], ["10:10", "11:50"], ["14:30", "16:10"]],
+        "oshidomari_wakkanai": [["08:55", "10:35"], ["14:35", "16:15"], ["16:40", "18:20"]],
+        "wakkanai_kafuka": [["06:30", "08:25"], ["10:10", "13:00", {"via_oshidomari": true}], ["14:45", "16:40"]],
+        "kafuka_wakkanai": [["08:55", "10:50"], ["13:25", "16:15", {"via_oshidomari": true}], ["17:05", "19:00"]],
+        "oshidomari_kafuka": [["12:15", "13:00"]],
+        "kafuka_oshidomari": [["13:25", "14:10"]]
+      }
+    },
+    {
+      "start_date": "2026-11-01",
+      "end_date": "2026-12-31",
+      "sailings": {
+        "wakkanai_oshidomari": [["06:55", "08:35"], ["14:00", "15:40"]],
+        "oshidomari_wakkanai": [["09:05", "10:45"], ["17:30", "19:10"]],
+        "wakkanai_kafuka": [["06:35", "08:30"], ["14:10", "16:05"]],
+        "kafuka_wakkanai": [["09:00", "10:55"], ["17:05", "19:00"]],
+        "oshidomari_kafuka": [["16:00", "16:45"]],
+        "kafuka_oshidomari": [["16:25", "17:10"]]
+      }
+    }
+  ]
+}

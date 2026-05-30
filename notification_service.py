@@ -32,9 +32,10 @@ class NotificationService:
                 'name': 'Discord'
             },
             'line': {
-                'enabled': os.getenv('LINE_NOTIFY_TOKEN') is not None,
-                'token': os.getenv('LINE_NOTIFY_TOKEN'),
-                'name': 'LINE Notify'
+                # LINE Messaging API 経由（LINE Notify は 2025-03-31 廃止済み）
+                'enabled': (os.getenv('LINE_CHANNEL_ACCESS_TOKEN') is not None
+                            and os.getenv('LINE_CHANNEL_SECRET') is not None),
+                'name': 'LINE Messaging API'
             },
             'slack': {
                 'enabled': os.getenv('SLACK_WEBHOOK_URL') is not None,
@@ -173,36 +174,18 @@ class NotificationService:
             return False
 
     def send_line(self, message: str) -> bool:
-        """Send notification via LINE Notify"""
+        """LINE Messaging API 経由で全アクティブユーザーに送信する。"""
 
         if not self.channels['line']['enabled']:
-            print("[INFO] LINE Notify token not configured")
+            print("[INFO] LINE_CHANNEL_ACCESS_TOKEN / LINE_CHANNEL_SECRET not configured")
             return False
 
-        token = self.channels['line']['token']
-        url = "https://notify-api.line.me/api/notify"
-
         try:
-            headers = {
-                "Authorization": f"Bearer {token}"
-            }
-
-            # LINE Notify doesn't support markdown, convert to plain text
-            plain_message = message.replace('**', '').replace('*', '')
-
-            payload = {
-                "message": plain_message
-            }
-
-            response = requests.post(url, headers=headers, data=payload, timeout=10)
-
-            if response.status_code == 200:
-                print("[OK] LINE notification sent successfully")
-                return True
-            else:
-                print(f"[WARNING] LINE returned status {response.status_code}")
-                return False
-
+            from line_bot_service import get_service
+            result = get_service().send_morning_notifications()
+            success = result.get('sent', 0) > 0 or result.get('skipped', 0) > 0
+            print(f"[OK] LINE notifications: sent={result['sent']} skipped={result['skipped']} errors={result['errors']}")
+            return success
         except Exception as e:
             print(f"[ERROR] LINE notification failed: {e}")
             return False

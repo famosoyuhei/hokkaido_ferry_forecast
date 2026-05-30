@@ -7,3 +7,4 @@ gunicorn>=21.2.0
 pandas>=2.0.0
 Pillow>=10.0.0
 pytz>=2023.3
+line-bot-sdk>=3.5.0

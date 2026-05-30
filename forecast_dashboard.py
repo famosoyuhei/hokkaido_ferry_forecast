@@ -1469,6 +1469,64 @@ def admin_db_coverage():
     return jsonify(result)
 
 
+# ---------------------------------------------------------------------------
+# LINE Messaging API webhook + 管理エンドポイント
+# ---------------------------------------------------------------------------
+
+try:
+    from line_bot_service import get_service as _get_line_service
+    from linebot.v3.exceptions import InvalidSignatureError as _LineInvalidSig
+    _LINE_AVAILABLE = True
+except ImportError:
+    _LINE_AVAILABLE = False
+    _LineInvalidSig = Exception
+
+
+@app.route('/webhook/line', methods=['POST'])
+def line_webhook():
+    """LINE Messaging API webhook endpoint."""
+    if not _LINE_AVAILABLE:
+        return 'LINE SDK not installed', 503
+
+    signature = request.headers.get('X-Line-Signature', '')
+    body = request.get_data(as_text=True)
+
+    line = _get_line_service()
+    if not line.enabled:
+        return 'LINE bot not configured', 503
+
+    try:
+        events = line.verify_and_parse(body, signature)
+        line.handle_events(events)
+    except _LineInvalidSig:
+        return 'Invalid signature', 400
+    except Exception as e:
+        print(f'LINE webhook error: {e}')
+        return 'Internal error', 500
+
+    return 'OK'
+
+
+@app.route('/admin/line-stats')
+@require_admin
+def admin_line_stats():
+    """LINE Bot の登録ユーザー数・有効/無効状態を返す。"""
+    if not _LINE_AVAILABLE:
+        return jsonify({'error': 'line-bot-sdk not installed'}), 503
+    stats = _get_line_service().get_stats()
+    return jsonify(stats)
+
+
+@app.route('/admin/send-line-test')
+@require_admin
+def admin_send_line_test():
+    """手動で LINE 朝通知をテスト送信する（管理者用）。"""
+    if not _LINE_AVAILABLE:
+        return jsonify({'error': 'line-bot-sdk not installed'}), 503
+    result = _get_line_service().send_morning_notifications()
+    return jsonify(result)
+
+
 @app.route('/manifest.json')
 def manifest():
     """Serve PWA manifest"""
