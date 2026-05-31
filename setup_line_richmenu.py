@@ -12,12 +12,12 @@ LINE リッチメニュー セットアップスクリプト
 必要な環境変数:
   LINE_CHANNEL_ACCESS_TOKEN
 
-メニュー構成 (2列 × 2行, 2500×1686px):
-  ┌────────────────────┬────────────────────┐
-  │  🚢 今日のリスク確認 │  📅 週間ダッシュボード │
-  ├────────────────────┼────────────────────┤
-  │  🗓️ 明日のリスク確認 │  ❓ 使い方・ヘルプ  │
-  └────────────────────┴────────────────────┘
+メニュー構成 (3列 × 2行, 2500×1686px):
+  ┌──────────────┬──────────────┬──────────────┐
+  │ 🗓️ 明日のリスク │ 📅 明後日のリスク│ 📊 週間ダッシュ │
+  ├──────────────┼──────────────┼──────────────┤
+  │ 📋 欠航実績   │ ⛴️ ハートランド │ ❓ ヘルプ     │
+  └──────────────┴──────────────┴──────────────┘
 """
 
 import sys
@@ -61,8 +61,13 @@ LINE_DATA_API = 'https://api-data.line.me/v2/bot'
 DASHBOARD_URL = 'https://web-production-a628.up.railway.app/'
 
 W, H = 2500, 1686   # Large サイズ
-HW = W // 2         # 列境界 x
-HH = H // 2         # 行境界 y
+# 3列 × 2行
+CW1, CW2, CW3 = 833, 833, 834   # 列幅 (合計 2500)
+RH = H // 2                      # 行高さ 843
+# 列の x 開始位置
+X1, X2, X3 = 0, 833, 1666
+
+HARTLAND_URL = 'https://heartlandferry.jp/operation/'
 
 RICH_MENU_DEF = {
     'size': {'width': W, 'height': H},
@@ -70,20 +75,30 @@ RICH_MENU_DEF = {
     'name': 'フェリー欠航リスク予報メニュー',
     'chatBarText': 'メニューを開く 🚢',
     'areas': [
+        # ── 上段 ──
         {
-            'bounds': {'x': 0,  'y': 0,  'width': HW, 'height': HH},
-            'action': {'type': 'message', 'label': '今日のリスク確認', 'text': '予報'}
-        },
-        {
-            'bounds': {'x': HW, 'y': 0,  'width': HW, 'height': HH},
-            'action': {'type': 'uri', 'label': '週間ダッシュボード', 'uri': DASHBOARD_URL}
-        },
-        {
-            'bounds': {'x': 0,  'y': HH, 'width': HW, 'height': HH},
+            'bounds': {'x': X1, 'y': 0, 'width': CW1, 'height': RH},
             'action': {'type': 'message', 'label': '明日のリスク確認', 'text': '明日'}
         },
         {
-            'bounds': {'x': HW, 'y': HH, 'width': HW, 'height': HH},
+            'bounds': {'x': X2, 'y': 0, 'width': CW2, 'height': RH},
+            'action': {'type': 'message', 'label': '明後日のリスク確認', 'text': '明後日'}
+        },
+        {
+            'bounds': {'x': X3, 'y': 0, 'width': CW3, 'height': RH},
+            'action': {'type': 'uri', 'label': '週間ダッシュボード', 'uri': DASHBOARD_URL}
+        },
+        # ── 下段 ──
+        {
+            'bounds': {'x': X1, 'y': RH, 'width': CW1, 'height': RH},
+            'action': {'type': 'message', 'label': '欠航実績', 'text': '実績'}
+        },
+        {
+            'bounds': {'x': X2, 'y': RH, 'width': CW2, 'height': RH},
+            'action': {'type': 'uri', 'label': 'ハートランドフェリー公式', 'uri': HARTLAND_URL}
+        },
+        {
+            'bounds': {'x': X3, 'y': RH, 'width': CW3, 'height': RH},
             'action': {'type': 'message', 'label': '使い方・ヘルプ', 'text': 'ヘルプ'}
         },
     ]
@@ -177,7 +192,7 @@ def set_default_rich_menu(menu_id: str):
 
 def generate_placeholder(output='richmenu_placeholder.png'):
     """
-    Pillow でシンプルなプレースホルダー画像を生成する。
+    Pillow でシンプルなプレースホルダー画像を生成する（3列×2行）。
     本番では、このファイルをデザインしたものに差し替えること。
     """
     try:
@@ -189,47 +204,50 @@ def generate_placeholder(output='richmenu_placeholder.png'):
     img = Image.new('RGB', (W, H), color='#1a3a5c')  # 濃紺背景
     draw = ImageDraw.Draw(img)
 
-    # グリッド線
-    draw.line([(HW, 0), (HW, H)], fill='#ffffff', width=4)
-    draw.line([(0, HH), (W, HH)], fill='#ffffff', width=4)
+    # グリッド線（2本の縦線 + 1本の横線）
+    draw.line([(X2, 0), (X2, H)], fill='#ffffff', width=4)
+    draw.line([(X3, 0), (X3, H)], fill='#ffffff', width=4)
+    draw.line([(0, RH), (W, RH)], fill='#ffffff', width=4)
 
     # 外枠
     draw.rectangle([(0, 0), (W - 1, H - 1)], outline='#ffffff', width=4)
 
-    # 各ボタンの設定
+    # 各ボタンの設定: (x, y, 列幅, emoji, label, bg_color)
     cells = [
-        (0,  0,  '🚢', '今日のリスク確認', '#2563eb'),
-        (HW, 0,  '📅', '週間ダッシュボード', '#0891b2'),
-        (0,  HH, '🗓️', '明日のリスク確認',  '#7c3aed'),
-        (HW, HH, '❓', '使い方・ヘルプ',    '#047857'),
+        (X1, 0,  CW1, '🗓️', '明日のリスク',   '#2563eb'),
+        (X2, 0,  CW2, '📅', '明後日のリスク',  '#0891b2'),
+        (X3, 0,  CW3, '📊', '週間ダッシュ',    '#7c3aed'),
+        (X1, RH, CW1, '📋', '欠航実績',        '#b45309'),
+        (X2, RH, CW2, '⛴️', 'ハートランド公式', '#0f766e'),
+        (X3, RH, CW3, '❓', 'ヘルプ',          '#047857'),
     ]
 
     try:
         # システムフォントを試みる（なければデフォルト）
-        font_large = ImageFont.truetype('C:/Windows/Fonts/meiryo.ttc', 80)
-        font_small = ImageFont.truetype('C:/Windows/Fonts/meiryo.ttc', 56)
+        font_large = ImageFont.truetype('C:/Windows/Fonts/meiryo.ttc', 72)
+        font_small = ImageFont.truetype('C:/Windows/Fonts/meiryo.ttc', 48)
     except Exception:
         font_large = ImageFont.load_default()
         font_small = ImageFont.load_default()
 
-    for (cx, cy, emoji, label, bg_color) in cells:
+    for (cx, cy, cw, emoji, label, bg_color) in cells:
         # セル背景
         draw.rectangle(
-            [(cx + 6, cy + 6), (cx + HW - 6, cy + HH - 6)],
+            [(cx + 6, cy + 6), (cx + cw - 6, cy + RH - 6)],
             fill=bg_color
         )
         # 絵文字（大）
-        emoji_x = cx + HW // 2
-        emoji_y = cy + HH // 2 - 80
+        emoji_x = cx + cw // 2
+        emoji_y = cy + RH // 2 - 70
         draw.text((emoji_x, emoji_y), emoji, fill='white',
                   font=font_large, anchor='mm')
         # ラベル
-        draw.text((emoji_x, cy + HH // 2 + 60), label, fill='white',
+        draw.text((emoji_x, cy + RH // 2 + 50), label, fill='white',
                   font=font_small, anchor='mm')
 
     img.save(output)
     print(f'[OK] プレースホルダー画像を生成しました: {output}')
-    print(f'     サイズ: {W}×{H}px')
+    print(f'     サイズ: {W}×{H}px  (3列×2行)')
     print(f'     ※ 本番前にデザイン済み画像に差し替えてください')
     return output
 
@@ -288,11 +306,13 @@ def main():
     print('✅ リッチメニューの登録が完了しました')
     print(f'   richMenuId: {menu_id}')
     print()
-    print('ボタン動作:')
-    print('  [今日のリスク確認]  → message: 予報')
-    print('  [週間ダッシュボード] → URI: ' + DASHBOARD_URL)
-    print('  [明日のリスク確認]  → message: 明日')
-    print('  [使い方・ヘルプ]    → message: ヘルプ')
+    print('ボタン動作 (3列×2行):')
+    print('  上段左  [明日のリスク確認]   → message: 明日')
+    print('  上段中  [明後日のリスク確認]  → message: 明後日')
+    print('  上段右  [週間ダッシュボード]  → URI: ' + DASHBOARD_URL)
+    print('  下段左  [欠航実績]            → message: 実績')
+    print('  下段中  [ハートランドフェリー] → URI: ' + HARTLAND_URL)
+    print('  下段右  [使い方・ヘルプ]      → message: ヘルプ')
     print()
     print('本番画像への差し替え:')
     print('  python setup_line_richmenu.py --image your_design.png')

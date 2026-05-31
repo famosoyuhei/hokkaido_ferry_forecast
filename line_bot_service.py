@@ -71,6 +71,7 @@ class LineBotService:
         data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')
         self.notif_db = os.path.join(data_dir, 'notifications.db')
         self.forecast_db = os.path.join(data_dir, 'ferry_weather_forecast.db')
+        self.ferry_db = os.path.join(data_dir, 'heartland_ferry_real_data.db')
 
         self._init_db()
 
@@ -197,11 +198,21 @@ class LineBotService:
             msg = self._format_tomorrow_message()
             self._reply(event.reply_token, msg)
 
+        elif text in ('明後日', 'あさって', '明後日は？', '明後日のリスク'):
+            msg = self._format_asatte_message()
+            self._reply(event.reply_token, msg)
+
+        elif text in ('実績', '欠航実績', '実績確認'):
+            msg = self._format_jisseki_message()
+            self._reply(event.reply_token, msg)
+
         elif text in ('ヘルプ', 'help', '？', '?', 'コマンド'):
             self._reply(event.reply_token,
                 '【コマンド一覧】\n'
                 '「予報」または「今日」: 今日のリスク確認\n'
-                '「明日」: 明日のリスク確認\n\n'
+                '「明日」: 明日のリスク確認\n'
+                '「明後日」: 明後日のリスク確認\n'
+                '「実績」: 直近7日間の欠航実績\n\n'
                 '欠航リスクが高い日は毎朝自動通知します。\n'
                 f'詳細: {DASHBOARD_URL}'
             )
@@ -319,6 +330,132 @@ class LineBotService:
         else:
             lines.append('✅ 欠航リスクは低い見込みです')
 
+        lines.append(f'詳細: {DASHBOARD_URL}')
+        return '\n'.join(lines)
+
+    def _format_asatte_message(self) -> str:
+        """明後日の全航路リスクを返す。"""
+        asatte = datetime.now(jst) + timedelta(days=2)
+        asatte_key = asatte.strftime('%Y-%m-%d')
+
+        conn = sqlite3.connect(self.forecast_db)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT cf.route, cf.risk_level, cf.wind_forecast, cf.wave_forecast
+            FROM cancellation_forecast cf
+            INNER JOIN (
+                SELECT forecast_for_date, route, MAX(forecast_hour) as max_hour
+                FROM cancellation_forecast
+                WHERE forecast_for_date = ?
+                GROUP BY forecast_for_date, route
+            ) latest
+            ON cf.forecast_for_date = latest.forecast_for_date
+            AND cf.route = latest.route
+            AND cf.forecast_hour = latest.max_hour
+        ''', (asatte_key,))
+        rows = cursor.fetchall()
+        conn.close()
+
+        asatte_str = asatte.strftime(f'%m/%d（{WEEKDAYS[asatte.weekday()]}）')
+
+        if not rows:
+            return (
+                f'📅 明後日 {asatte_str} の予報\n\n'
+                'まだデータがありません。\n'
+                f'詳細: {DASHBOARD_URL}'
+            )
+
+        sorted_rows = sorted(
+            rows,
+            key=lambda x: RISK_ORDER.index(x[1]) if x[1] in RISK_ORDER else 99
+        )
+
+        lines = ['📅 明後日の欠航リスク', asatte_str, '']
+        has_alert = False
+
+        for route, risk, wind, wave in sorted_rows:
+            emoji = RISK_EMOJI.get(risk, '❓')
+            name = ROUTE_DISPLAY.get(route, route)
+            parts = []
+            if wind:
+                parts.append(f'風{wind:.0f}m/s')
+            if wave:
+                parts.append(f'波{wave:.1f}m')
+            detail = '（' + ' '.join(parts) + '）' if parts else ''
+            lines.append(f'{emoji} {name}  {risk}{detail}')
+            if risk in ('HIGH', 'MEDIUM'):
+                has_alert = True
+
+        lines.append('')
+        if has_alert:
+            lines.append('⚠️ 仕入れ計画をご確認ください')
+        else:
+            lines.append('✅ 欠航リスクは低い見込みです')
+
+        lines.append(f'詳細: {DASHBOARD_URL}')
+        return '\n'.join(lines)
+
+    def _format_jisseki_message(self) -> str:
+        """直近7日間の欠航実績を ferry_status_enhanced から返す。"""
+        today = datetime.now(jst)
+        start_date = (today - timedelta(days=7)).strftime('%Y-%m-%d')
+
+        try:
+            conn = sqlite3.connect(self.ferry_db)
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT scrape_date, route, departure_time, is_cancelled
+                FROM ferry_status_enhanced
+                WHERE scrape_date >= ?
+                ORDER BY scrape_date DESC, route, departure_time
+            ''', (start_date,))
+            rows = cursor.fetchall()
+            conn.close()
+        except Exception as e:
+            return (
+                '📋 欠航実績の取得に失敗しました。\n'
+                f'詳細: {DASHBOARD_URL}'
+            )
+
+        if not rows:
+            return (
+                '📋 直近7日間の欠航実績\n\n'
+                'データがありません。\n'
+                f'詳細: {DASHBOARD_URL}'
+            )
+
+        # 日別集計
+        daily_totals: Dict[str, int] = {}
+        daily_cancelled: Dict[str, int] = {}
+        cancelled_routes_by_day: Dict[str, List[str]] = {}
+
+        for scrape_date, route, dep_time, is_cancelled in rows:
+            daily_totals[scrape_date] = daily_totals.get(scrape_date, 0) + 1
+            if is_cancelled:
+                daily_cancelled[scrape_date] = daily_cancelled.get(scrape_date, 0) + 1
+                name = ROUTE_DISPLAY.get(route, route)
+                cancelled_routes_by_day.setdefault(scrape_date, []).append(name)
+
+        lines = ['📋 直近7日間の欠航実績', '']
+
+        for date_str in sorted(daily_totals.keys(), reverse=True):
+            d = datetime.strptime(date_str, '%Y-%m-%d')
+            d_label = d.strftime(f'%m/%d（{WEEKDAYS[d.weekday()]}）')
+            cancelled = daily_cancelled.get(date_str, 0)
+            total = daily_totals[date_str]
+
+            if cancelled > 0:
+                lines.append(f'🔴 {d_label}: {cancelled}/{total}便欠航')
+                seen: List[str] = []
+                for r in (cancelled_routes_by_day.get(date_str) or []):
+                    if r not in seen:
+                        seen.append(r)
+                for r in seen[:4]:
+                    lines.append(f'   ↳ {r}')
+            else:
+                lines.append(f'✅ {d_label}: 全便運航')
+
+        lines.append('')
         lines.append(f'詳細: {DASHBOARD_URL}')
         return '\n'.join(lines)
 
