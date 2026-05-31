@@ -13,12 +13,33 @@
 - `kutsugata`: 沓形
 - `kafuka`: 香深
 
-対象航路:
+対象航路（通年）:
 
 - `wakkanai_oshidomari`, `oshidomari_wakkanai`
 - `wakkanai_kafuka`, `kafuka_wakkanai`
-- `wakkanai_kutsugata`, `kutsugata_wakkanai`
 - `oshidomari_kafuka`, `kafuka_oshidomari`
+
+対象航路（夏季のみ 6/1〜9/30）:
+
+- `kutsugata_kafuka`, `kafuka_kutsugata`
+
+※ `wakkanai_kutsugata` / `kutsugata_wakkanai` は存在しない（稚内-沓形の直行便なし）。
+
+## 2026年時刻表切り替え日
+
+便数・出港時刻が変わる日。当日のダイヤは必ず `heartland_2026_timetable.json` で確認すること。
+
+| 切り替え日 | 変化内容 |
+|---|---|
+| 2026-04-28（4/27→4/28） | 便数増（稚内-鴛泊・稚内-香深が2便→3便） |
+| 2026-06-01（5/31→6/1） | 夏ダイヤ開始。沓形-香深便が新設、出港時刻全面変更 |
+| 2026-10-01（9/30→10/1） | 秋ダイヤ。沓形-香深便が終了、稚内-香深に鴛泊経由便が復活 |
+| 2026-11-01（10/31→11/1） | 冬ダイヤ。便数減（3便→2便） |
+
+**ルール:**
+- 時刻表にない便の欠航扱いは絶対禁止。
+- `heartland_2026_timetable.json` の `schedules` 配列を `start_date` ≤ 対象日 ≤ `end_date` で検索する。
+- 切り替え当日の気象収集は、新しいダイヤの便に対して実施する。
 
 ## 取得ルール
 

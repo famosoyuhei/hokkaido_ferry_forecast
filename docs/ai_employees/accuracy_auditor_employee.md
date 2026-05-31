@@ -12,10 +12,13 @@
 
 1. 評価単位は「日付 + 航路 + 出港時刻」とする。
 2. 欠航予報は、事前に生成された `cancellation_forecast` または便別予報テーブルから取得する。
-3. 実績は `ferry_status` の `is_cancelled`, `is_delayed`, `operational_status` を使う。
+3. 実績は `ferry_status_enhanced`（`heartland_ferry_real_data.db`）の `is_cancelled`, `is_delayed`, `operational_status` を使う。`ferry_status` は旧テーブルであり使用しない。
 4. 実測気象は対象便の出港港、到着港、必要に応じて礼文/航路中央の最悪値を使う。
 5. 欠航実績を陽性、通常運航を陰性として扱う。
 6. 造船ドック、季節運休、時刻表非設定日は気象欠航の評価母集団から除外する。
+7. 評価対象便は `heartland_2026_timetable.json` で当日のダイヤを確認してから決める。時刻表にない便の「欠航」は評価しない。
+8. 沓形-香深便（`kutsugata_kafuka` / `kafuka_kutsugata`）は 6/1〜9/30 のみ対象。それ以外の日に出現しても評価から除外する。
+9. 2026年の時刻表切り替え日（4/28・6/1・10/1・11/1）の前後は、前後各1日の便数・出港時刻の変化を確認してから精度計算する。
 
 ## 評価指標
 

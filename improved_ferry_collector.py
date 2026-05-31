@@ -42,6 +42,7 @@ class ImprovedFerryCollector:
         }
 
         # Known ferry routes from Heartland Ferry
+        # ※ 稚内-沓形の直行便は存在しない。沓形-香深は夏季（6/1〜9/30）のみ運航。
         self.route_mappings = {
             "稚内-利尻": {"en": "wakkanai_oshidomari", "departure": "稚内", "arrival": "鴛泊"},
             "利尻-稚内": {"en": "oshidomari_wakkanai", "departure": "鴛泊", "arrival": "稚内"},
@@ -49,8 +50,8 @@ class ImprovedFerryCollector:
             "礼文-稚内": {"en": "kafuka_wakkanai", "departure": "香深", "arrival": "稚内"},
             "利尻-礼文": {"en": "oshidomari_kafuka", "departure": "鴛泊", "arrival": "香深"},
             "礼文-利尻": {"en": "kafuka_oshidomari", "departure": "香深", "arrival": "鴛泊"},
-            "稚内-沓形": {"en": "wakkanai_kutsugata", "departure": "稚内", "arrival": "沓形"},
-            "沓形-稚内": {"en": "kutsugata_wakkanai", "departure": "沓形", "arrival": "稚内"},
+            "沓形-礼文": {"en": "kutsugata_kafuka", "departure": "沓形", "arrival": "香深"},
+            "礼文-沓形": {"en": "kafuka_kutsugata", "departure": "香深", "arrival": "沓形"},
         }
 
         # Wakkanai weather location (for JMA API)
@@ -58,6 +59,7 @@ class ImprovedFerryCollector:
         self.wakkanai_lon = 141.673
 
     # Direction text → English route name
+    # ※ 稚内-沓形の直行便は存在しない。沓形-香深は夏季（6/1〜9/30）のみ。
     DIRECTION_MAP = {
         "稚内→鴛泊": "wakkanai_oshidomari",
         "鴛泊→稚内": "oshidomari_wakkanai",
@@ -65,8 +67,8 @@ class ImprovedFerryCollector:
         "香深→稚内": "kafuka_wakkanai",
         "鴛泊→香深": "oshidomari_kafuka",
         "香深→鴛泊": "kafuka_oshidomari",
-        "稚内→沓形": "wakkanai_kutsugata",
-        "沓形→稚内": "kutsugata_wakkanai",
+        "沓形→香深": "kutsugata_kafuka",
+        "香深→沓形": "kafuka_kutsugata",
     }
 
     def scrape_ferry_schedules(self):
