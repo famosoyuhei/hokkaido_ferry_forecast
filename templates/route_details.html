@@ -281,23 +281,23 @@
                             </div>
                             <div class="detail-item">
                                 <div class="detail-label">リスクスコア</div>
-                                <div class="detail-value">{{ sailing.risk_score | round(1) }}</div>
+                                <div class="detail-value">{% if sailing.risk_score is not none %}{{ sailing.risk_score | round(1) }}{% else %}–{% endif %}</div>
                             </div>
                             <div class="detail-item">
                                 <div class="detail-label">風速</div>
-                                <div class="detail-value">{{ sailing.wind | round(1) }} m/s</div>
+                                <div class="detail-value">{% if sailing.wind is not none %}{{ sailing.wind | round(1) }} m/s{% else %}–{% endif %}</div>
                             </div>
                             <div class="detail-item">
                                 <div class="detail-label">波高</div>
-                                <div class="detail-value">{{ sailing.wave | round(1) }} m</div>
+                                <div class="detail-value">{% if sailing.wave is not none %}{{ sailing.wave | round(1) }} m{% else %}–{% endif %}</div>
                             </div>
                             <div class="detail-item">
                                 <div class="detail-label">視程</div>
-                                <div class="detail-value">{{ sailing.visibility | round(1) }} km</div>
+                                <div class="detail-value">{% if sailing.visibility is not none %}{{ sailing.visibility | round(1) }} km{% else %}–{% endif %}</div>
                             </div>
                             <div class="detail-item">
                                 <div class="detail-label">気温</div>
-                                <div class="detail-value">{{ sailing.temperature | round(1) }}°C</div>
+                                <div class="detail-value">{% if sailing.temperature is not none %}{{ sailing.temperature | round(1) }}°C{% else %}–{% endif %}</div>
                             </div>
                         </div>
 

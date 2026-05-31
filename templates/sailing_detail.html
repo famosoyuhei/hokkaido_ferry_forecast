@@ -319,32 +319,28 @@
                     <div class="weather-icon">💨</div>
                     <div class="weather-label">風速</div>
                     <div class="weather-value">
-                        {{ sailing.wind | round(1) }}
-                        <span class="weather-unit">m/s</span>
+                        {% if sailing.wind is not none %}{{ sailing.wind | round(1) }}<span class="weather-unit">m/s</span>{% else %}–{% endif %}
                     </div>
                 </div>
                 <div class="weather-item">
                     <div class="weather-icon">🌊</div>
                     <div class="weather-label">波高</div>
                     <div class="weather-value">
-                        {{ sailing.wave | round(1) }}
-                        <span class="weather-unit">m</span>
+                        {% if sailing.wave is not none %}{{ sailing.wave | round(1) }}<span class="weather-unit">m</span>{% else %}–{% endif %}
                     </div>
                 </div>
                 <div class="weather-item">
                     <div class="weather-icon">👁️</div>
                     <div class="weather-label">視程</div>
                     <div class="weather-value">
-                        {{ sailing.visibility | round(1) }}
-                        <span class="weather-unit">km</span>
+                        {% if sailing.visibility is not none %}{{ sailing.visibility | round(1) }}<span class="weather-unit">km</span>{% else %}–{% endif %}
                     </div>
                 </div>
                 <div class="weather-item">
                     <div class="weather-icon">🌡️</div>
                     <div class="weather-label">気温</div>
                     <div class="weather-value">
-                        {{ sailing.temperature | round(1) }}
-                        <span class="weather-unit">°C</span>
+                        {% if sailing.temperature is not none %}{{ sailing.temperature | round(1) }}<span class="weather-unit">°C</span>{% else %}–{% endif %}
                     </div>
                 </div>
             </div>
