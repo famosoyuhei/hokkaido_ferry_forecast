@@ -221,28 +221,44 @@ class LineBotService:
     # メッセージ生成
     # ------------------------------------------------------------------
 
+    def _query_risks(self, date_str: str):
+        """
+        指定日の航路別リスクをDBから取得する共通ヘルパー。
+        [(route, risk_level, wind_forecast, wave_forecast)] を返す。
+        DB エラー時は None を返す。
+
+        注: forecast_hour INNER JOIN を使わず MAX(id) で最新レコードを取得する。
+        forecast_hour が NULL の行でも確実に動作するため。
+        """
+        try:
+            conn = sqlite3.connect(self.forecast_db)
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT route, risk_level, wind_forecast, wave_forecast
+                FROM cancellation_forecast
+                WHERE forecast_for_date = ?
+                  AND id IN (
+                      SELECT MAX(id) FROM cancellation_forecast
+                      WHERE forecast_for_date = ?
+                      GROUP BY route
+                  )
+            ''', (date_str, date_str))
+            rows = cursor.fetchall()
+            conn.close()
+            return rows
+        except Exception as e:
+            print(f'[LINE] _query_risks({date_str}) error: {e}')
+            return None
+
     def _get_today_risks(self) -> Dict[str, dict]:
         """本日の航路別リスクを返す。{route: {risk, wind, wave}}"""
         today = datetime.now(jst).strftime('%Y-%m-%d')
-        conn = sqlite3.connect(self.forecast_db)
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT cf.route, cf.risk_level, cf.wind_forecast, cf.wave_forecast
-            FROM cancellation_forecast cf
-            INNER JOIN (
-                SELECT forecast_for_date, route, MAX(forecast_hour) as max_hour
-                FROM cancellation_forecast
-                WHERE forecast_for_date = ?
-                GROUP BY forecast_for_date, route
-            ) latest
-            ON cf.forecast_for_date = latest.forecast_for_date
-            AND cf.route = latest.route
-            AND cf.forecast_hour = latest.max_hour
-        ''', (today,))
+        rows = self._query_risks(today)
+        if not rows:
+            return {}
         result = {}
-        for route, risk, wind, wave in cursor.fetchall():
+        for route, risk, wind, wave in rows:
             result[route] = {'risk': risk, 'wind': wind, 'wave': wave}
-        conn.close()
         return result
 
     def _get_forecast_days(self, n: int = 3) -> List[dict]:
@@ -275,26 +291,15 @@ class LineBotService:
         """明日の全航路リスクを返す。"""
         tomorrow = datetime.now(jst) + timedelta(days=1)
         tomorrow_key = tomorrow.strftime('%Y-%m-%d')
-
-        conn = sqlite3.connect(self.forecast_db)
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT cf.route, cf.risk_level, cf.wind_forecast, cf.wave_forecast
-            FROM cancellation_forecast cf
-            INNER JOIN (
-                SELECT forecast_for_date, route, MAX(forecast_hour) as max_hour
-                FROM cancellation_forecast
-                WHERE forecast_for_date = ?
-                GROUP BY forecast_for_date, route
-            ) latest
-            ON cf.forecast_for_date = latest.forecast_for_date
-            AND cf.route = latest.route
-            AND cf.forecast_hour = latest.max_hour
-        ''', (tomorrow_key,))
-        rows = cursor.fetchall()
-        conn.close()
-
         tomorrow_str = tomorrow.strftime(f'%m/%d（{WEEKDAYS[tomorrow.weekday()]}）')
+
+        rows = self._query_risks(tomorrow_key)
+        if rows is None:
+            return (
+                f'🗓️ 明日 {tomorrow_str} の予報\n\n'
+                'データ取得中にエラーが発生しました。\n'
+                f'詳細: {DASHBOARD_URL}'
+            )
 
         if not rows:
             return (
@@ -337,26 +342,15 @@ class LineBotService:
         """明後日の全航路リスクを返す。"""
         asatte = datetime.now(jst) + timedelta(days=2)
         asatte_key = asatte.strftime('%Y-%m-%d')
-
-        conn = sqlite3.connect(self.forecast_db)
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT cf.route, cf.risk_level, cf.wind_forecast, cf.wave_forecast
-            FROM cancellation_forecast cf
-            INNER JOIN (
-                SELECT forecast_for_date, route, MAX(forecast_hour) as max_hour
-                FROM cancellation_forecast
-                WHERE forecast_for_date = ?
-                GROUP BY forecast_for_date, route
-            ) latest
-            ON cf.forecast_for_date = latest.forecast_for_date
-            AND cf.route = latest.route
-            AND cf.forecast_hour = latest.max_hour
-        ''', (asatte_key,))
-        rows = cursor.fetchall()
-        conn.close()
-
         asatte_str = asatte.strftime(f'%m/%d（{WEEKDAYS[asatte.weekday()]}）')
+
+        rows = self._query_risks(asatte_key)
+        if rows is None:
+            return (
+                f'📅 明後日 {asatte_str} の予報\n\n'
+                'データ取得中にエラーが発生しました。\n'
+                f'詳細: {DASHBOARD_URL}'
+            )
 
         if not rows:
             return (

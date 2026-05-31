@@ -218,12 +218,9 @@ class ForecastDashboard:
         return routes
 
     def get_next_sailings(self):
-        """Get next upcoming sailing for each route"""
+        """Get next upcoming sailing for each route (timetable-based, no sailing_forecast needed)"""
         from datetime import datetime, timedelta
         import pytz
-
-        conn = sqlite3.connect(self.db_file)
-        cursor = conn.cursor()
 
         # Use JST timezone
         jst = pytz.timezone('Asia/Tokyo')
@@ -242,57 +239,36 @@ class ForecastDashboard:
             'kafuka_oshidomari': '香深（礼文）→ 鴛泊（利尻）'
         }
 
+        # リスクデータを今日・明日分まとめて取得
+        today_risks = _get_risks_for_date(self.db_file, current_date)
+        tomorrow_risks = _get_risks_for_date(self.db_file, tomorrow_date)
+
         next_sailings = []
 
         for route in route_names.keys():
-            # Try to find next sailing today (after current time)
-            cursor.execute('''
-                SELECT
-                    forecast_date,
-                    departure_time,
-                    arrival_time,
-                    risk_level,
-                    risk_score,
-                    wind_forecast,
-                    wave_forecast,
-                    visibility_forecast,
-                    recommended_action
-                FROM sailing_forecast
-                WHERE route = ?
-                AND forecast_date = ?
-                AND departure_time > ?
-                ORDER BY departure_time ASC
-                LIMIT 1
-            ''', (route, current_date, current_time))
+            # 今日の残り便（現在時刻より後）を探す
+            today_timetable = _get_timetable_sailings(route, current_date)
+            found = None
 
-            row = cursor.fetchone()
+            for dep, arr in today_timetable:
+                if dep > current_time:
+                    found = (current_date, dep, arr, today_risks)
+                    break
 
-            # If no sailing found today, get tomorrow's first sailing
-            if not row:
-                cursor.execute('''
-                    SELECT
-                        forecast_date,
-                        departure_time,
-                        arrival_time,
-                        risk_level,
-                        risk_score,
-                        wind_forecast,
-                        wave_forecast,
-                        visibility_forecast,
-                        recommended_action
-                    FROM sailing_forecast
-                    WHERE route = ?
-                    AND forecast_date = ?
-                    ORDER BY departure_time ASC
-                    LIMIT 1
-                ''', (route, tomorrow_date))
+            # 今日に該当がなければ明日の最初の便
+            if not found:
+                tomorrow_timetable = _get_timetable_sailings(route, tomorrow_date)
+                if tomorrow_timetable:
+                    dep, arr = tomorrow_timetable[0]
+                    found = (tomorrow_date, dep, arr, tomorrow_risks)
 
-                row = cursor.fetchone()
+            if found:
+                date, departure, arrival, risks_dict = found
+                risk_info = risks_dict.get(route, {
+                    'risk_level': 'MINIMAL', 'risk_score': 0,
+                    'wind': None, 'wave': None, 'visibility': None,
+                })
 
-            if row:
-                date, departure, arrival, risk, score, wind, wave, vis, action = row
-
-                # Determine if it's today or tomorrow
                 is_today = (date == current_date)
                 timing_label = f"本日 {departure}発" if is_today else f"明日 {departure}発"
 
@@ -303,15 +279,14 @@ class ForecastDashboard:
                     'departure_time': departure,
                     'arrival_time': arrival,
                     'timing_label': timing_label,
-                    'risk_level': risk,
-                    'risk_score': score,
-                    'wind': wind,
-                    'wave': wave,
-                    'visibility': vis,
-                    'action': action
+                    'risk_level': risk_info['risk_level'],
+                    'risk_score': risk_info['risk_score'],
+                    'wind': risk_info['wind'],
+                    'wave': risk_info['wave'],
+                    'visibility': risk_info['visibility'],
+                    'action': None,
                 })
 
-        conn.close()
         return next_sailings
 
     def get_statistics(self):
@@ -499,82 +474,45 @@ def route_details(route_id):
 
     route_name = ROUTE_NAMES.get(route_id, route_id)
 
-    # Get sailing forecast data for this route for next 7 days
+    # 時刻表 + cancellation_forecast で7日分のデータを構築
     data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
-    conn = sqlite3.connect(os.path.join(data_dir, "ferry_weather_forecast.db"))
-    cursor = conn.cursor()
+    db_file = os.path.join(data_dir, 'ferry_weather_forecast.db')
 
-    # Get 7 days of forecasts
-    cursor.execute('''
-        SELECT
-            forecast_date,
-            departure_time,
-            arrival_time,
-            risk_level,
-            risk_score,
-            wind_forecast,
-            wave_forecast,
-            visibility_forecast,
-            temperature_forecast,
-            recommended_action
-        FROM sailing_forecast
-        WHERE route = ?
-        AND forecast_date >= ?
-        AND forecast_date <= ?
-        ORDER BY forecast_date, departure_time
-    ''', (route_id, today_jst_str(), days_from_today_jst(7)))
-
-    rows = cursor.fetchall()
-    conn.close()
-
-    # Group by date
-    forecast_by_day = {}
-    for row in rows:
-        date_str, departure, arrival, risk, score, wind, wave, vis, temp, action = row
-
-        if date_str not in forecast_by_day:
-            forecast_by_day[date_str] = {
-                'date': date_str,
-                'weekday': datetime.fromisoformat(date_str).strftime('%a'),
-                'sailings': [],
-                'max_risk': 'MINIMAL'
-            }
-
-        forecast_by_day[date_str]['sailings'].append({
-            'departure': departure,
-            'arrival': arrival,
-            'risk_level': risk,
-            'risk_score': score,
-            'wind': wind,
-            'wave': wave,
-            'visibility': vis,
-            'temperature': temp,
-            'recommended_action': action
-        })
-
-        # Update max risk for the day
-        risk_priority = {'HIGH': 4, 'MEDIUM': 3, 'LOW': 2, 'MINIMAL': 1}
-        if risk_priority.get(risk, 0) > risk_priority.get(forecast_by_day[date_str]['max_risk'], 0):
-            forecast_by_day[date_str]['max_risk'] = risk
-
-    # Convert to list and sort by date
-    forecast_list = sorted(forecast_by_day.values(), key=lambda x: x['date'])
-
-    # Fill in missing dates with no sailings
+    risk_priority = {'HIGH': 4, 'MEDIUM': 3, 'LOW': 2, 'MINIMAL': 1}
     all_days = []
+
     for i in range(7):
         target_date = days_from_today_jst(i)
-        existing_day = next((d for d in forecast_list if d['date'] == target_date), None)
+        timetable = _get_timetable_sailings(route_id, target_date)
+        risks = _get_risks_for_date(db_file, target_date)
+        risk_info = risks.get(route_id, {
+            'risk_level': 'MINIMAL', 'risk_score': 0,
+            'wind': None, 'wave': None, 'visibility': None,
+        })
 
-        if existing_day:
-            all_days.append(existing_day)
-        else:
-            all_days.append({
-                'date': target_date,
-                'weekday': datetime.fromisoformat(target_date).strftime('%a'),
-                'sailings': [],
-                'max_risk': 'MINIMAL'
+        sailings = []
+        max_risk = 'MINIMAL'
+        for dep, arr in timetable:
+            sailings.append({
+                'departure': dep,
+                'arrival': arr,
+                'risk_level': risk_info['risk_level'],
+                'risk_score': risk_info['risk_score'],
+                'wind': risk_info['wind'],
+                'wave': risk_info['wave'],
+                'visibility': risk_info['visibility'],
+                'temperature': None,
+                'recommended_action': None,
             })
+            if risk_priority.get(risk_info['risk_level'], 0) > risk_priority.get(max_risk, 0):
+                max_risk = risk_info['risk_level']
+
+        all_days.append({
+            'date': target_date,
+            'weekday': datetime.fromisoformat(target_date).strftime('%a'),
+            'sailings': sailings,
+            'max_risk': max_risk,
+        })
 
     return render_template('route_details.html',
                          route_name=route_name,
@@ -603,50 +541,38 @@ def sailing_detail(route_id, date, departure_time):
 
     route_name = ROUTE_NAMES.get(route_id, route_id)
 
-    # Get sailing data
-    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
-    conn = sqlite3.connect(os.path.join(data_dir, "ferry_weather_forecast.db"))
-    cursor = conn.cursor()
+    # 時刻表から到着時刻を確認
+    timetable = _get_timetable_sailings(route_id, date)
+    arrival_time = None
+    for dep, arr in timetable:
+        if dep == departure_time:
+            arrival_time = arr
+            break
 
-    cursor.execute('''
-        SELECT
-            forecast_date,
-            departure_time,
-            arrival_time,
-            risk_level,
-            risk_score,
-            wind_forecast,
-            wave_forecast,
-            visibility_forecast,
-            temperature_forecast,
-            risk_factors,
-            recommended_action
-        FROM sailing_forecast
-        WHERE route = ?
-        AND forecast_date = ?
-        AND departure_time = ?
-    ''', (route_id, date, departure_time))
-
-    row = cursor.fetchone()
-    conn.close()
-
-    if not row:
+    if arrival_time is None:
         return "Sailing not found", 404
 
-    date_str, departure, arrival, risk, score, wind, wave, vis, temp, factors, action = row
+    # リスクデータを cancellation_forecast から取得
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+    db_file = os.path.join(data_dir, 'ferry_weather_forecast.db')
+    risks = _get_risks_for_date(db_file, date)
+    risk_info = risks.get(route_id, {
+        'risk_level': 'MINIMAL', 'risk_score': 0,
+        'wind': None, 'wave': None, 'visibility': None,
+    })
 
     sailing = {
-        'date': date_str,
-        'departure': departure,
-        'arrival': arrival,
-        'risk_level': risk,
-        'risk_score': score,
-        'wind': wind,
-        'wave': wave,
-        'visibility': vis,
-        'temperature': temp,
-        'risk_factors': factors,
-        'recommended_action': action
+        'date': date,
+        'departure': departure_time,
+        'arrival': arrival_time,
+        'risk_level': risk_info['risk_level'],
+        'risk_score': risk_info['risk_score'],
+        'wind': risk_info['wind'],
+        'wave': risk_info['wave'],
+        'visibility': risk_info['visibility'],
+        'temperature': None,
+        'risk_factors': None,
+        'recommended_action': None,
     }
 
     return render_template('sailing_detail.html',
@@ -659,62 +585,140 @@ def api_stats():
     """API endpoint for statistics"""
     return jsonify(dashboard.get_statistics())
 
+# ---------------------------------------------------------------------------
+# 2026年公式時刻表（skills/ferry-cancellation-research/references/memory.md 準拠）
+# 各エントリ: (開始日, 終了日, [(出港, 到着), ...])
+# ---------------------------------------------------------------------------
+_TIMETABLE_2026 = {
+    'wakkanai_oshidomari': [
+        ('2026-01-01', '2026-04-27', [('06:55', '08:35'), ('14:00', '15:40')]),
+        ('2026-04-28', '2026-05-31', [('06:45', '08:25'), ('10:10', '11:50'), ('14:30', '16:10')]),
+        ('2026-06-01', '2026-09-30', [('07:15', '08:55'), ('11:15', '12:55'), ('16:40', '18:20')]),
+        ('2026-10-01', '2026-10-31', [('06:45', '08:25'), ('10:10', '11:50'), ('14:30', '16:10')]),
+        ('2026-11-01', '2026-12-31', [('06:55', '08:35'), ('14:00', '15:40')]),
+    ],
+    'oshidomari_wakkanai': [
+        ('2026-01-01', '2026-04-27', [('09:05', '10:45'), ('17:30', '19:10')]),
+        ('2026-04-28', '2026-05-31', [('08:55', '10:35'), ('14:35', '16:15'), ('16:40', '18:20')]),
+        ('2026-06-01', '2026-09-30', [('08:25', '10:05'), ('12:05', '13:45'), ('16:40', '18:20')]),
+        ('2026-10-01', '2026-10-31', [('08:55', '10:35'), ('14:35', '16:15'), ('16:40', '18:20')]),
+        ('2026-11-01', '2026-12-31', [('09:05', '10:45'), ('17:30', '19:10')]),
+    ],
+    'wakkanai_kafuka': [
+        ('2026-01-01', '2026-04-27', [('06:35', '08:30'), ('14:10', '16:05')]),
+        ('2026-04-28', '2026-05-31', [('06:30', '08:25'), ('10:10', '13:00'), ('14:45', '16:40')]),
+        ('2026-06-01', '2026-09-30', [('06:30', '08:25'), ('10:30', '12:25'), ('14:50', '16:45')]),
+        ('2026-10-01', '2026-10-31', [('06:30', '08:25'), ('10:10', '13:00'), ('14:45', '16:40')]),
+        ('2026-11-01', '2026-12-31', [('06:35', '08:30'), ('14:10', '16:05')]),
+    ],
+    'kafuka_wakkanai': [
+        ('2026-01-01', '2026-04-27', [('09:00', '10:55'), ('17:05', '19:00')]),
+        ('2026-04-28', '2026-05-31', [('08:55', '10:50'), ('13:25', '16:15'), ('17:05', '19:00')]),
+        ('2026-06-01', '2026-09-30', [('08:55', '10:50'), ('14:20', '16:15'), ('17:10', '19:05')]),
+        ('2026-10-01', '2026-10-31', [('08:55', '10:50'), ('13:25', '16:15'), ('17:05', '19:00')]),
+        ('2026-11-01', '2026-12-31', [('09:00', '10:55'), ('17:05', '19:00')]),
+    ],
+    'oshidomari_kafuka': [
+        ('2026-01-01', '2026-04-27', [('16:00', '16:45')]),
+        ('2026-04-28', '2026-05-31', [('12:15', '13:00')]),
+        ('2026-06-01', '2026-09-30', [('09:30', '10:15'), ('13:15', '14:00')]),
+        ('2026-10-01', '2026-10-31', [('12:15', '13:00')]),
+        ('2026-11-01', '2026-12-31', [('16:00', '16:45')]),
+    ],
+    'kafuka_oshidomari': [
+        ('2026-01-01', '2026-04-27', [('16:25', '17:10')]),
+        ('2026-04-28', '2026-05-31', [('13:25', '14:10')]),
+        ('2026-06-01', '2026-09-30', [('10:40', '11:25'), ('15:30', '16:15')]),
+        ('2026-10-01', '2026-10-31', [('13:25', '14:10')]),
+        ('2026-11-01', '2026-12-31', [('16:25', '17:10')]),
+    ],
+    # 沓形航路は時刻表未確認のため空（将来追加）
+    'wakkanai_kutsugata': [],
+    'kutsugata_wakkanai': [],
+}
+
+
+def _get_timetable_sailings(route: str, date_str: str) -> list:
+    """指定日・航路の時刻表便リスト [(departure, arrival), ...] を返す。"""
+    for start, end, sailings in _TIMETABLE_2026.get(route, []):
+        if start <= date_str <= end:
+            return sailings
+    return []
+
+
+def _get_risks_for_date(db_file: str, date_str: str) -> dict:
+    """cancellation_forecast から指定日の航路別最新リスクを返す。{route: {...}}"""
+    risks = {}
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT route, risk_level, risk_score, wind_forecast, wave_forecast, visibility_forecast
+            FROM cancellation_forecast
+            WHERE forecast_for_date = ?
+              AND id IN (
+                  SELECT MAX(id) FROM cancellation_forecast
+                  WHERE forecast_for_date = ?
+                  GROUP BY route
+              )
+        ''', (date_str, date_str))
+        for row in cursor.fetchall():
+            route, risk, score, wind, wave, vis = row
+            risks[route] = {
+                'risk_level': risk or 'MINIMAL',
+                'risk_score': score or 0,
+                'wind': wind,
+                'wave': wave,
+                'visibility': vis,
+            }
+        conn.close()
+    except Exception as e:
+        print(f'[api/sailings] DB error for {date_str}: {e}')
+    return risks
+
+
 @app.route('/api/sailings')
 def api_sailings():
-    """API endpoint for sailing-by-sailing forecasts"""
+    """
+    時刻表ベースの便別予報 API。
+    sailing_forecast テーブルではなく 2026年公式時刻表 + cancellation_forecast を使用。
+    """
     import os
     data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
-    db_file = os.path.join(data_dir, "ferry_weather_forecast.db")
+    db_file = os.path.join(data_dir, 'ferry_weather_forecast.db')
 
-    # Get date parameter (default: today)
     date_str = request.args.get('date', now_jst().strftime('%Y-%m-%d'))
 
-    conn = sqlite3.connect(db_file)
-    cursor = conn.cursor()
-
-    # Get sailing forecasts for the specified date
-    cursor.execute('''
-        SELECT
-            forecast_date,
-            route,
-            departure_time,
-            arrival_time,
-            risk_level,
-            risk_score,
-            wind_forecast,
-            wave_forecast,
-            visibility_forecast,
-            temperature_forecast,
-            risk_factors,
-            recommended_action
-        FROM sailing_forecast
-        WHERE forecast_date = ?
-        ORDER BY departure_time
-    ''', (date_str,))
+    risks = _get_risks_for_date(db_file, date_str)
 
     sailings = []
-    for row in cursor.fetchall():
-        sailings.append({
-            'date': row[0],
-            'route': row[1],
-            'departure': row[2],
-            'arrival': row[3],
-            'risk_level': row[4],
-            'risk_score': row[5],
-            'wind': row[6],
-            'wave': row[7],
-            'visibility': row[8],
-            'temperature': row[9],
-            'risk_factors': row[10],
-            'recommended_action': row[11]
+    for route, periods in _TIMETABLE_2026.items():
+        timetable = _get_timetable_sailings(route, date_str)
+        risk_info = risks.get(route, {
+            'risk_level': 'MINIMAL', 'risk_score': 0,
+            'wind': None, 'wave': None, 'visibility': None,
         })
+        for dep, arr in timetable:
+            sailings.append({
+                'date': date_str,
+                'route': route,
+                'departure': dep,
+                'arrival': arr,
+                'risk_level': risk_info['risk_level'],
+                'risk_score': risk_info['risk_score'],
+                'wind': risk_info['wind'],
+                'wave': risk_info['wave'],
+                'visibility': risk_info['visibility'],
+                'temperature': None,
+                'risk_factors': None,
+                'recommended_action': None,
+            })
 
-    conn.close()
-
+    sailings.sort(key=lambda s: (s['route'], s['departure']))
     return jsonify({
         'date': date_str,
         'total_sailings': len(sailings),
-        'sailings': sailings
+        'sailings': sailings,
     })
 
 @app.route('/admin/env')
