@@ -109,8 +109,10 @@
 航路キー:
 - `wakkanai_oshidomari` / `oshidomari_wakkanai`
 - `wakkanai_kafuka` / `kafuka_wakkanai`
-- `wakkanai_kutsugata` / `kutsugata_wakkanai`
 - `oshidomari_kafuka` / `kafuka_oshidomari`
+- `kutsugata_kafuka` / `kafuka_kutsugata`（夏季のみ 6/1〜9/30）
+
+※ `wakkanai_kutsugata` / `kutsugata_wakkanai` は存在しない（稚内-沓形の直行便なし）
 
 2026年時刻表（便別出港・到着時刻）は `skills/ferry-cancellation-research/references/memory.md` を参照。
 

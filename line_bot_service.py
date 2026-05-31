@@ -44,10 +44,10 @@ ROUTE_DISPLAY = {
     'oshidomari_wakkanai': '鴛泊→稚内',
     'wakkanai_kafuka':     '稚内→香深',
     'kafuka_wakkanai':     '香深→稚内',
-    'wakkanai_kutsugata':  '稚内→沓形',
-    'kutsugata_wakkanai':  '沓形→稚内',
     'oshidomari_kafuka':   '鴛泊→香深',
     'kafuka_oshidomari':   '香深→鴛泊',
+    'kutsugata_kafuka':    '沓形→香深',  # 夏季のみ（6/1〜9/30）
+    'kafuka_kutsugata':    '香深→沓形',  # 夏季のみ（6/1〜9/30）
 }
 RISK_EMOJI = {'HIGH': '🔴', 'MEDIUM': '🟡', 'LOW': '🟢', 'MINIMAL': '⚪'}
 RISK_ORDER = ['HIGH', 'MEDIUM', 'LOW', 'MINIMAL']
