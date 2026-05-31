@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import warnings
 warnings.filterwarnings('ignore')
-from jst_utils import now_jst, today_jst_str, jst_isoformat
+from jst_utils import now_jst, today_jst_str, jst_isoformat, get_active_routes_on
 
 class WeatherForecastCollector:
     """Integrated weather forecast collector using JMA + Open-Meteo APIs"""
@@ -942,11 +942,11 @@ class WeatherForecastCollector:
         forecasts = cursor.fetchall()
         generated = 0
 
-        ferry_routes = [
-            'wakkanai_oshidomari', 'wakkanai_kafuka', 'wakkanai_kutsugata',
-            'oshidomari_wakkanai', 'kafuka_wakkanai', 'kutsugata_wakkanai',
-            'oshidomari_kafuka', 'kafuka_oshidomari'
-        ]
+        # 日付ごとのアクティブ航路キャッシュ（時刻表 JSON から動的取得）
+        # wakkanai_kutsugata / kutsugata_wakkanai は存在しない航路なので使わない。
+        # 沓形-香深便（kutsugata_kafuka / kafuka_kutsugata）は 6/1〜9/30 のみ自動追加される。
+        # 年が変わっても heartland_{year}_timetable.json を追加するだけで対応できる。
+        _routes_cache: dict = {}
 
         for forecast_date, forecast_hour, location, wind_speed, wave_height, visibility, temperature in forecasts:
             if wind_speed is None and wave_height is None:
@@ -977,8 +977,13 @@ class WeatherForecastCollector:
             horizon_days = (datetime.fromisoformat(forecast_date) - datetime.fromisoformat(today_jst_str())).days
             confidence = max(0.5, 1.0 - (horizon_days * 0.07))
 
+            # 当日の運航便を時刻表から動的取得（キャッシュ済み）
+            if forecast_date not in _routes_cache:
+                _routes_cache[forecast_date] = get_active_routes_on(forecast_date)
+            active_routes = _routes_cache[forecast_date]
+
             # Save forecast for each route
-            for route in ferry_routes:
+            for route in active_routes:
                 try:
                     cursor.execute('''
                         INSERT OR REPLACE INTO cancellation_forecast (

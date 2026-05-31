@@ -333,14 +333,26 @@ class ActualWeatherCollector:
 
         return value * 10 if value is not None else None
 
-    def _load_2026_timetable(self) -> dict:
-        timetable_path = Path(__file__).parent / 'skills' / 'ferry-cancellation-research' / 'references' / 'heartland_2026_timetable.json'
-        with open(timetable_path, encoding='utf-8') as f:
+    def _load_timetable_for_year(self, year: int) -> dict:
+        """
+        指定年の時刻表 JSON をロードする。
+        当該年の JSON が存在しない場合は最新年の JSON にフォールバックする。
+        年が変わったら heartland_{year}_timetable.json を追加するだけでよい。
+        """
+        ref_dir = Path(__file__).parent / 'skills' / 'ferry-cancellation-research' / 'references'
+        path = ref_dir / f'heartland_{year}_timetable.json'
+        if not path.exists():
+            candidates = sorted(ref_dir.glob('heartland_????_timetable.json'), reverse=True)
+            if not candidates:
+                return {}
+            path = candidates[0]
+        with open(path, encoding='utf-8') as f:
             return json.load(f)
 
     def _scheduled_sailings_for_date(self, service_date: str) -> list:
         target = datetime.fromisoformat(service_date).date()
-        timetable = self._load_2026_timetable()
+        year = int(service_date[:4])
+        timetable = self._load_timetable_for_year(year)
         for schedule in timetable.get('schedules', []):
             start = datetime.fromisoformat(schedule['start_date']).date()
             end = datetime.fromisoformat(schedule['end_date']).date()
