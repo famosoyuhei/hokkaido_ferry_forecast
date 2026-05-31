@@ -258,6 +258,8 @@ class LineBotService:
             return {}
         result = {}
         for route, risk, wind, wave in rows:
+            if route not in ROUTE_DISPLAY:
+                continue  # 廃止済み航路キー（wakkanai_kutsugata等）はスキップ
             result[route] = {'risk': risk, 'wind': wind, 'wave': wave}
         return result
 
@@ -317,8 +319,10 @@ class LineBotService:
         has_alert = False
 
         for route, risk, wind, wave in sorted_rows:
+            if route not in ROUTE_DISPLAY:
+                continue  # 廃止済み航路キー（wakkanai_kutsugata等）はスキップ
             emoji = RISK_EMOJI.get(risk, '❓')
-            name = ROUTE_DISPLAY.get(route, route)
+            name = ROUTE_DISPLAY[route]
             parts = []
             if wind:
                 parts.append(f'風{wind:.0f}m/s')
@@ -368,8 +372,10 @@ class LineBotService:
         has_alert = False
 
         for route, risk, wind, wave in sorted_rows:
+            if route not in ROUTE_DISPLAY:
+                continue  # 廃止済み航路キー（wakkanai_kutsugata等）はスキップ
             emoji = RISK_EMOJI.get(risk, '❓')
-            name = ROUTE_DISPLAY.get(route, route)
+            name = ROUTE_DISPLAY[route]
             parts = []
             if wind:
                 parts.append(f'風{wind:.0f}m/s')
@@ -511,8 +517,10 @@ class LineBotService:
                 key=lambda x: RISK_ORDER.index(x[1]['risk'])
             )
             for route, info in sorted_routes:
+                if route not in ROUTE_DISPLAY:
+                    continue  # 廃止済み航路キーはスキップ
                 emoji = RISK_EMOJI.get(info['risk'], '❓')
-                name = ROUTE_DISPLAY.get(route, route)
+                name = ROUTE_DISPLAY[route]
                 parts = []
                 if info['wind']:
                     parts.append(f"風{info['wind']:.0f}m/s")
