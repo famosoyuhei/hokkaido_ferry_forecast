@@ -193,6 +193,7 @@ def set_default_rich_menu(menu_id: str):
 def generate_placeholder(output='richmenu_placeholder.png'):
     """
     Pillow でシンプルなプレースホルダー画像を生成する（3列×2行）。
+    絵文字は Segoe UI Emoji で描画（Meiryo では□になる文字を回避）。
     本番では、このファイルをデザインしたものに差し替えること。
     """
     try:
@@ -222,28 +223,41 @@ def generate_placeholder(output='richmenu_placeholder.png'):
         (X3, RH, CW3, '❓', 'ヘルプ',          '#047857'),
     ]
 
+    # 絵文字: Segoe UI Emoji（Windows標準 — Meiryo はモダン絵文字を含まない）
+    # テキスト: Meiryo
+    EMOJI_FONT_PATH = 'C:/Windows/Fonts/seguiemj.ttf'
+    MEIRYO_PATH     = 'C:/Windows/Fonts/meiryo.ttc'
     try:
-        # システムフォントを試みる（なければデフォルト）
-        font_large = ImageFont.truetype('C:/Windows/Fonts/meiryo.ttc', 72)
-        font_small = ImageFont.truetype('C:/Windows/Fonts/meiryo.ttc', 48)
+        font_emoji = ImageFont.truetype(EMOJI_FONT_PATH, 160)
     except Exception:
-        font_large = ImageFont.load_default()
-        font_small = ImageFont.load_default()
+        font_emoji = None
+        print('[WARN] Segoe UI Emoji が見つかりません。絵文字なしで生成します。')
+
+    try:
+        font_label = ImageFont.truetype(MEIRYO_PATH, 72)
+    except Exception:
+        font_label = ImageFont.load_default()
 
     for (cx, cy, cw, emoji, label, bg_color) in cells:
+        cx2 = cx + cw
+        cy2 = cy + RH
+        center_x = cx + cw // 2
+        center_y = cy + RH // 2
+
         # セル背景
-        draw.rectangle(
-            [(cx + 6, cy + 6), (cx + cw - 6, cy + RH - 6)],
-            fill=bg_color
-        )
-        # 絵文字（大）
-        emoji_x = cx + cw // 2
-        emoji_y = cy + RH // 2 - 70
-        draw.text((emoji_x, emoji_y), emoji, fill='white',
-                  font=font_large, anchor='mm')
-        # ラベル
-        draw.text((emoji_x, cy + RH // 2 + 50), label, fill='white',
-                  font=font_small, anchor='mm')
+        draw.rectangle([(cx + 6, cy + 6), (cx2 - 6, cy2 - 6)], fill=bg_color)
+
+        if font_emoji:
+            # 絵文字を上寄りに配置
+            draw.text((center_x, center_y - 90), emoji,
+                      fill='white', font=font_emoji, anchor='mm')
+            # ラベルを下寄りに配置
+            draw.text((center_x, center_y + 110), label,
+                      fill='white', font=font_label, anchor='mm')
+        else:
+            # 絵文字フォントなし: テキストのみを中央に配置
+            draw.text((center_x, center_y), label,
+                      fill='white', font=font_label, anchor='mm')
 
     img.save(output)
     print(f'[OK] プレースホルダー画像を生成しました: {output}')
