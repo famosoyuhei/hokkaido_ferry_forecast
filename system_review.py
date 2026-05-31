@@ -49,6 +49,16 @@ WINTER_MONTHS = {12, 1, 2, 3}
 
 SEVERITY_ORDER = {'CRITICAL': 0, 'WARNING': 1, 'INFO': 2}
 
+# 本番Railway URL（ローカル実行時に本番DBの鮮度をチェックするために使用）
+PRODUCTION_URL = 'https://web-production-a628.up.railway.app'
+
+# Railway上で動いているかどうかを判定（Trueならローカル DB = 本番DB なので API チェック不要）
+_IS_ON_RAILWAY = bool(
+    os.environ.get('RAILWAY_VOLUME_MOUNT_PATH')
+    or os.environ.get('RAILWAY_ENVIRONMENT')
+    or os.environ.get('RAILWAY_SERVICE_NAME')
+)
+
 EMPLOYEE_LABELS = {
     'forecast':   '🌊 海上気象予報取得AI',
     'actual':     '📡 海上気象実測取得AI',
@@ -592,7 +602,7 @@ class FerryCollectorEmployee:
                         f'{date_str} の ferry_status_enhanced が0件。'
                         f'スクレイパーが実行されていないか失敗した可能性。'
                     ),
-                    fix_hint=f'python improved_ferry_collector.py を {date_str} で手動実行する。'
+                    fix_hint='GitHub Actions ferry-collection ワークフローを確認・修復し、欠落日分のバックフィルを行う。'
                 ))
         return issues
 
@@ -1013,13 +1023,21 @@ class IssueSynthesizer:
                 )
         lines.append('')
 
-        # 修正してほしいこと
+        # 修正してほしいこと — 同一 fix_hint は1回のみ出力、複数件は件数を付記
         lines.append('## 修正してほしいこと')
         step = 1
+        # fix_hint をキーにしてグループ化（出現順を保持）
+        hint_to_issues: Dict[str, List[Issue]] = {}
         for issue in action_issues:
-            if issue.fix_hint:
-                lines.append(f'{step}. {issue.fix_hint}')
-                step += 1
+            if not issue.fix_hint:
+                continue
+            hint_to_issues.setdefault(issue.fix_hint, []).append(issue)
+        for hint, grouped in hint_to_issues.items():
+            if len(grouped) == 1:
+                lines.append(f'{step}. {hint}')
+            else:
+                lines.append(f'{step}. {hint}  （同種問題: {len(grouped)}件）')
+            step += 1
         if stats.get('fn_count', 0) > 0:
             lines.append(
                 f'{step}. `weather_forecast_collector.py` の `calculate_cancellation_risk()` と '
@@ -1082,6 +1100,100 @@ class IssueSynthesizer:
 
 
 # ---------------------------------------------------------------------------
+# 本番DBヘルスチェック（ローカル実行時に Railway /api/db-health を参照）
+# ---------------------------------------------------------------------------
+
+def _fetch_production_health() -> Optional[Dict]:
+    """
+    Railway本番の /api/db-health を取得する。
+    - Railway上で実行中の場合はローカルDBが本番DBなので None を返す（API不要）。
+    - 接続失敗時も None を返す（ローカルDBフォールバック）。
+    """
+    if _IS_ON_RAILWAY:
+        return None  # 自分自身が本番 → ループ回避のためスキップ
+    try:
+        import urllib.request
+        import json as _json
+        url = f'{PRODUCTION_URL}/api/db-health'
+        req = urllib.request.Request(url, headers={'User-Agent': 'system_review/1.0'})
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            return _json.loads(resp.read())
+    except Exception:
+        return None
+
+
+def _add_production_health_info(issues: List[Issue], prod: Dict) -> None:
+    """本番DB最終日付を INFO として issues に追加する。"""
+    aw  = prod.get('actual_weather', {})
+    fse = prod.get('ferry_status_enhanced', {})
+    cf  = prod.get('cancellation_forecast', {})
+    lines = []
+    if isinstance(cf, dict) and cf.get('max_date'):
+        lines.append(f'cancellation_forecast 最終日: {cf["max_date"]} ({cf.get("total_records","?")}件)')
+    if isinstance(aw, dict) and aw.get('max_date'):
+        lines.append(f'actual_weather 最終日: {aw["max_date"]} ({aw.get("total_records","?")}件)')
+    if isinstance(fse, dict) and fse.get('max_date'):
+        lines.append(f'ferry_status_enhanced 最終日: {fse["max_date"]} ({fse.get("total_records","?")}件)')
+    if lines:
+        issues.append(Issue(
+            severity='INFO', employee='forecast',
+            category='production_health',
+            title='本番DBは最新データあり ✅',
+            detail='Railway本番 /api/db-health による確認: ' + ' / '.join(lines),
+            fix_hint='',
+        ))
+
+
+def _filter_by_production_health(issues: List[Issue], prod: Dict) -> Tuple[List[Issue], List[str]]:
+    """
+    本番DBが最新であれば、ローカルDB検査由来の誤報（stale_data / coverage_gap）を除去する。
+    戻り値: (フィルタ後の issues, 除去理由サマリー)
+    """
+    now = now_jst()
+    yesterday    = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+    two_days_ago = (now - timedelta(days=2)).strftime('%Y-%m-%d')
+
+    # 本番で「最新」とみなすテーブルを列挙
+    fresh = set()
+
+    aw = prod.get('actual_weather', {})
+    if isinstance(aw, dict) and (aw.get('max_date') or '') >= two_days_ago:
+        fresh.add('actual_weather')
+
+    fse = prod.get('ferry_status_enhanced', {})
+    if isinstance(fse, dict) and (fse.get('max_date') or '') >= two_days_ago:
+        fresh.add('ferry_status_enhanced')
+
+    cf = prod.get('cancellation_forecast', {})
+    if isinstance(cf, dict) and (cf.get('max_date') or '') >= yesterday:
+        fresh.add('cancellation_forecast')
+
+    # フィルタリング
+    filtered, suppressed = [], []
+    for issue in issues:
+        suppress = False
+
+        if issue.employee == 'actual_weather' and issue.category in ('stale_data', 'coverage_gap', 'schema_missing'):
+            if 'actual_weather' in fresh:
+                suppress = True
+
+        elif issue.employee == 'ferry' and issue.category in ('stale_data', 'coverage_gap'):
+            if 'ferry_status_enhanced' in fresh:
+                suppress = True
+
+        elif issue.employee == 'forecast' and issue.category in ('stale_data', 'coverage_gap', 'schema_missing'):
+            if 'cancellation_forecast' in fresh:
+                suppress = True
+
+        if suppress:
+            suppressed.append(f'[{issue.employee}] {issue.category}: {issue.title}')
+        else:
+            filtered.append(issue)
+
+    return filtered, suppressed
+
+
+# ---------------------------------------------------------------------------
 # オーケストレーター
 # ---------------------------------------------------------------------------
 
@@ -1099,28 +1211,56 @@ def run_review(mode: str) -> str:
 
     print(f'[system_review] モード={mode}  対象期間={start_date}〜{end_date}', flush=True)
 
+    # 本番ヘルスを先に取得（ローカル実行時の誤報抑制に使用）
+    prod_health: Optional[Dict] = None
+    if not _IS_ON_RAILWAY:
+        print('[system_review] 0/5 本番DB鮮度チェック中...', flush=True)
+        prod_health = _fetch_production_health()
+        if prod_health:
+            aw_max  = prod_health.get('actual_weather', {}).get('max_date', '?')
+            fse_max = prod_health.get('ferry_status_enhanced', {}).get('max_date', '?')
+            cf_max  = prod_health.get('cancellation_forecast', {}).get('max_date', '?')
+            print(
+                f'[system_review]   本番DB鮮度: actual_weather={aw_max} / '
+                f'ferry_status_enhanced={fse_max} / cancellation_forecast={cf_max}',
+                flush=True
+            )
+        else:
+            print('[system_review]   本番API未応答。ローカルDBのみでチェックします。', flush=True)
+
     all_issues: List[Issue] = []
     accuracy_stats: Dict = {}
 
     # 1. 海上気象予報取得AI
-    print('[system_review] 1/4 海上気象予報取得AI チェック中...', flush=True)
+    print('[system_review] 1/5 海上気象予報取得AI チェック中...', flush=True)
     all_issues += ForecastEmployee().run(start_date, end_date, mode)
 
     # 2. 海上気象実測取得AI
-    print('[system_review] 2/4 海上気象実測取得AI チェック中...', flush=True)
+    print('[system_review] 2/5 海上気象実測取得AI チェック中...', flush=True)
     all_issues += ActualWeatherEmployee().run(start_date, end_date, mode)
 
     # 3. フェリー運航記録取得AI
-    print('[system_review] 3/4 フェリー運航記録取得AI チェック中...', flush=True)
+    print('[system_review] 3/5 フェリー運航記録取得AI チェック中...', flush=True)
     all_issues += FerryCollectorEmployee().run(start_date, end_date, mode)
 
     # 4. 予報精度監査AI（full モードのみ）
     if mode == 'full':
-        print('[system_review] 4/4 予報精度監査AI チェック中...', flush=True)
+        print('[system_review] 4/5 予報精度監査AI チェック中...', flush=True)
         acc_issues, accuracy_stats = AccuracyAuditorEmployee().run(start_date, end_date)
         all_issues += acc_issues
     else:
-        print('[system_review] 4/4 予報精度監査AI スキップ（quick モード）', flush=True)
+        print('[system_review] 4/5 予報精度監査AI スキップ（quick モード）', flush=True)
+
+    # 本番ヘルスで正常確認済みの誤報を除去
+    if prod_health:
+        all_issues, suppressed = _filter_by_production_health(all_issues, prod_health)
+        if suppressed:
+            print(
+                f'[system_review]   本番DBが最新のため {len(suppressed)}件のローカル誤報を除外しました。',
+                flush=True
+            )
+        # 本番が正常であることを INFO として追加
+        _add_production_health_info(all_issues, prod_health)
 
     # 5. 問題点整理AI → 修正プロンプト生成
     print('[system_review] 5/5 問題点整理AI レポート生成中...', flush=True)

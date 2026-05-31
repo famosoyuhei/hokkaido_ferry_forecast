@@ -588,6 +588,64 @@ def api_stats():
     """API endpoint for statistics"""
     return jsonify(dashboard.get_statistics())
 
+
+@app.route('/api/db-health')
+def api_db_health():
+    """
+    公開DBヘルスサマリー（認証不要）。
+    system_review.py がローカル実行時に本番DBの鮮度を確認するために使用する。
+    機密情報は含まない（日付・件数のみ）。
+    """
+    import os
+    data_dir = (
+        os.environ.get('RAILWAY_VOLUME_MOUNT_PATH')
+        or os.environ.get('RAILWAY_VOLUME_MOUNT')
+        or '.'
+    )
+    forecast_db  = os.path.join(data_dir, 'ferry_weather_forecast.db')
+    realdata_db  = os.path.join(data_dir, 'heartland_ferry_real_data.db')
+
+    result = {'checked_at': now_jst().isoformat()}
+
+    def _safe_query(db_path, sql, params=()):
+        try:
+            conn = sqlite3.connect(db_path)
+            row = conn.execute(sql, params).fetchone()
+            conn.close()
+            return row
+        except Exception as e:
+            return None
+
+    # actual_weather
+    row = _safe_query(forecast_db, 'SELECT MIN(date), MAX(date), COUNT(DISTINCT date), COUNT(*) FROM actual_weather')
+    result['actual_weather'] = {
+        'min_date': row[0], 'max_date': row[1],
+        'distinct_days': row[2], 'total_records': row[3],
+    } if row else {'error': 'table not found'}
+
+    # cancellation_forecast
+    row = _safe_query(forecast_db,
+        'SELECT MIN(forecast_for_date), MAX(forecast_for_date), COUNT(DISTINCT forecast_for_date), COUNT(*) FROM cancellation_forecast')
+    result['cancellation_forecast'] = {
+        'min_date': row[0], 'max_date': row[1],
+        'distinct_days': row[2], 'total_records': row[3],
+    } if row else {'error': 'table not found'}
+
+    # forecast_collection_log 最終成功
+    row = _safe_query(forecast_db,
+        "SELECT timestamp FROM forecast_collection_log WHERE status='SUCCESS' ORDER BY timestamp DESC LIMIT 1")
+    result['last_forecast_collection'] = row[0] if row else None
+
+    # ferry_status_enhanced
+    row = _safe_query(realdata_db, 'SELECT MIN(scrape_date), MAX(scrape_date), COUNT(DISTINCT scrape_date), COUNT(*) FROM ferry_status_enhanced')
+    result['ferry_status_enhanced'] = {
+        'min_date': row[0], 'max_date': row[1],
+        'distinct_days': row[2], 'total_records': row[3],
+    } if row else {'error': 'table not found'}
+
+    return jsonify(result)
+
+
 # ---------------------------------------------------------------------------
 # 時刻表は jst_utils.get_timetable_sailings() / get_active_routes_on() を使う。
 # 正ソース: skills/ferry-cancellation-research/references/heartland_{year}_timetable.json
