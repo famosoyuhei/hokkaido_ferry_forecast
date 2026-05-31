@@ -1173,7 +1173,8 @@ def _filter_by_production_health(issues: List[Issue], prod: Dict) -> Tuple[List[
     for issue in issues:
         suppress = False
 
-        if issue.employee == 'actual_weather' and issue.category in ('stale_data', 'coverage_gap', 'schema_missing'):
+        # ActualWeatherEmployee は employee='actual' を使う
+        if issue.employee == 'actual' and issue.category in ('stale_data', 'coverage_gap', 'schema_missing'):
             if 'actual_weather' in fresh:
                 suppress = True
 
