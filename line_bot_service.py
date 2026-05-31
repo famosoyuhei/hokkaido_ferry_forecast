@@ -53,6 +53,30 @@ RISK_EMOJI = {'HIGH': '🔴', 'MEDIUM': '🟡', 'LOW': '🟢', 'MINIMAL': '⚪'}
 RISK_ORDER = ['HIGH', 'MEDIUM', 'LOW', 'MINIMAL']
 WEEKDAYS = ['月', '火', '水', '木', '金', '土', '日']
 
+# 通年運航航路（順序はメッセージ表示順）
+_YEAR_ROUND_ROUTES = [
+    'wakkanai_oshidomari', 'oshidomari_wakkanai',
+    'wakkanai_kafuka',     'kafuka_wakkanai',
+    'oshidomari_kafuka',   'kafuka_oshidomari',
+]
+
+# 季節運航航路: route -> [(開始日, 終了日), ...]
+_SEASONAL_ROUTES = {
+    'kutsugata_kafuka': [('2026-06-01', '2026-09-30')],
+    'kafuka_kutsugata': [('2026-06-01', '2026-09-30')],
+}
+
+
+def _active_routes_on(date_str: str) -> list:
+    """指定日に運航スケジュールのある航路キーのリストを返す。"""
+    active = list(_YEAR_ROUND_ROUTES)
+    for route, periods in _SEASONAL_ROUTES.items():
+        for start, end in periods:
+            if start <= date_str <= end:
+                active.append(route)
+                break
+    return active
+
 DASHBOARD_URL = 'https://web-production-a628.up.railway.app/'
 
 
@@ -289,49 +313,61 @@ class LineBotService:
         conn.close()
         return rows
 
-    def _format_tomorrow_message(self) -> str:
-        """明日の全航路リスクを返す。"""
-        tomorrow = datetime.now(jst) + timedelta(days=1)
-        tomorrow_key = tomorrow.strftime('%Y-%m-%d')
-        tomorrow_str = tomorrow.strftime(f'%m/%d（{WEEKDAYS[tomorrow.weekday()]}）')
+    def _format_risk_message(self, date_str: str, header: str) -> str:
+        """
+        指定日の全運航便リスクをメッセージ化する共通ヘルパー。
+        - _active_routes_on() で当日の運航便を時刻表から確定
+        - DB にリスクがある航路はリスクレベルを表示
+        - DB に未収録の航路は「予報データなし」と表示（便の存在は示す）
+        - DB エラー時はエラーメッセージを返す
+        """
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        date_display = date_obj.strftime(f'%m/%d（{WEEKDAYS[date_obj.weekday()]}）')
 
-        rows = self._query_risks(tomorrow_key)
+        # 1. 当日の運航便を時刻表で確定
+        active = _active_routes_on(date_str)
+
+        # 2. DB からリスクデータを取得（None = DBエラー）
+        rows = self._query_risks(date_str)
         if rows is None:
             return (
-                f'🗓️ 明日 {tomorrow_str} の予報\n\n'
+                f'{header} {date_display} の予報\n\n'
                 'データ取得中にエラーが発生しました。\n'
                 f'詳細: {DASHBOARD_URL}'
             )
 
-        if not rows:
-            return (
-                f'🗓️ 明日 {tomorrow_str} の予報\n\n'
-                'まだデータがありません。\n'
-                f'詳細: {DASHBOARD_URL}'
-            )
+        # rows を {route: (risk, wind, wave)} に変換（廃止キーは除外）
+        db_risks = {
+            route: (risk, wind, wave)
+            for route, risk, wind, wave in rows
+            if route in ROUTE_DISPLAY
+        }
 
-        sorted_rows = sorted(
-            rows,
-            key=lambda x: RISK_ORDER.index(x[1]) if x[1] in RISK_ORDER else 99
-        )
-
-        lines = [f'🗓️ 明日の欠航リスク', tomorrow_str, '']
+        lines = [f'{header}の欠航リスク', date_display, '']
         has_alert = False
 
-        for route, risk, wind, wave in sorted_rows:
-            if route not in ROUTE_DISPLAY:
-                continue  # 廃止済み航路キー（wakkanai_kutsugata等）はスキップ
-            emoji = RISK_EMOJI.get(risk, '❓')
+        # リスクが高い順→低い順で並べ替え
+        def sort_key(route):
+            risk = db_risks.get(route, (None,))[0]
+            return RISK_ORDER.index(risk) if risk in RISK_ORDER else 99
+
+        for route in sorted(active, key=sort_key):
             name = ROUTE_DISPLAY[route]
-            parts = []
-            if wind:
-                parts.append(f'風{wind:.0f}m/s')
-            if wave:
-                parts.append(f'波{wave:.1f}m')
-            detail = '（' + ' '.join(parts) + '）' if parts else ''
-            lines.append(f'{emoji} {name}  {risk}{detail}')
-            if risk in ('HIGH', 'MEDIUM'):
-                has_alert = True
+            if route in db_risks:
+                risk, wind, wave = db_risks[route]
+                emoji = RISK_EMOJI.get(risk, '❓')
+                parts = []
+                if wind:
+                    parts.append(f'風{wind:.0f}m/s')
+                if wave:
+                    parts.append(f'波{wave:.1f}m')
+                detail = '（' + ' '.join(parts) + '）' if parts else ''
+                lines.append(f'{emoji} {name}  {risk}{detail}')
+                if risk in ('HIGH', 'MEDIUM'):
+                    has_alert = True
+            else:
+                # 時刻表に便はあるがDB未収録（夏季新設便の初日など）
+                lines.append(f'❓ {name}  （予報データなし）')
 
         lines.append('')
         if has_alert:
@@ -341,59 +377,16 @@ class LineBotService:
 
         lines.append(f'詳細: {DASHBOARD_URL}')
         return '\n'.join(lines)
+
+    def _format_tomorrow_message(self) -> str:
+        """明日の全航路リスクを返す。"""
+        tomorrow = datetime.now(jst) + timedelta(days=1)
+        return self._format_risk_message(tomorrow.strftime('%Y-%m-%d'), '🗓️ 明日')
 
     def _format_asatte_message(self) -> str:
         """明後日の全航路リスクを返す。"""
         asatte = datetime.now(jst) + timedelta(days=2)
-        asatte_key = asatte.strftime('%Y-%m-%d')
-        asatte_str = asatte.strftime(f'%m/%d（{WEEKDAYS[asatte.weekday()]}）')
-
-        rows = self._query_risks(asatte_key)
-        if rows is None:
-            return (
-                f'📅 明後日 {asatte_str} の予報\n\n'
-                'データ取得中にエラーが発生しました。\n'
-                f'詳細: {DASHBOARD_URL}'
-            )
-
-        if not rows:
-            return (
-                f'📅 明後日 {asatte_str} の予報\n\n'
-                'まだデータがありません。\n'
-                f'詳細: {DASHBOARD_URL}'
-            )
-
-        sorted_rows = sorted(
-            rows,
-            key=lambda x: RISK_ORDER.index(x[1]) if x[1] in RISK_ORDER else 99
-        )
-
-        lines = ['📅 明後日の欠航リスク', asatte_str, '']
-        has_alert = False
-
-        for route, risk, wind, wave in sorted_rows:
-            if route not in ROUTE_DISPLAY:
-                continue  # 廃止済み航路キー（wakkanai_kutsugata等）はスキップ
-            emoji = RISK_EMOJI.get(risk, '❓')
-            name = ROUTE_DISPLAY[route]
-            parts = []
-            if wind:
-                parts.append(f'風{wind:.0f}m/s')
-            if wave:
-                parts.append(f'波{wave:.1f}m')
-            detail = '（' + ' '.join(parts) + '）' if parts else ''
-            lines.append(f'{emoji} {name}  {risk}{detail}')
-            if risk in ('HIGH', 'MEDIUM'):
-                has_alert = True
-
-        lines.append('')
-        if has_alert:
-            lines.append('⚠️ 仕入れ計画をご確認ください')
-        else:
-            lines.append('✅ 欠航リスクは低い見込みです')
-
-        lines.append(f'詳細: {DASHBOARD_URL}')
-        return '\n'.join(lines)
+        return self._format_risk_message(asatte.strftime('%Y-%m-%d'), '📅 明後日')
 
     def _format_jisseki_message(self) -> str:
         """直近7日間の欠航実績を ferry_status_enhanced から返す。"""
