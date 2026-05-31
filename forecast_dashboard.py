@@ -12,7 +12,10 @@ import sqlite3
 from datetime import datetime, timedelta
 import json
 from pathlib import Path
-from jst_utils import now_jst, today_jst_str, jst_isoformat, days_from_today_jst
+from jst_utils import (
+    now_jst, today_jst_str, jst_isoformat, days_from_today_jst,
+    get_timetable_sailings, get_active_routes_on,
+)
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
@@ -247,7 +250,7 @@ class ForecastDashboard:
 
         for route in route_names.keys():
             # 今日の残り便（現在時刻より後）を探す
-            today_timetable = _get_timetable_sailings(route, current_date)
+            today_timetable = get_timetable_sailings(route, current_date)
             found = None
 
             for dep, arr in today_timetable:
@@ -257,7 +260,7 @@ class ForecastDashboard:
 
             # 今日に該当がなければ明日の最初の便
             if not found:
-                tomorrow_timetable = _get_timetable_sailings(route, tomorrow_date)
+                tomorrow_timetable = get_timetable_sailings(route, tomorrow_date)
                 if tomorrow_timetable:
                     dep, arr = tomorrow_timetable[0]
                     found = (tomorrow_date, dep, arr, tomorrow_risks)
@@ -483,7 +486,7 @@ def route_details(route_id):
 
     for i in range(7):
         target_date = days_from_today_jst(i)
-        timetable = _get_timetable_sailings(route_id, target_date)
+        timetable = get_timetable_sailings(route_id, target_date)
         risks = _get_risks_for_date(db_file, target_date)
         risk_info = risks.get(route_id, {
             'risk_level': 'MINIMAL', 'risk_score': 0,
@@ -542,7 +545,7 @@ def sailing_detail(route_id, date, departure_time):
     route_name = ROUTE_NAMES.get(route_id, route_id)
 
     # 時刻表から到着時刻を確認
-    timetable = _get_timetable_sailings(route_id, date)
+    timetable = get_timetable_sailings(route_id, date)
     arrival_time = None
     for dep, arr in timetable:
         if dep == departure_time:
@@ -586,69 +589,10 @@ def api_stats():
     return jsonify(dashboard.get_statistics())
 
 # ---------------------------------------------------------------------------
-# 2026年公式時刻表（skills/ferry-cancellation-research/references/memory.md 準拠）
-# 各エントリ: (開始日, 終了日, [(出港, 到着), ...])
+# 時刻表は jst_utils.get_timetable_sailings() / get_active_routes_on() を使う。
+# 正ソース: skills/ferry-cancellation-research/references/heartland_{year}_timetable.json
+# 年が変わったら heartland_{year}_timetable.json を追加するだけでよい。
 # ---------------------------------------------------------------------------
-_TIMETABLE_2026 = {
-    'wakkanai_oshidomari': [
-        ('2026-01-01', '2026-04-27', [('06:55', '08:35'), ('14:00', '15:40')]),
-        ('2026-04-28', '2026-05-31', [('06:45', '08:25'), ('10:10', '11:50'), ('14:30', '16:10')]),
-        ('2026-06-01', '2026-09-30', [('07:15', '08:55'), ('11:15', '12:55'), ('16:40', '18:20')]),
-        ('2026-10-01', '2026-10-31', [('06:45', '08:25'), ('10:10', '11:50'), ('14:30', '16:10')]),
-        ('2026-11-01', '2026-12-31', [('06:55', '08:35'), ('14:00', '15:40')]),
-    ],
-    'oshidomari_wakkanai': [
-        ('2026-01-01', '2026-04-27', [('09:05', '10:45'), ('17:30', '19:10')]),
-        ('2026-04-28', '2026-05-31', [('08:55', '10:35'), ('14:35', '16:15'), ('16:40', '18:20')]),
-        ('2026-06-01', '2026-09-30', [('08:25', '10:05'), ('12:05', '13:45'), ('16:40', '18:20')]),
-        ('2026-10-01', '2026-10-31', [('08:55', '10:35'), ('14:35', '16:15'), ('16:40', '18:20')]),
-        ('2026-11-01', '2026-12-31', [('09:05', '10:45'), ('17:30', '19:10')]),
-    ],
-    'wakkanai_kafuka': [
-        ('2026-01-01', '2026-04-27', [('06:35', '08:30'), ('14:10', '16:05')]),
-        ('2026-04-28', '2026-05-31', [('06:30', '08:25'), ('10:10', '13:00'), ('14:45', '16:40')]),
-        ('2026-06-01', '2026-09-30', [('06:30', '08:25'), ('10:30', '12:25'), ('14:50', '16:45')]),
-        ('2026-10-01', '2026-10-31', [('06:30', '08:25'), ('10:10', '13:00'), ('14:45', '16:40')]),
-        ('2026-11-01', '2026-12-31', [('06:35', '08:30'), ('14:10', '16:05')]),
-    ],
-    'kafuka_wakkanai': [
-        ('2026-01-01', '2026-04-27', [('09:00', '10:55'), ('17:05', '19:00')]),
-        ('2026-04-28', '2026-05-31', [('08:55', '10:50'), ('13:25', '16:15'), ('17:05', '19:00')]),
-        ('2026-06-01', '2026-09-30', [('08:55', '10:50'), ('14:20', '16:15'), ('17:10', '19:05')]),
-        ('2026-10-01', '2026-10-31', [('08:55', '10:50'), ('13:25', '16:15'), ('17:05', '19:00')]),
-        ('2026-11-01', '2026-12-31', [('09:00', '10:55'), ('17:05', '19:00')]),
-    ],
-    'oshidomari_kafuka': [
-        ('2026-01-01', '2026-04-27', [('16:00', '16:45')]),
-        ('2026-04-28', '2026-05-31', [('12:15', '13:00')]),
-        ('2026-06-01', '2026-09-30', [('09:30', '10:15'), ('13:15', '14:00')]),
-        ('2026-10-01', '2026-10-31', [('12:15', '13:00')]),
-        ('2026-11-01', '2026-12-31', [('16:00', '16:45')]),
-    ],
-    'kafuka_oshidomari': [
-        ('2026-01-01', '2026-04-27', [('16:25', '17:10')]),
-        ('2026-04-28', '2026-05-31', [('13:25', '14:10')]),
-        ('2026-06-01', '2026-09-30', [('10:40', '11:25'), ('15:30', '16:15')]),
-        ('2026-10-01', '2026-10-31', [('13:25', '14:10')]),
-        ('2026-11-01', '2026-12-31', [('16:25', '17:10')]),
-    ],
-    # 沓形-香深（夏季のみ 6/1〜9/30）
-    'kutsugata_kafuka': [
-        ('2026-06-01', '2026-09-30', [('14:25', '15:05')]),
-    ],
-    'kafuka_kutsugata': [
-        ('2026-06-01', '2026-09-30', [('12:50', '13:30')]),
-    ],
-    # 稚内-沓形の直行便は存在しない
-}
-
-
-def _get_timetable_sailings(route: str, date_str: str) -> list:
-    """指定日・航路の時刻表便リスト [(departure, arrival), ...] を返す。"""
-    for start, end, sailings in _TIMETABLE_2026.get(route, []):
-        if start <= date_str <= end:
-            return sailings
-    return []
 
 
 def _get_risks_for_date(db_file: str, date_str: str) -> dict:
@@ -697,8 +641,8 @@ def api_sailings():
     risks = _get_risks_for_date(db_file, date_str)
 
     sailings = []
-    for route, periods in _TIMETABLE_2026.items():
-        timetable = _get_timetable_sailings(route, date_str)
+    for route in get_active_routes_on(date_str):
+        timetable = get_timetable_sailings(route, date_str)
         risk_info = risks.get(route, {
             'risk_level': 'MINIMAL', 'risk_score': 0,
             'wind': None, 'wave': None, 'visibility': None,

@@ -21,6 +21,8 @@ from typing import Optional, List, Dict
 
 import pytz
 
+from jst_utils import get_active_routes_on
+
 jst = pytz.timezone('Asia/Tokyo')
 
 try:
@@ -53,29 +55,11 @@ RISK_EMOJI = {'HIGH': '🔴', 'MEDIUM': '🟡', 'LOW': '🟢', 'MINIMAL': '⚪'}
 RISK_ORDER = ['HIGH', 'MEDIUM', 'LOW', 'MINIMAL']
 WEEKDAYS = ['月', '火', '水', '木', '金', '土', '日']
 
-# 通年運航航路（順序はメッセージ表示順）
-_YEAR_ROUND_ROUTES = [
-    'wakkanai_oshidomari', 'oshidomari_wakkanai',
-    'wakkanai_kafuka',     'kafuka_wakkanai',
-    'oshidomari_kafuka',   'kafuka_oshidomari',
-]
-
-# 季節運航航路: route -> [(開始日, 終了日), ...]
-_SEASONAL_ROUTES = {
-    'kutsugata_kafuka': [('2026-06-01', '2026-09-30')],
-    'kafuka_kutsugata': [('2026-06-01', '2026-09-30')],
-}
-
-
-def _active_routes_on(date_str: str) -> list:
-    """指定日に運航スケジュールのある航路キーのリストを返す。"""
-    active = list(_YEAR_ROUND_ROUTES)
-    for route, periods in _SEASONAL_ROUTES.items():
-        for start, end in periods:
-            if start <= date_str <= end:
-                active.append(route)
-                break
-    return active
+# ---------------------------------------------------------------------------
+# 運航航路は jst_utils.get_active_routes_on() を使う。
+# 正ソース: skills/ferry-cancellation-research/references/heartland_{year}_timetable.json
+# 年が変わったら heartland_{year}_timetable.json を追加するだけでよい。
+# ---------------------------------------------------------------------------
 
 DASHBOARD_URL = 'https://web-production-a628.up.railway.app/'
 
@@ -325,7 +309,7 @@ class LineBotService:
         date_display = date_obj.strftime(f'%m/%d（{WEEKDAYS[date_obj.weekday()]}）')
 
         # 1. 当日の運航便を時刻表で確定
-        active = _active_routes_on(date_str)
+        active = get_active_routes_on(date_str)
 
         # 2. DB からリスクデータを取得（None = DBエラー）
         rows = self._query_risks(date_str)
