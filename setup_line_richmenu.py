@@ -67,7 +67,7 @@ RH = H // 2                      # 行高さ 843
 # 列の x 開始位置
 X1, X2, X3 = 0, 833, 1666
 
-HARTLAND_URL = 'https://heartlandferry.jp/operation/'
+HARTLAND_URL = 'https://heartlandferry.jp/status/'
 
 RICH_MENU_DEF = {
     'size': {'width': W, 'height': H},

@@ -177,7 +177,7 @@ else        → MINIMAL
 | https://marine-api.open-meteo.com/v1/marine | 波高予報 |
 | https://archive-api.open-meteo.com/v1/archive | 実測/再解析（ERA5）|
 | https://www.jma.go.jp/bosai/forecast/ | 気象庁天気予報 |
-| https://heartlandferry.jp/operation/ | ハートランドフェリー運航状況 |
+| https://heartlandferry.jp/status/ | ハートランドフェリー運航状況 |
 
 ---
 
