@@ -22,14 +22,10 @@ import os
 import sqlite3
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
-from jst_utils import now_jst, today_jst_str
+from jst_utils import now_jst, today_jst_str, get_active_routes_on
 
-EXPECTED_ROUTES = {
-    'wakkanai_oshidomari', 'oshidomari_wakkanai',
-    'wakkanai_kafuka',     'kafuka_wakkanai',
-    'wakkanai_kutsugata',  'kutsugata_wakkanai',
-    'oshidomari_kafuka',   'kafuka_oshidomari',
-}
+# EXPECTED_ROUTES は廃止。check_forecast_coverage() 内で時刻表から動的取得する。
+# wakkanai_kutsugata / kutsugata_wakkanai は存在しない航路なので使わない。
 
 VALID_RISK_LEVELS = {'HIGH', 'MEDIUM', 'LOW', 'MINIMAL'}
 
@@ -145,22 +141,31 @@ class UiMonitor:
         try:
             conn = sqlite3.connect(self.forecast_db)
             rows = conn.execute('''
-                SELECT DISTINCT route
+                SELECT DISTINCT route, forecast_for_date
                 FROM cancellation_forecast
                 WHERE forecast_for_date >= ? AND forecast_for_date <= ?
             ''', (today, end_date)).fetchall()
             conn.close()
 
+            # DB に存在する航路
             found = {r[0] for r in rows}
-            missing = EXPECTED_ROUTES - found
-            extra = found - EXPECTED_ROUTES
+
+            # 時刻表から期間内に運航する全航路を動的取得
+            expected: set = set()
+            d = datetime.strptime(today, '%Y-%m-%d')
+            for _ in range(8):  # today〜today+7 の 8日分
+                expected.update(get_active_routes_on(d.strftime('%Y-%m-%d')))
+                d += timedelta(days=1)
+
+            missing = expected - found
+            extra = found - expected
 
             return {
                 'ok': len(missing) == 0,
                 'found_routes': sorted(found),
                 'missing_routes': sorted(missing),
                 'extra_routes': sorted(extra),
-                'coverage': f'{len(found)}/{len(EXPECTED_ROUTES)}',
+                'coverage': f'{len(found)}/{len(expected)}',
             }
         except Exception as e:
             return {'ok': False, 'error': str(e)}

@@ -88,6 +88,56 @@
     - GitHub Actions のワークフローを即座に手動実行しても、デプロイ前の古いコードが動いている場合がある。
     - 動作確認前に `/api/stats` 等で Railway が応答していることを確認する。
 
+### 時刻表・航路の統一ルール（2026-05-31 追加）
+15. **航路リストは必ず `jst_utils` の関数で取得する。ハードコード禁止。**
+    ```python
+    # ❌ 禁止: ハードコードされた航路リスト
+    ferry_routes = ['wakkanai_oshidomari', 'wakkanai_kafuka', ...]
+
+    # ✅ 正解: 日付を渡して時刻表から動的取得
+    from jst_utils import get_active_routes_on
+    routes = get_active_routes_on(date_str)   # その日に運航する航路のみ返す
+    ```
+    - `get_active_routes_on(date_str)` は `heartland_{year}_timetable.json` を参照し、
+      夏季限定便（沓形-香深）や便数変化も自動的に反映する。
+    - 複数日をループする場合はキャッシュ変数（`_routes_cache: dict = {}`）を使い、
+      `if date not in _routes_cache: _routes_cache[date] = get_active_routes_on(date)` とする。
+
+16. **時刻表 JSON のロードは年ハードコード禁止。年自動検出＋フォールバックパターンを使う。**
+    ```python
+    # ❌ 禁止: 年を直書き
+    path = ref_dir / 'heartland_2026_timetable.json'
+
+    # ✅ 正解: year 引数＋ glob フォールバック（weather_forecast_collector.py の
+    #          _load_timetable_for_year(year) または jst_utils._load_timetable(year) を参照）
+    path = ref_dir / f'heartland_{year}_timetable.json'
+    if not path.exists():
+        candidates = sorted(ref_dir.glob('heartland_????_timetable.json'), reverse=True)
+        path = candidates[0]   # 最新年にフォールバック
+    ```
+    - `jst_utils` では `get_timetable_sailings(route, date_str)` および
+      `get_active_routes_on(date_str)` として公開済み。新規スクリプトはこれをインポートして使う。
+    - 個別スクリプト内でロードが必要な場合は上記パターンをそのままコピーし、
+      関数名を `_load_timetable_for_year(year: int)` とする。
+
+17. **存在しない航路キーを絶対に使わない。**
+    以下は **禁止ワード** — コード・コメント・テストデータのどこにも書いてはならない。
+    ```
+    wakkanai_kutsugata   （存在しない。稚内-沓形の直行便はない）
+    kutsugata_wakkanai   （同上）
+    ```
+    正しい沓形関連キー: `kutsugata_kafuka` / `kafuka_kutsugata`（夏季 6/1〜9/30 のみ）
+
+18. **コミット前に禁止パターンの混入がないかを grep で確認する。**
+    ```bash
+    # 以下がすべて「0件」であればOK
+    grep -rn "wakkanai_kutsugata\|kutsugata_wakkanai" *.py
+    grep -rn "heartland_20[0-9][0-9]_timetable" *.py   # 年ハードコード
+    grep -rn "_load_2026_timetable\|_TIMETABLE_2026"    *.py
+    grep -rn "ferry_routes\s*=\s*\["                    *.py   # ハードコードリスト
+    ```
+    1件でも出たら修正してからコミットする。
+
 ---
 
 ## データベース
