@@ -62,22 +62,30 @@ class ForecastDashboard:
         conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
 
-        # Get forecast for next 7 days
+        # Get forecast for next 7 days — 最新収集分のみ使用（古い予報を除外）
+        # forecast_for_date × route ごとに MAX(id) = 最新レコードだけを集計する。
+        # 旧実装は全過去レコードを AVG していたため、数日前の高風速予報が混入して
+        # 実際には穏やかな日でも HIGH と誤表示されるバグがあった。
         cursor.execute('''
-            SELECT DISTINCT
-                forecast_for_date as date,
-                risk_level,
-                AVG(risk_score) as avg_risk,
-                AVG(wind_forecast) as wind,
-                AVG(wave_forecast) as wave,
-                AVG(visibility_forecast) as visibility,
-                AVG(temperature_forecast) as temp,
-                COUNT(DISTINCT route) as routes
-            FROM cancellation_forecast
-            WHERE forecast_for_date >= ?
-            AND forecast_for_date <= ?
-            GROUP BY forecast_for_date, risk_level
-            ORDER BY forecast_for_date, avg_risk DESC
+            SELECT
+                cf.forecast_for_date as date,
+                cf.risk_level,
+                AVG(cf.risk_score)          as avg_risk,
+                AVG(cf.wind_forecast)       as wind,
+                AVG(cf.wave_forecast)       as wave,
+                AVG(cf.visibility_forecast) as visibility,
+                AVG(cf.temperature_forecast) as temp,
+                COUNT(DISTINCT cf.route)    as routes
+            FROM cancellation_forecast cf
+            INNER JOIN (
+                SELECT forecast_for_date, route, MAX(id) as max_id
+                FROM cancellation_forecast
+                WHERE forecast_for_date >= ? AND forecast_for_date <= ?
+                GROUP BY forecast_for_date, route
+            ) latest
+              ON cf.id = latest.max_id
+            GROUP BY cf.forecast_for_date, cf.risk_level
+            ORDER BY cf.forecast_for_date, avg_risk DESC
         ''', (today_jst_str(), days_from_today_jst(7)))
 
         forecasts = {}
@@ -169,28 +177,22 @@ class ForecastDashboard:
         conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
 
+        # 最新収集分（MAX(id)）のみ使用。旧実装は risk_score DESC で最高リスク記録を
+        # 優先していたため、過去の高リスク予報が残り続けて誤表示されていた。
         cursor.execute('''
-            WITH ranked AS (
-                SELECT route, risk_level, risk_score,
-                       wind_forecast, wave_forecast,
-                       visibility_forecast, recommended_action,
-                       ROW_NUMBER() OVER (
-                           PARTITION BY route
-                           ORDER BY risk_score DESC,
-                                    forecast_hour ASC,
-                                    generated_at DESC,
-                                    id ASC
-                       ) AS rn
-                FROM cancellation_forecast
-                WHERE forecast_for_date = ?
-            )
             SELECT route, risk_level, risk_score,
                    wind_forecast, wave_forecast,
                    visibility_forecast, recommended_action
-            FROM ranked
-            WHERE rn = 1
+            FROM cancellation_forecast
+            WHERE forecast_for_date = ?
+              AND id IN (
+                  SELECT MAX(id)
+                  FROM cancellation_forecast
+                  WHERE forecast_for_date = ?
+                  GROUP BY route
+              )
             ORDER BY risk_score DESC
-        ''', (date,))
+        ''', (date, date))
 
         routes = []
         for row in cursor.fetchall():
@@ -306,13 +308,19 @@ class ForecastDashboard:
         cursor.execute('SELECT COUNT(DISTINCT forecast_for_date) FROM cancellation_forecast')
         cancel_days = cursor.fetchone()[0]
 
-        # High risk days count
+        # High risk days count — 最新レコード（MAX(id) per route）のみを対象とする
         cursor.execute('''
             SELECT COUNT(DISTINCT forecast_for_date)
             FROM cancellation_forecast
             WHERE risk_level = 'HIGH'
-            AND forecast_for_date >= ?
-        ''', (today_jst_str(),))
+              AND forecast_for_date >= ?
+              AND id IN (
+                  SELECT MAX(id)
+                  FROM cancellation_forecast
+                  WHERE forecast_for_date >= ?
+                  GROUP BY forecast_for_date, route
+              )
+        ''', (today_jst_str(), today_jst_str()))
         high_risk_days = cursor.fetchone()[0]
 
         # Last collection
