@@ -219,6 +219,99 @@ else        → MINIMAL
 
 ---
 
+## 飛行機予報システム（利尻⇔札幌）
+
+### AI社員定義
+
+| AI社員 | 役割 | 対応スクリプト（予定） |
+|---|---|---|
+| 飛行機気象リスク取得AI | 横風・視程から欠航リスク計算 | `flight_risk_calculator.py` |
+| 飛行機運航記録取得AI | FlightAwareから実際の運航可否を取得 | `flight_status_collector.py` |
+| 飛行機予報精度監査AI | Hindcast精度計算 | `unified_accuracy_tracker.py`（拡張） |
+
+### 利尻空港（RIS/RJER）— 絶対に間違えないこと
+
+```
+滑走路: 07/25（方位 070°/250° = 東西方向）
+         ↑ 南北方向（01/19）ではない。北風・南風が最悪横風。
+
+横風計算:
+  crosswind = wind_speed × sin(|70 - wind_direction_deg| を 0〜180 に正規化)
+  北風(360°) → |70-360|=290 → 360-290=70° → sin(70°)=0.94 → 最悪
+  南風(180°) → |70-180|=110° → sin(110°)=0.94 → 最悪
+  東風( 90°) → |70-90| = 20° → sin(20°)=0.34 → ほぼ向かい風
+  西風(270°) → |70-270|=200 → 360-200=160° → sin(160°)=0.34 → ほぼ追い風
+```
+
+### 就航便（2026年）
+
+| 航空会社 | 機材 | 路線 | 運航期間 | 便数 |
+|---|---|---|---|---|
+| HAC（北海道エアシステム） | ATR42-600（48席） | 利尻(RIS)⇔札幌丘珠(OKD) | **通年** | 1日1〜2往復 |
+| ANA Wings | 大型機（126席） | 利尻(RIS)⇔札幌新千歳(CTS) | **夏季のみ 6/1〜9/30** | 1日1往復 |
+
+### リスク判定ロジック（初期値 — 検証前に変更禁止）
+
+```python
+RUNWAY_HEADING_DEG = 70   # RWY07
+
+def crosswind_component(wind_speed, wind_dir_deg):
+    angle = abs(RUNWAY_HEADING_DEG - wind_dir_deg) % 360
+    if angle > 180:
+        angle = 360 - angle
+    return wind_speed * math.sin(math.radians(angle))
+
+# リスク判定（ATR42-600 / HAC運航基準、推定値）
+crosswind >= 10.0  → HIGH    # 運航限界近傍
+crosswind >=  7.0  → MEDIUM
+crosswind >=  4.0  → LOW
+else               → MINIMAL
+
+# 視程（非精密進入 VOR/DME 最低値）
+visibility < 1.6 km → HIGH
+visibility < 3.0 km → MEDIUM
+```
+
+⚠️ **これらは推定初期値。実際の運航データを蓄積してから調整すること。**
+フェリーと同じ「誤データで閾値調整」の堂々巡りを繰り返さない。
+
+### 気象データソース
+
+`oshidomari`（鴛泊）の `actual_weather` / `weather_forecast` を流用する。
+利尻空港は鴛泊港の近隣にあり、新規データ収集不要。
+
+### スケジュールファイル
+
+```
+skills/ferry-cancellation-research/references/rishiri_flight_{year}_timetable.json
+```
+
+年ベース + glob フォールバック（フェリーと同じパターン）。
+
+### ハードルール（飛行機予報専用）
+
+19. **横風計算では必ず `RUNWAY_HEADING_DEG = 70` を使う。01/19（南北）と混同禁止。**
+
+20. **HAC通年便とANA夏季便を混同しない。**
+    - HAC: 通年、丘珠(OKD)
+    - ANA: 6/1〜9/30のみ、新千歳(CTS)
+    - 日付から動的に就航便を取得すること（ハードコード禁止）
+
+21. **「飛行機の欠航リスク = 風速だけ」と短絡しない。**
+    横風成分（風向と滑走路方位の角度差）が決定的。同じ風速でも方向次第で全く異なる。
+
+22. **精度検証前にリスク閾値を変更しない。**
+    実際の運航データ（FlightAware）が最低30日分蓄積されてから調整する。
+
+23. **コミット前に飛行機予報関連の禁止パターンも確認する。**
+    ```bash
+    grep -rn "runway.*01\|runway.*19\|RWY01\|RWY19" *.py  # 滑走路誤記
+    grep -rn "flight_routes\s*=\s*\["                      *.py  # ハードコードリスト
+    grep -rn "rishiri_flight_20[0-9][0-9]_timetable"       *.py  # 年ハードコード
+    ```
+
+---
+
 ## 外部APIエンドポイント（参照用）
 
 | API | 用途 |
@@ -228,6 +321,7 @@ else        → MINIMAL
 | https://archive-api.open-meteo.com/v1/archive | 実測/再解析（ERA5）|
 | https://www.jma.go.jp/bosai/forecast/ | 気象庁天気予報 |
 | https://heartlandferry.jp/status/ | ハートランドフェリー運航状況 |
+| https://flightaware.com/live/airport/RJER | FlightAware 利尻空港リアルタイム便情報 |
 
 ---
 

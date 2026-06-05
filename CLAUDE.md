@@ -901,6 +901,39 @@ grep -rn "_load_2026_timetable\|_TIMETABLE_2026"   *.py
 grep -rn "ferry_routes\s*=\s*\["                   *.py
 ```
 
+#### 9. 飛行機予報で滑走路方位を間違える（2026-06-05 追加）
+
+```python
+# ❌ 絶対禁止: 利尻空港は南北滑走路ではない
+RUNWAY_HEADING = 10   # 01/19（南北）← 間違い
+RUNWAY_HEADING = 190  # 同上 ← 間違い
+
+# ✅ 正解: 利尻空港 RWY07/25 = 東西方向
+RUNWAY_HEADING_DEG = 70   # RWY07 = 070°
+
+# 北風・南風が最悪横風（東西風はほぼ正面風）
+# crosswind = wind_speed × sin(|70 - wind_dir| 0〜180に正規化)
+```
+
+#### 10. HAC通年便とANA夏季便を混同する（2026-06-05 追加）
+
+```python
+# ❌ 禁止: 全期間で同じ便を想定する
+flights = ['HAC丘珠便', 'ANA新千歳便']  # ANA は夏季のみ！
+
+# ✅ 正解: 日付で動的に就航便を取得
+from flight_timetable_utils import get_active_flights_on
+flights = get_active_flights_on(date_str)
+# HAC は通年、ANA は 6/1〜9/30 のみ返す
+```
+
+**コミット前の飛行機予報禁止パターン検出（全部0件でOK）**:
+```bash
+grep -rn "RWY01\|RWY19\|runway.*=.*10\b\|runway.*=.*190\b" *.py
+grep -rn "flight_routes\s*=\s*\["                           *.py
+grep -rn "rishiri_flight_20[0-9][0-9]_timetable"            *.py
+```
+
 ---
 
 ## 📞 サポート
