@@ -1,0 +1,37 @@
+name: Flight Status Collection
+
+on:
+  schedule:
+    # 毎日 20:00 UTC (05:00 JST 翌日) — 当日の最終便（17:15）が終わった後
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+jobs:
+  collect-flight-data:
+    runs-on: ubuntu-latest
+    name: Collect Rishiri Flight Operations
+
+    steps:
+      - name: Trigger flight status collection (with retry)
+        run: |
+          echo "Triggering Rishiri flight status collection..."
+          MAX_RETRIES=3
+          RETRY_DELAY=30
+          for i in $(seq 1 $MAX_RETRIES); do
+            response=$(curl -s -w "\n%{http_code}" --max-time 90 \
+              -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+              "https://web-production-a628.up.railway.app/admin/collect-flight-data")
+            http_code=$(echo "$response" | tail -n 1)
+            body=$(echo "$response" | head -n -1)
+            echo "Attempt $i/$MAX_RETRIES - HTTP Status: $http_code"
+            if [ "$http_code" = "200" ]; then
+              echo "Flight data collection successful"
+              echo "$body" | python3 -c "import sys,json;d=json.load(sys.stdin);print('  Status:',d.get('status','?'));print('  Records saved:',d.get('records_saved','?'));print('  Cancelled:',d.get('cancelled_count','?'))" 2>/dev/null || true
+              exit 0
+            fi
+            echo "Failed (status $http_code). Retrying in ${RETRY_DELAY}s..."
+            echo "$body"
+            sleep $RETRY_DELAY
+          done
+          echo "Flight data collection failed after $MAX_RETRIES attempts"
+          exit 1

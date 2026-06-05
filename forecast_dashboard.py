@@ -608,6 +608,63 @@ def api_stats():
     return jsonify(dashboard.get_statistics())
 
 
+@app.route('/api/flight-forecast')
+def api_flight_forecast():
+    """
+    利尻空港の飛行機欠航リスク予報 API。
+    flight_cancellation_forecast テーブルから最新予報（MAX(id)）を返す。
+
+    ?date=YYYY-MM-DD  指定日のみ返す（省略時は今日から7日間）
+    """
+    import os
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+    db_file  = os.path.join(data_dir, 'ferry_weather_forecast.db')
+    target_date = request.args.get('date')
+
+    try:
+        conn = sqlite3.connect(db_file)
+        if target_date:
+            rows = conn.execute('''
+                SELECT forecast_for_date, route_key, flight_no, airline, aircraft,
+                       rishiri_time, rishiri_role, risk_level, risk_score,
+                       wind_speed, wind_direction, crosswind_component, visibility
+                FROM flight_cancellation_forecast
+                WHERE forecast_for_date = ?
+                  AND id IN (
+                      SELECT MAX(id) FROM flight_cancellation_forecast
+                      WHERE forecast_for_date = ?
+                      GROUP BY route_key, flight_no
+                  )
+                ORDER BY rishiri_time
+            ''', (target_date, target_date)).fetchall()
+        else:
+            today = today_jst_str()
+            end   = (now_jst() + __import__('datetime').timedelta(days=7)).strftime('%Y-%m-%d')
+            rows = conn.execute('''
+                SELECT forecast_for_date, route_key, flight_no, airline, aircraft,
+                       rishiri_time, rishiri_role, risk_level, risk_score,
+                       wind_speed, wind_direction, crosswind_component, visibility
+                FROM flight_cancellation_forecast
+                WHERE forecast_for_date BETWEEN ? AND ?
+                  AND id IN (
+                      SELECT MAX(id) FROM flight_cancellation_forecast
+                      WHERE forecast_for_date BETWEEN ? AND ?
+                      GROUP BY forecast_for_date, route_key, flight_no
+                  )
+                ORDER BY forecast_for_date, rishiri_time
+            ''', (today, end, today, end)).fetchall()
+        conn.close()
+
+        cols = ['date','route_key','flight_no','airline','aircraft',
+                'rishiri_time','rishiri_role','risk_level','risk_score',
+                'wind_speed','wind_direction','crosswind_component','visibility']
+        result = [dict(zip(cols, row)) for row in rows]
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/db-health')
 def api_db_health():
     """
@@ -830,6 +887,42 @@ def admin_collect_ferry_data():
             'data_directory': data_dir,
             'timestamp': jst_isoformat()
         }), 500
+
+@app.route('/admin/collect-flight-data')
+@require_admin
+def admin_collect_flight_data():
+    """飛行機運航記録取得AI — 昨日の利尻空港発着便の実績を収集する。"""
+    import subprocess, os, sys
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+    try:
+        result = subprocess.run(
+            [sys.executable, os.path.join(os.path.dirname(__file__), 'flight_status_collector.py')],
+            capture_output=True, text=True, timeout=120,
+            env={**os.environ, 'RAILWAY_VOLUME_MOUNT_PATH': data_dir},
+        )
+        # 保存件数を簡易パース
+        saved = 0
+        cancelled = 0
+        for line in result.stdout.splitlines():
+            if '件保存' in line:
+                import re
+                m = re.search(r'(\d+)件保存', line)
+                if m:
+                    saved = int(m.group(1))
+                m2 = re.search(r'欠航: (\d+)件', line)
+                if m2:
+                    cancelled = int(m2.group(1))
+        return jsonify({
+            'status': 'success' if result.returncode == 0 else 'error',
+            'records_saved': saved,
+            'cancelled_count': cancelled,
+            'stdout': result.stdout[-2000:],
+            'stderr': result.stderr[-500:],
+            'timestamp': jst_isoformat(),
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
 
 @app.route('/admin/run-accuracy-tracking')
 @require_admin

@@ -1,0 +1,107 @@
+{
+  "source_checked_at": "2026-06-06",
+  "sources": [
+    "https://ekitan.com/timetable/airplane/domestic/departure/all/59",
+    "https://www.navitime.co.jp/en/air/diagram/result?departure=OKD&arrival=RIS&provCode=00000002",
+    "https://okadama-airport.co.jp/news/2025/08/ (冬ダイヤ減便情報)"
+  ],
+  "year": 2026,
+  "airport": {
+    "iata": "RIS",
+    "icao": "RJER",
+    "name": "利尻空港",
+    "location_key": "oshidomari",
+    "runway_heading_deg": 70,
+    "runway_id": "07/25",
+    "notes": "滑走路は東西方向（070°/250°）。北風・南風が最大横風。東西風はほぼ正面風。"
+  },
+  "notes": [
+    "Date ranges are inclusive.",
+    "HAC（北海道エアシステム）は JAL グループ、便名は JL/JAL コード。",
+    "冬ダイヤ（12/1〜3/28）: 週2便設定の2便を1便に減便。朝便（JAL2783/2784）のみ運航。",
+    "春・秋ダイヤ（3/29〜5/31、10/1〜11/30）: 2便/日（ANA夏季便なし）。",
+    "夏ダイヤ（6/1〜9/30）: HAC 2便 + ANA 1便 の計3往復。",
+    "ANA（NH4929/4930）は夏季のみ。新千歳（CTS）発着。機材 DHC-8-400（ANA Wings 運航）。",
+    "weather_location_key は actual_weather テーブルの location カラムの値（'oshidomari'）。",
+    "冬ダイヤの JAL2783/2784 の時刻は夏便から推定。要公式確認。"
+  ],
+  "schedules": [
+    {
+      "label": "冬ダイヤ前半（HAC 1便/日）",
+      "start_date": "2026-01-01",
+      "end_date": "2026-03-28",
+      "flights": {
+        "okd_ris": [
+          ["07:50", "08:45", {"flight_no": "JAL2783", "airline": "HAC", "aircraft": "ATR42-600", "note": "時刻は推定。要確認。"}]
+        ],
+        "ris_okd": [
+          ["09:15", "10:05", {"flight_no": "JAL2784", "airline": "HAC", "aircraft": "ATR42-600", "note": "時刻は推定。要確認。"}]
+        ]
+      }
+    },
+    {
+      "label": "春ダイヤ（HAC 2便/日）",
+      "start_date": "2026-03-29",
+      "end_date": "2026-05-31",
+      "flights": {
+        "okd_ris": [
+          ["07:50", "08:45", {"flight_no": "JAL2783", "airline": "HAC", "aircraft": "ATR42-600"}],
+          ["15:00", "15:55", {"flight_no": "JAL2787", "airline": "HAC", "aircraft": "ATR42-600"}]
+        ],
+        "ris_okd": [
+          ["09:15", "10:05", {"flight_no": "JAL2784", "airline": "HAC", "aircraft": "ATR42-600"}],
+          ["16:25", "17:15", {"flight_no": "JAL2788", "airline": "HAC", "aircraft": "ATR42-600"}]
+        ]
+      }
+    },
+    {
+      "label": "夏ダイヤ（HAC 2便/日 + ANA 1便/日）",
+      "start_date": "2026-06-01",
+      "end_date": "2026-09-30",
+      "flights": {
+        "okd_ris": [
+          ["07:50", "08:45", {"flight_no": "JAL2783", "airline": "HAC", "aircraft": "ATR42-600"}],
+          ["15:00", "15:55", {"flight_no": "JAL2787", "airline": "HAC", "aircraft": "ATR42-600"}]
+        ],
+        "cts_ris": [
+          ["12:30", "13:25", {"flight_no": "NH4929", "airline": "ANA", "aircraft": "DHC-8-400"}]
+        ],
+        "ris_okd": [
+          ["09:15", "10:05", {"flight_no": "JAL2784", "airline": "HAC", "aircraft": "ATR42-600"}],
+          ["16:25", "17:15", {"flight_no": "JAL2788", "airline": "HAC", "aircraft": "ATR42-600"}]
+        ],
+        "ris_cts": [
+          ["14:05", "14:55", {"flight_no": "NH4930", "airline": "ANA", "aircraft": "DHC-8-400"}]
+        ]
+      }
+    },
+    {
+      "label": "秋ダイヤ（HAC 2便/日）",
+      "start_date": "2026-10-01",
+      "end_date": "2026-11-30",
+      "flights": {
+        "okd_ris": [
+          ["07:50", "08:45", {"flight_no": "JAL2783", "airline": "HAC", "aircraft": "ATR42-600"}],
+          ["15:00", "15:55", {"flight_no": "JAL2787", "airline": "HAC", "aircraft": "ATR42-600"}]
+        ],
+        "ris_okd": [
+          ["09:15", "10:05", {"flight_no": "JAL2784", "airline": "HAC", "aircraft": "ATR42-600"}],
+          ["16:25", "17:15", {"flight_no": "JAL2788", "airline": "HAC", "aircraft": "ATR42-600"}]
+        ]
+      }
+    },
+    {
+      "label": "冬ダイヤ後半（HAC 1便/日）",
+      "start_date": "2026-12-01",
+      "end_date": "2026-12-31",
+      "flights": {
+        "okd_ris": [
+          ["07:50", "08:45", {"flight_no": "JAL2783", "airline": "HAC", "aircraft": "ATR42-600", "note": "時刻は推定。要確認。"}]
+        ],
+        "ris_okd": [
+          ["09:15", "10:05", {"flight_no": "JAL2784", "airline": "HAC", "aircraft": "ATR42-600", "note": "時刻は推定。要確認。"}]
+        ]
+      }
+    }
+  ]
+}

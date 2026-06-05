@@ -20,6 +20,10 @@ from typing import Dict, List, Optional, Tuple
 import warnings
 warnings.filterwarnings('ignore')
 from jst_utils import now_jst, today_jst_str, jst_isoformat, get_active_routes_on
+from flight_timetable_utils import (
+    get_active_flights_on, crosswind_component, calculate_flight_risk,
+    get_rishiri_weather_hour,
+)
 
 class WeatherForecastCollector:
     """Integrated weather forecast collector using JMA + Open-Meteo APIs"""
@@ -192,6 +196,30 @@ class WeatherForecastCollector:
                 status TEXT,
                 records_added INTEGER,
                 error_message TEXT
+            )
+        ''')
+
+        # 飛行機欠航リスク予報テーブル（利尻空港発着便）
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS flight_cancellation_forecast (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                forecast_for_date DATE NOT NULL,
+                forecast_hour INTEGER NOT NULL,
+                route_key TEXT NOT NULL,
+                flight_no TEXT,
+                airline TEXT,
+                aircraft TEXT,
+                rishiri_time TEXT,
+                rishiri_role TEXT,
+                risk_level TEXT NOT NULL,
+                risk_score REAL NOT NULL,
+                risk_factors TEXT,
+                wind_speed REAL,
+                wind_direction REAL,
+                crosswind_component REAL,
+                visibility REAL,
+                generated_at TEXT NOT NULL,
+                UNIQUE(forecast_for_date, forecast_hour, route_key, flight_no)
             )
         ''')
 
@@ -1023,6 +1051,105 @@ class WeatherForecastCollector:
         conn.commit()
         conn.close()
 
+    def generate_flight_forecasts(self) -> int:
+        """
+        weather_forecast の鴛泊データを使って flight_cancellation_forecast を生成する。
+        flight_timetable_utils の横風計算ロジックを適用し、利尻空港の飛行機欠航リスクを算出。
+        """
+        print("\n[INFO] Generating flight cancellation forecasts (Rishiri Airport)")
+
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+
+        generated = 0
+        now_str = jst_isoformat()
+
+        # 今日から7日分の日付ループ
+        from datetime import timedelta
+        today = today_jst_str()
+        dates = [
+            (now_jst() + timedelta(days=i)).strftime('%Y-%m-%d')
+            for i in range(8)
+        ]
+
+        for forecast_date in dates:
+            flights = get_active_flights_on(forecast_date)
+            if not flights:
+                continue
+
+            # 鴛泊（oshidomari）の時間別天気予報を取得（最新レコードを使用）
+            cursor.execute('''
+                SELECT forecast_hour,
+                       AVG(COALESCE(wind_speed_max, wind_speed_numeric)) as wind_speed,
+                       AVG(wind_direction_deg) as wind_dir,
+                       AVG(visibility) as visibility
+                FROM weather_forecast
+                WHERE forecast_date = ?
+                  AND location = 'oshidomari'
+                  AND id IN (
+                      SELECT MAX(id) FROM weather_forecast
+                      WHERE forecast_date = ? AND location = 'oshidomari'
+                      GROUP BY forecast_hour
+                  )
+                GROUP BY forecast_hour
+                ORDER BY forecast_hour
+            ''', (forecast_date, forecast_date))
+
+            hourly_weather = {row[0]: row[1:] for row in cursor.fetchall()}
+
+            # 各便のリスク計算
+            for flight in flights:
+                rishiri_hour = get_rishiri_weather_hour(flight['rishiri_time'])
+
+                # ±1h で最悪ケースの気象を取得
+                best_wind, best_dir, best_vis = None, None, None
+                for h_offset in [0, -1, 1]:
+                    h = rishiri_hour + h_offset
+                    if h in hourly_weather:
+                        w_spd, w_dir, vis = hourly_weather[h]
+                        if w_spd is not None:
+                            if best_wind is None or w_spd > best_wind:
+                                best_wind = w_spd
+                                best_dir = w_dir
+                                best_vis = vis
+
+                if best_wind is None:
+                    continue  # 気象データなし → スキップ
+
+                # forecast_hour は予報生成時刻（now_jst の時）
+                forecast_hour = now_jst().hour
+
+                # 横風成分を計算
+                cw = crosswind_component(best_wind, best_dir) if best_dir is not None else None
+
+                risk_level, risk_score, risk_factors = calculate_flight_risk(
+                    best_wind, best_dir, best_vis, flight['aircraft']
+                )
+
+                try:
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO flight_cancellation_forecast
+                        (forecast_for_date, forecast_hour, route_key, flight_no, airline,
+                         aircraft, rishiri_time, rishiri_role, risk_level, risk_score,
+                         risk_factors, wind_speed, wind_direction, crosswind_component,
+                         visibility, generated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        forecast_date, forecast_hour,
+                        flight['route_key'], flight['flight_no'], flight['airline'],
+                        flight['aircraft'], flight['rishiri_time'], flight['rishiri_role'],
+                        risk_level, risk_score, str(risk_factors),
+                        best_wind, best_dir, cw, best_vis, now_str,
+                    ))
+                    generated += 1
+                except Exception as e:
+                    print(f"  [WARNING] flight forecast insert error: {e}")
+
+        conn.commit()
+        conn.close()
+        print(f"[OK] Generated {generated} flight cancellation forecasts")
+        return generated
+
     def run_full_collection(self):
         """Run complete forecast collection process"""
 
@@ -1051,12 +1178,14 @@ class WeatherForecastCollector:
         # Generate cancellation risk forecasts
         risk_count = self.generate_cancellation_forecasts()
         sailing_weather_count = self.generate_sailing_weather_forecasts()
+        flight_count = self.generate_flight_forecasts()
 
         print("\n" + "=" * 80)
         print(f"[SUCCESS] Collection completed")
         print(f"  Weather forecasts saved: {total_saved}")
         print(f"  Cancellation forecasts generated: {risk_count}")
         print(f"  Sailing-time weather assignments generated: {sailing_weather_count}")
+        print(f"  Flight forecasts generated: {flight_count}")
         print(f"  Database: {self.db_file}")
         print("=" * 80)
 
