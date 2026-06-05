@@ -198,15 +198,20 @@ class ForecastDashboard:
         for row in cursor.fetchall():
             route, risk, score, wind, wave, vis, action = row
 
-            # Route name mapping
+            # Route name mapping（存在する全航路 + 廃止済み誤キーは除外）
+            BANNED_ROUTES = {'wakkanai_kutsugata', 'kutsugata_wakkanai'}
             route_names = {
                 'wakkanai_oshidomari': '稚内 → 鴛泊（利尻）',
-                'wakkanai_kafuka': '稚内 → 香深（礼文）',
+                'wakkanai_kafuka':     '稚内 → 香深（礼文）',
                 'oshidomari_wakkanai': '鴛泊（利尻）→ 稚内',
-                'kafuka_wakkanai': '香深（礼文）→ 稚内',
-                'oshidomari_kafuka': '鴛泊（利尻）→ 香深（礼文）',
-                'kafuka_oshidomari': '香深（礼文）→ 鴛泊（利尻）'
+                'kafuka_wakkanai':     '香深（礼文）→ 稚内',
+                'oshidomari_kafuka':   '鴛泊（利尻）→ 香深（礼文）',
+                'kafuka_oshidomari':   '香深（礼文）→ 鴛泊（利尻）',
+                'kutsugata_kafuka':    '沓形（利尻）→ 香深（礼文）',  # 夏季 6/1〜9/30
+                'kafuka_kutsugata':    '香深（礼文）→ 沓形（利尻）',  # 夏季 6/1〜9/30
             }
+            if route in BANNED_ROUTES:
+                continue  # 存在しない航路キーは除外
 
             routes.append({
                 'route': route,
@@ -234,14 +239,16 @@ class ForecastDashboard:
         current_time = current_datetime.strftime('%H:%M')
         tomorrow_date = (current_datetime + timedelta(days=1)).date().isoformat()
 
-        # Route name mapping
+        # Route name mapping（全8航路 + 夏季沓形便）
         route_names = {
             'wakkanai_oshidomari': '稚内 → 鴛泊（利尻）',
-            'wakkanai_kafuka': '稚内 → 香深（礼文）',
+            'wakkanai_kafuka':     '稚内 → 香深（礼文）',
             'oshidomari_wakkanai': '鴛泊（利尻）→ 稚内',
-            'kafuka_wakkanai': '香深（礼文）→ 稚内',
-            'oshidomari_kafuka': '鴛泊（利尻）→ 香深（礼文）',
-            'kafuka_oshidomari': '香深（礼文）→ 鴛泊（利尻）'
+            'kafuka_wakkanai':     '香深（礼文）→ 稚内',
+            'oshidomari_kafuka':   '鴛泊（利尻）→ 香深（礼文）',
+            'kafuka_oshidomari':   '香深（礼文）→ 鴛泊（利尻）',
+            'kutsugata_kafuka':    '沓形（利尻）→ 香深（礼文）',
+            'kafuka_kutsugata':    '香深（礼文）→ 沓形（利尻）',
         }
 
         # リスクデータを今日・明日分まとめて取得
@@ -473,14 +480,16 @@ def route_details(route_id):
     """Route-specific detailed forecast page for 7 days"""
     import os
 
-    # Route name mapping
+    # Route name mapping（全8航路 + 夏季沓形便）
     ROUTE_NAMES = {
         'wakkanai_oshidomari': '稚内 ⇔ 利尻(鴛泊)',
-        'wakkanai_kafuka': '稚内 ⇔ 礼文(香深)',
-        'oshidomari_kafuka': '利尻(鴛泊) ⇔ 礼文(香深)',
+        'wakkanai_kafuka':     '稚内 ⇔ 礼文(香深)',
         'oshidomari_wakkanai': '利尻(鴛泊) ⇔ 稚内',
-        'kafuka_wakkanai': '礼文(香深) ⇔ 稚内',
-        'kafuka_oshidomari': '礼文(香深) ⇔ 利尻(鴛泊)'
+        'oshidomari_kafuka':   '利尻(鴛泊) ⇔ 礼文(香深)',
+        'kafuka_wakkanai':     '礼文(香深) ⇔ 稚内',
+        'kafuka_oshidomari':   '礼文(香深) ⇔ 利尻(鴛泊)',
+        'kutsugata_kafuka':    '利尻(沓形) ⇔ 礼文(香深)',
+        'kafuka_kutsugata':    '礼文(香深) ⇔ 利尻(沓形)',
     }
 
     route_name = ROUTE_NAMES.get(route_id, route_id)
@@ -540,14 +549,16 @@ def sailing_detail(route_id, date, departure_time):
     """Detailed forecast for a specific sailing"""
     import os
 
-    # Route name mapping
+    # Route name mapping（全8航路 + 夏季沓形便）
     ROUTE_NAMES = {
         'wakkanai_oshidomari': '稚内 ⇔ 利尻(鴛泊)',
-        'wakkanai_kafuka': '稚内 ⇔ 礼文(香深)',
-        'oshidomari_kafuka': '利尻(鴛泊) ⇔ 礼文(香深)',
+        'wakkanai_kafuka':     '稚内 ⇔ 礼文(香深)',
         'oshidomari_wakkanai': '利尻(鴛泊) ⇔ 稚内',
-        'kafuka_wakkanai': '礼文(香深) ⇔ 稚内',
-        'kafuka_oshidomari': '礼文(香深) ⇔ 利尻(鴛泊)'
+        'oshidomari_kafuka':   '利尻(鴛泊) ⇔ 礼文(香深)',
+        'kafuka_wakkanai':     '礼文(香深) ⇔ 稚内',
+        'kafuka_oshidomari':   '礼文(香深) ⇔ 利尻(鴛泊)',
+        'kutsugata_kafuka':    '利尻(沓形) ⇔ 礼文(香深)',
+        'kafuka_kutsugata':    '礼文(香深) ⇔ 利尻(沓形)',
     }
 
     route_name = ROUTE_NAMES.get(route_id, route_id)
