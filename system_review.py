@@ -63,6 +63,7 @@ EMPLOYEE_LABELS = {
     'forecast':   '🌊 海上気象予報取得AI',
     'actual':     '📡 海上気象実測取得AI',
     'ferry':      '⛴️  フェリー運航記録取得AI',
+    'flight':     '✈️  飛行機予報取得AI',
     'accuracy':   '🔬 予報精度監査AI',
     'synthesizer':'📋 問題点整理AI',
 }
@@ -712,7 +713,159 @@ class FerryCollectorEmployee:
 
 
 # ---------------------------------------------------------------------------
-# 4. 予報精度監査AI社員チェック（full モードのみ）
+# 4. 飛行機予報取得AI社員チェック
+# ---------------------------------------------------------------------------
+
+class FlightForecastEmployee:
+    """
+    flight_cancellation_forecast テーブルを監査する。
+    - 予報の鮮度（最終生成日）
+    - 日別カバレッジ（就航便に対する予報の欠落）
+    - 季節便カバレッジ（HAC通年 / ANA夏季の正しい取得）
+    """
+
+    def run(self, start_date: str, end_date: str, mode: str) -> List[Issue]:
+        issues: List[Issue] = []
+        conn = _connect('ferry_weather_forecast.db')
+        if conn is None:
+            issues.append(Issue(
+                severity='CRITICAL', employee='flight',
+                category='data_fetch_fail',
+                title='ferry_weather_forecast.db が見つからない（飛行機予報）',
+                detail=f'パス {_db("ferry_weather_forecast.db")} にDBが存在しない。',
+                fix_hint='Railway Volume が正しくマウントされているか確認する。'
+            ))
+            return issues
+
+        if not _table_exists(conn, 'flight_cancellation_forecast'):
+            issues.append(Issue(
+                severity='WARNING', employee='flight',
+                category='schema_missing',
+                title='flight_cancellation_forecast テーブルが存在しない',
+                detail='weather_forecast_collector.py がまだ飛行機予報を生成していない。'
+                       '次回の気象収集実行（1日4回）で自動生成される。',
+                fix_hint='python weather_forecast_collector.py を手動実行する。'
+            ))
+            conn.close()
+            return issues
+
+        try:
+            issues += self._check_freshness(conn)
+            issues += self._check_daily_coverage(conn, start_date, end_date)
+            if mode == 'full':
+                issues += self._check_seasonal_coverage(conn, start_date, end_date)
+        finally:
+            conn.close()
+        return issues
+
+    def _check_freshness(self, conn) -> List[Issue]:
+        """最終生成日が古すぎないか確認する。"""
+        row = conn.execute(
+            'SELECT MAX(forecast_for_date) as last FROM flight_cancellation_forecast'
+        ).fetchone()
+        if not row or not row['last']:
+            return [Issue(
+                severity='WARNING', employee='flight',
+                category='data_fetch_fail',
+                title='flight_cancellation_forecast にレコードがない',
+                detail='weather_forecast_collector.py が未実行か、飛行機予報生成に失敗している。',
+                fix_hint='python weather_forecast_collector.py を手動実行する。'
+            )]
+        tomorrow = (now_jst() + timedelta(days=1)).strftime('%Y-%m-%d')
+        if row['last'] < tomorrow:
+            gap = (
+                datetime.strptime(tomorrow, '%Y-%m-%d') -
+                datetime.strptime(row['last'], '%Y-%m-%d')
+            ).days
+            if gap >= 2:
+                return [Issue(
+                    severity='WARNING', employee='flight',
+                    category='stale_data',
+                    title=f'飛行機予報が {gap}日 更新されていない（最終: {row["last"]}）',
+                    detail=(
+                        f'flight_cancellation_forecast の最終予報日: {row["last"]}。'
+                        '明日以降の予報がない。weather_forecast_collector.py の実行を確認する。'
+                    ),
+                    fix_hint='GitHub Actions data-collection ワークフローを確認する。'
+                )]
+        return []
+
+    def _check_daily_coverage(self, conn, start_date: str, end_date: str) -> List[Issue]:
+        """過去の対象期間で、就航日に予報が存在するか確認する。"""
+        issues = []
+        yesterday = (now_jst() - timedelta(days=1)).strftime('%Y-%m-%d')
+        check_end   = min(end_date, yesterday)
+        check_start = start_date
+        if check_end < check_start:
+            return []
+
+        # DBにある日付セット
+        rows = conn.execute('''
+            SELECT DISTINCT forecast_for_date
+            FROM flight_cancellation_forecast
+            WHERE forecast_for_date >= ? AND forecast_for_date <= ?
+        ''', (check_start, check_end)).fetchall()
+        covered_dates = {r['forecast_for_date'] for r in rows}
+
+        missing = []
+        for date_str in _date_range(check_start, check_end):
+            try:
+                from flight_timetable_utils import get_active_flights_on
+                flights = get_active_flights_on(date_str)
+            except Exception:
+                continue
+            if not flights:
+                continue
+            if date_str not in covered_dates:
+                missing.append(date_str)
+
+        if missing:
+            issues.append(Issue(
+                severity='WARNING', employee='flight',
+                category='coverage_gap',
+                title=f'飛行機予報 欠落: {len(missing)}日分（{missing[0]}〜{missing[-1]}）',
+                detail=(
+                    f'{len(missing)}日分の飛行機予報が未生成。'
+                    f'就航日だが flight_cancellation_forecast にレコードがない。'
+                ),
+                fix_hint='python weather_forecast_collector.py を手動実行する。'
+            ))
+        return issues
+
+    def _check_seasonal_coverage(self, conn, start_date: str, end_date: str) -> List[Issue]:
+        """夏季（6/1〜9/30）にANA便（NH4929/NH4930）の予報があるか確認する。"""
+        issues = []
+        # 夏季が対象期間に含まれるか
+        summer_start = f'{start_date[:4]}-06-01'
+        summer_end   = f'{start_date[:4]}-09-30'
+        overlap_start = max(start_date, summer_start)
+        overlap_end   = min(end_date, summer_end)
+        if overlap_start > overlap_end:
+            return []  # 夏季が対象外
+
+        row = conn.execute('''
+            SELECT COUNT(*) as cnt FROM flight_cancellation_forecast
+            WHERE forecast_for_date >= ? AND forecast_for_date <= ?
+              AND airline = 'ANA'
+        ''', (overlap_start, overlap_end)).fetchone()
+
+        if not row or row['cnt'] == 0:
+            issues.append(Issue(
+                severity='WARNING', employee='flight',
+                category='coverage_gap',
+                title=f'ANA夏季便（NH4929/NH4930）の予報が {overlap_start}〜{overlap_end} に存在しない',
+                detail=(
+                    f'夏季（6/1〜9/30）はANA新千歳便が就航するが、'
+                    'flight_cancellation_forecast に ANA レコードがない。'
+                    'rishiri_flight_{year}_timetable.json の夏季期間を確認する。'
+                ),
+                fix_hint='python weather_forecast_collector.py を手動実行して夏季予報を再生成する。'
+            ))
+        return issues
+
+
+# ---------------------------------------------------------------------------
+# 5. 予報精度監査AI社員チェック（full モードのみ）
 # ---------------------------------------------------------------------------
 
 class AccuracyAuditorEmployee:
@@ -1127,6 +1280,7 @@ def _add_production_health_info(issues: List[Issue], prod: Dict) -> None:
     aw  = prod.get('actual_weather', {})
     fse = prod.get('ferry_status_enhanced', {})
     cf  = prod.get('cancellation_forecast', {})
+    fcf = prod.get('flight_cancellation_forecast', {})
     lines = []
     if isinstance(cf, dict) and cf.get('max_date'):
         lines.append(f'cancellation_forecast 最終日: {cf["max_date"]} ({cf.get("total_records","?")}件)')
@@ -1134,6 +1288,8 @@ def _add_production_health_info(issues: List[Issue], prod: Dict) -> None:
         lines.append(f'actual_weather 最終日: {aw["max_date"]} ({aw.get("total_records","?")}件)')
     if isinstance(fse, dict) and fse.get('max_date'):
         lines.append(f'ferry_status_enhanced 最終日: {fse["max_date"]} ({fse.get("total_records","?")}件)')
+    if isinstance(fcf, dict) and fcf.get('max_date'):
+        lines.append(f'flight_cancellation_forecast 最終日: {fcf["max_date"]} ({fcf.get("total_records","?")}件)')
     if lines:
         issues.append(Issue(
             severity='INFO', employee='forecast',
@@ -1168,6 +1324,10 @@ def _filter_by_production_health(issues: List[Issue], prod: Dict) -> Tuple[List[
     if isinstance(cf, dict) and (cf.get('max_date') or '') >= yesterday:
         fresh.add('cancellation_forecast')
 
+    fcf = prod.get('flight_cancellation_forecast', {})
+    if isinstance(fcf, dict) and (fcf.get('max_date') or '') >= yesterday:
+        fresh.add('flight_cancellation_forecast')
+
     # フィルタリング
     filtered, suppressed = [], []
     for issue in issues:
@@ -1185,6 +1345,16 @@ def _filter_by_production_health(issues: List[Issue], prod: Dict) -> Tuple[List[
         elif issue.employee == 'forecast' and issue.category in ('stale_data', 'coverage_gap', 'schema_missing', 'data_fetch_fail'):
             if 'cancellation_forecast' in fresh:
                 suppress = True
+
+        elif issue.employee == 'flight':
+            # data_fetch_fail（ローカルDBなし）は cancellation_forecast が新鮮なら抑制
+            # （同じ ferry_weather_forecast.db を共有するため）
+            if issue.category == 'data_fetch_fail' and 'cancellation_forecast' in fresh:
+                suppress = True
+            # stale/coverage/schema は flight_cancellation_forecast が新鮮なら抑制
+            elif issue.category in ('stale_data', 'coverage_gap', 'schema_missing'):
+                if 'flight_cancellation_forecast' in fresh:
+                    suppress = True
 
         if suppress:
             suppressed.append(f'[{issue.employee}] {issue.category}: {issue.title}')
@@ -1233,24 +1403,28 @@ def run_review(mode: str) -> str:
     accuracy_stats: Dict = {}
 
     # 1. 海上気象予報取得AI
-    print('[system_review] 1/5 海上気象予報取得AI チェック中...', flush=True)
+    print('[system_review] 1/6 海上気象予報取得AI チェック中...', flush=True)
     all_issues += ForecastEmployee().run(start_date, end_date, mode)
 
     # 2. 海上気象実測取得AI
-    print('[system_review] 2/5 海上気象実測取得AI チェック中...', flush=True)
+    print('[system_review] 2/6 海上気象実測取得AI チェック中...', flush=True)
     all_issues += ActualWeatherEmployee().run(start_date, end_date, mode)
 
     # 3. フェリー運航記録取得AI
-    print('[system_review] 3/5 フェリー運航記録取得AI チェック中...', flush=True)
+    print('[system_review] 3/6 フェリー運航記録取得AI チェック中...', flush=True)
     all_issues += FerryCollectorEmployee().run(start_date, end_date, mode)
 
-    # 4. 予報精度監査AI（full モードのみ）
+    # 4. 飛行機予報取得AI
+    print('[system_review] 4/6 飛行機予報取得AI チェック中...', flush=True)
+    all_issues += FlightForecastEmployee().run(start_date, end_date, mode)
+
+    # 5. 予報精度監査AI（full モードのみ）
     if mode == 'full':
-        print('[system_review] 4/5 予報精度監査AI チェック中...', flush=True)
+        print('[system_review] 5/6 予報精度監査AI チェック中...', flush=True)
         acc_issues, accuracy_stats = AccuracyAuditorEmployee().run(start_date, end_date)
         all_issues += acc_issues
     else:
-        print('[system_review] 4/5 予報精度監査AI スキップ（quick モード）', flush=True)
+        print('[system_review] 5/6 予報精度監査AI スキップ（quick モード）', flush=True)
 
     # 本番ヘルスで正常確認済みの誤報を除去
     if prod_health:
@@ -1263,8 +1437,8 @@ def run_review(mode: str) -> str:
         # 本番が正常であることを INFO として追加
         _add_production_health_info(all_issues, prod_health)
 
-    # 5. 問題点整理AI → 修正プロンプト生成
-    print('[system_review] 5/5 問題点整理AI レポート生成中...', flush=True)
+    # 6. 問題点整理AI → 修正プロンプト生成
+    print('[system_review] 6/6 問題点整理AI レポート生成中...', flush=True)
     report = IssueSynthesizer().generate(
         all_issues, accuracy_stats, mode, start_date, end_date
     )

@@ -719,6 +719,14 @@ def api_db_health():
         'distinct_days': row[2], 'total_records': row[3],
     } if row else {'error': 'table not found'}
 
+    # flight_cancellation_forecast
+    row = _safe_query(forecast_db,
+        'SELECT MIN(forecast_for_date), MAX(forecast_for_date), COUNT(DISTINCT forecast_for_date), COUNT(*) FROM flight_cancellation_forecast')
+    result['flight_cancellation_forecast'] = {
+        'min_date': row[0], 'max_date': row[1],
+        'distinct_days': row[2], 'total_records': row[3],
+    } if row else {'error': 'table not found'}
+
     return jsonify(result)
 
 
