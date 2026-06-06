@@ -16,7 +16,7 @@ LINE リッチメニュー セットアップスクリプト
   ┌──────────────┬──────────────┬──────────────┐
   │ 🗓️ 明日のリスク │ 📅 明後日のリスク│ 📊 週間ダッシュ │
   ├──────────────┼──────────────┼──────────────┤
-  │ 📋 欠航実績   │ ⛴️ ハートランド │ ❓ ヘルプ     │
+  │ 📋 欠航実績   │ ⛴️ ハートランド │ ✈️ 飛行機予報  │
   └──────────────┴──────────────┴──────────────┘
 """
 
@@ -72,8 +72,8 @@ HARTLAND_URL = 'https://heartlandferry.jp/status/'
 RICH_MENU_DEF = {
     'size': {'width': W, 'height': H},
     'selected': True,
-    'name': 'フェリー欠航リスク予報メニュー',
-    'chatBarText': 'メニューを開く 🚢',
+    'name': 'フェリー・飛行機 欠航リスク予報メニュー',
+    'chatBarText': 'メニューを開く 🚢✈️',
     'areas': [
         # ── 上段 ──
         {
@@ -99,7 +99,7 @@ RICH_MENU_DEF = {
         },
         {
             'bounds': {'x': X3, 'y': RH, 'width': CW3, 'height': RH},
-            'action': {'type': 'message', 'label': '使い方・ヘルプ', 'text': 'ヘルプ'}
+            'action': {'type': 'message', 'label': '飛行機予報', 'text': '飛行機'}
         },
     ]
 }
@@ -220,7 +220,7 @@ def generate_placeholder(output='richmenu_placeholder.png'):
         (X3, 0,  CW3, '📊', '週間ダッシュ',    '#7c3aed'),
         (X1, RH, CW1, '📋', '欠航実績',        '#b45309'),
         (X2, RH, CW2, '⛴️', 'ハートランド公式', '#0f766e'),
-        (X3, RH, CW3, '❓', 'ヘルプ',          '#047857'),
+        (X3, RH, CW3, '✈️', '飛行機予報',      '#1d4ed8'),
     ]
 
     # 絵文字: Segoe UI Emoji（Windows標準 — Meiryo はモダン絵文字を含まない）
@@ -326,7 +326,7 @@ def main():
     print('  上段右  [週間ダッシュボード]  → URI: ' + DASHBOARD_URL)
     print('  下段左  [欠航実績]            → message: 実績')
     print('  下段中  [ハートランドフェリー] → URI: ' + HARTLAND_URL)
-    print('  下段右  [使い方・ヘルプ]      → message: ヘルプ')
+    print('  下段右  [飛行機予報]           → message: 飛行機')
     print()
     print('本番画像への差し替え:')
     print('  python setup_line_richmenu.py --image your_design.png')

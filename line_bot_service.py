@@ -22,6 +22,7 @@ from typing import Optional, List, Dict
 import pytz
 
 from jst_utils import get_active_routes_on
+from flight_timetable_utils import get_active_flights_on
 
 jst = pytz.timezone('Asia/Tokyo')
 
@@ -214,13 +215,18 @@ class LineBotService:
             msg = self._format_jisseki_message()
             self._reply(event.reply_token, msg)
 
+        elif text in ('飛行機', 'フライト', '✈️', '飛行機予報', '利尻便', '飛行機リスク'):
+            msg = self._format_flight_message()
+            self._reply(event.reply_token, msg)
+
         elif text in ('ヘルプ', 'help', '？', '?', 'コマンド'):
             self._reply(event.reply_token,
                 '【コマンド一覧】\n'
-                '「予報」または「今日」: 今日のリスク確認\n'
-                '「明日」: 明日のリスク確認\n'
-                '「明後日」: 明後日のリスク確認\n'
-                '「実績」: 直近7日間の欠航実績\n\n'
+                '「予報」または「今日」: 今日のフェリーリスク確認\n'
+                '「明日」: 明日のフェリーリスク確認\n'
+                '「明後日」: 明後日のフェリーリスク確認\n'
+                '「実績」: 直近7日間の欠航実績\n'
+                '「飛行機」: 利尻空港の飛行機予報\n\n'
                 '欠航リスクが高い日は毎朝自動通知します。\n'
                 f'詳細: {DASHBOARD_URL}'
             )
@@ -433,6 +439,114 @@ class LineBotService:
                 lines.append(f'✅ {d_label}: 全便運航')
 
         lines.append('')
+        lines.append(f'詳細: {DASHBOARD_URL}')
+        return '\n'.join(lines)
+
+    # ------------------------------------------------------------------
+    # 飛行機予報
+    # ------------------------------------------------------------------
+
+    def _query_flight_risks(self, date_str: str) -> Optional[List]:
+        """
+        flight_cancellation_forecast から指定日の便別リスクを取得する。
+        [(route_key, flight_no, airline, rishiri_time, rishiri_role,
+          risk_level, wind_speed, crosswind_component)] のリストを返す。
+        DB エラー時は None を返す。
+        """
+        try:
+            conn = sqlite3.connect(self.forecast_db)
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT route_key, flight_no, airline, rishiri_time, rishiri_role,
+                       risk_level, wind_speed, crosswind_component
+                FROM flight_cancellation_forecast
+                WHERE forecast_for_date = ?
+                  AND id IN (
+                      SELECT MAX(id) FROM flight_cancellation_forecast
+                      WHERE forecast_for_date = ?
+                      GROUP BY route_key, flight_no
+                  )
+                ORDER BY rishiri_time
+            ''', (date_str, date_str))
+            rows = cursor.fetchall()
+            conn.close()
+            return rows
+        except Exception:
+            return None
+
+    def _format_flight_message(self) -> str:
+        """
+        今日と明日の飛行機予報をフォーマットして返す。
+        """
+        now = datetime.now(jst)
+        today_str    = now.strftime('%Y-%m-%d')
+        tomorrow_str = (now + timedelta(days=1)).strftime('%Y-%m-%d')
+
+        lines = ['✈️ 利尻空港 飛行機予報', '']
+
+        for date_str, label in [(today_str, '今日'), (tomorrow_str, '明日')]:
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            date_disp = date_obj.strftime(f'%m/%d（{WEEKDAYS[date_obj.weekday()]}）')
+
+            # 時刻表で就航便を確認
+            flights = get_active_flights_on(date_str)
+            if not flights:
+                lines.append(f'[{label} {date_disp}]')
+                lines.append('就航便なし（時刻表）')
+                lines.append('')
+                continue
+
+            # DBからリスクを取得
+            rows = self._query_flight_risks(date_str)
+
+            lines.append(f'[{label} {date_disp}]')
+
+            if rows is None:
+                lines.append('データ取得エラー')
+                lines.append('')
+                continue
+
+            if not rows:
+                # テーブルはあるがデータなし（次回収集待ち）
+                lines.append('予報データ準備中…')
+                lines.append(f'（就航便: {len(flights)}便）')
+                lines.append('')
+                continue
+
+            # {(flight_no, rishiri_role): データ} のマップ
+            risk_map = {
+                (r[1], r[4]): r  # (flight_no, role): row
+                for r in rows
+            }
+
+            has_alert = False
+            for f in flights:
+                key = (f['flight_no'], f['rishiri_role'])
+                role_jp = '着' if f['rishiri_role'] == 'arrival' else '発'
+                airline = f['airline']
+                time_str = f['rishiri_time']
+
+                if key in risk_map:
+                    _, _, _, _, _, risk, wind, cw = risk_map[key]
+                    emoji = RISK_EMOJI.get(risk, '❓')
+                    detail_parts = []
+                    if wind:
+                        detail_parts.append(f'風{wind:.0f}m/s')
+                    if cw:
+                        detail_parts.append(f'横風{cw:.1f}m/s')
+                    detail = '（' + ' '.join(detail_parts) + '）' if detail_parts else ''
+                    lines.append(f'{emoji} [{airline}] {f["flight_no"]} {time_str}{role_jp} {risk}{detail}')
+                    if risk in ('HIGH', 'MEDIUM'):
+                        has_alert = True
+                else:
+                    lines.append(f'❓ [{airline}] {f["flight_no"]} {time_str}{role_jp} 予報データなし')
+
+            if has_alert:
+                lines.append('⚠️ フライト変更をご確認ください')
+            else:
+                lines.append('✅ 欠航リスクは低い見込みです')
+            lines.append('')
+
         lines.append(f'詳細: {DASHBOARD_URL}')
         return '\n'.join(lines)
 
