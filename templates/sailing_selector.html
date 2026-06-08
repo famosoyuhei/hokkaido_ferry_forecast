@@ -176,6 +176,18 @@
             border-color: #667eea;
         }
 
+        .selection-card.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .selection-card.disabled:hover {
+            transform: none;
+            box-shadow: none;
+            border-color: #e0e0e0;
+        }
+
         .selection-card.selected {
             background: #e8edff;
             border-color: #667eea;
@@ -369,6 +381,12 @@
                     <div class="card-title">利尻（鴛泊）⇔ 礼文（香深）</div>
                     <div class="card-info">ハートランドフェリー</div>
                 </div>
+                <!-- 沓形↔香深は夏季（6/1〜9/30）のみ表示。JS で制御。 -->
+                <div class="selection-card" data-route="kutsugata_kafuka" id="card-kutsugata" style="display:none;">
+                    <div class="card-title">利尻（沓形）⇔ 礼文（香深）</div>
+                    <div class="card-info">ハートランドフェリー</div>
+                    <div style="margin-top:4px; font-size:0.75em; color:#0891b2; font-weight:600;">🌞 夏季運航（6/1〜9/30）</div>
+                </div>
             </div>
         </div>
 
@@ -410,6 +428,14 @@
         const sectionRoute = document.getElementById('section-route');
         const sectionDate = document.getElementById('section-date');
         const sectionTime = document.getElementById('section-time');
+
+        // 沓形↔香深は夏季（6〜9月）のみ表示
+        (function() {
+            const m = new Date().getMonth() + 1; // 1-indexed
+            if (m >= 6 && m <= 9) {
+                document.getElementById('card-kutsugata').style.display = '';
+            }
+        })();
 
         // ステップ1: 航路選択
         document.querySelectorAll('[data-route]').forEach(card => {
@@ -483,21 +509,30 @@
                 const dateStr = date.toISOString().split('T')[0];
                 const weekday = weekdays[date.getDay()];
 
+                // 沓形↔香深が選択されている場合、6/1〜9/30 以外の日付はグレーアウト
+                const mm = date.getMonth() + 1;
+                const dd = date.getDate();
+                const isKutsugata = state.selectedRoute === 'kutsugata_kafuka' || state.selectedRoute === 'kafuka_kutsugata';
+                const outOfSeason = isKutsugata && !(mm >= 6 && mm <= 9);
+
                 const card = document.createElement('div');
-                card.className = 'selection-card date-card';
+                card.className = 'selection-card date-card' + (outOfSeason ? ' disabled' : '');
                 card.dataset.date = dateStr;
                 card.innerHTML = `
                     <div class="card-title">${i === 0 ? '今日' : i === 1 ? '明日' : `${i}日後`}</div>
                     <div class="card-info">${dateStr}</div>
                     <div class="date-weekday">(${weekday})</div>
+                    ${outOfSeason ? '<div style="font-size:0.7em;color:#e74c3c;margin-top:4px;">季節外（運航なし）</div>' : ''}
                 `;
 
-                card.addEventListener('click', () => {
-                    document.querySelectorAll('.date-card').forEach(c => c.classList.remove('selected'));
-                    card.classList.add('selected');
-                    state.selectedDate = dateStr;
-                    btnNext.disabled = false;
-                });
+                if (!outOfSeason) {
+                    card.addEventListener('click', () => {
+                        document.querySelectorAll('.date-card').forEach(c => c.classList.remove('selected'));
+                        card.classList.add('selected');
+                        state.selectedDate = dateStr;
+                        btnNext.disabled = false;
+                    });
+                }
 
                 dateGrid.appendChild(card);
             }
