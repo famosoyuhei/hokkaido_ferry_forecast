@@ -365,8 +365,52 @@ class LineBotService:
         else:
             lines.append('✅ 欠航リスクは低い見込みです')
 
+        # ── 飛行機セクション（データがある場合のみ追加）──
+        flight_lines = self._flight_summary_lines(date_str)
+        if flight_lines:
+            lines.append('')
+            lines += flight_lines
+
         lines.append(f'詳細: {DASHBOARD_URL}')
         return '\n'.join(lines)
+
+    def _flight_summary_lines(self, date_str: str) -> list:
+        """
+        指定日の飛行機リスクを1〜2行にまとめて返す（フェリーメッセージに埋め込む用）。
+        データなし・全便MINIMAL・エラーの場合は空リストを返す。
+        """
+        try:
+            flights = get_active_flights_on(date_str)
+            if not flights:
+                return []
+            rows = self._query_flight_risks(date_str)
+            if not rows:
+                return []
+
+            risk_map = {(r[1], r[4]): r for r in rows}
+            worst_risk = 'MINIMAL'
+            risk_priority = {'HIGH': 4, 'MEDIUM': 3, 'LOW': 2, 'MINIMAL': 1}
+            alerts = []
+
+            for f in flights:
+                key = (f['flight_no'], f['rishiri_role'])
+                if key in risk_map:
+                    _, _, _, _, _, risk, wind, cw = risk_map[key]
+                    if risk_priority.get(risk, 0) > risk_priority.get(worst_risk, 0):
+                        worst_risk = risk
+                    if risk in ('HIGH', 'MEDIUM'):
+                        role_jp = '着' if f['rishiri_role'] == 'arrival' else '発'
+                        emoji = RISK_EMOJI.get(risk, '❓')
+                        alerts.append(f'  {emoji} {f["flight_no"]} {f["rishiri_time"]}{role_jp}')
+
+            emoji_worst = RISK_EMOJI.get(worst_risk, '❓')
+            if worst_risk in ('HIGH', 'MEDIUM'):
+                result = [f'✈️ 飛行機: {emoji_worst} {worst_risk}'] + alerts
+            else:
+                result = [f'✈️ 飛行機: {emoji_worst} MINIMAL（全便低リスク）']
+            return result
+        except Exception:
+            return []
 
     def _format_tomorrow_message(self) -> str:
         """明日の全航路リスクを返す。"""
