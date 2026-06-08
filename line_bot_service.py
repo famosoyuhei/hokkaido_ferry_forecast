@@ -21,7 +21,7 @@ from typing import Optional, List, Dict
 
 import pytz
 
-from jst_utils import get_active_routes_on
+from jst_utils import get_active_routes_on, get_timetable_sailings
 from flight_timetable_utils import get_active_flights_on
 
 jst = pytz.timezone('Asia/Tokyo')
@@ -240,9 +240,7 @@ class LineBotService:
         指定日の航路別リスクをDBから取得する共通ヘルパー。
         [(route, risk_level, wind_forecast, wave_forecast)] を返す。
         DB エラー時は None を返す。
-
-        注: forecast_hour INNER JOIN を使わず MAX(id) で最新レコードを取得する。
-        forecast_hour が NULL の行でも確実に動作するため。
+        （通知・実績など、航路単位で1件あれば足りる用途向け）
         """
         try:
             conn = sqlite3.connect(self.forecast_db)
@@ -262,6 +260,37 @@ class LineBotService:
             return rows
         except Exception as e:
             print(f'[LINE] _query_risks({date_str}) error: {e}')
+            return None
+
+    def _query_hourly_risks(self, date_str: str) -> Optional[Dict]:
+        """
+        指定日の全 forecast_hour × route のリスクを取得する。
+        便別表示用: {(route, forecast_hour): (risk_level, wind, wave)} を返す。
+
+        各 (route, forecast_hour) ごとの最新レコード（MAX(id)）を使用。
+        DB エラー時は None を返す。
+        """
+        try:
+            conn = sqlite3.connect(self.forecast_db)
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT route, forecast_hour, risk_level, wind_forecast, wave_forecast
+                FROM cancellation_forecast
+                WHERE forecast_for_date = ?
+                  AND id IN (
+                      SELECT MAX(id) FROM cancellation_forecast
+                      WHERE forecast_for_date = ?
+                      GROUP BY route, forecast_hour
+                  )
+                ORDER BY route, forecast_hour
+            ''', (date_str, date_str))
+            result: Dict = {}
+            for route, hour, risk, wind, wave in cursor.fetchall():
+                result[(route, hour)] = (risk, wind, wave)
+            conn.close()
+            return result
+        except Exception as e:
+            print(f'[LINE] _query_hourly_risks({date_str}) error: {e}')
             return None
 
     def _get_today_risks(self) -> Dict[str, dict]:
@@ -305,46 +334,75 @@ class LineBotService:
 
     def _format_risk_message(self, date_str: str, header: str) -> str:
         """
-        指定日の全運航便リスクをメッセージ化する共通ヘルパー。
-        - _active_routes_on() で当日の運航便を時刻表から確定
-        - DB にリスクがある航路はリスクレベルを表示
-        - DB に未収録の航路は「予報データなし」と表示（便の存在は示す）
-        - DB エラー時はエラーメッセージを返す
+        指定日の便別欠航リスクをメッセージ化する共通ヘルパー。
+
+        変更点（v2）:
+        - 1航路1行 → 便ごとに出発時刻 + リスクを表示
+        - forecast_hour × route の時間別予報を取得し、
+          各便の出発時刻に最も近い forecast_hour のリスクを割り当てる
+        - 同じ航路でも便ごとに気象が変われば異なるリスクが表示される
         """
         date_obj = datetime.strptime(date_str, '%Y-%m-%d')
         date_display = date_obj.strftime(f'%m/%d（{WEEKDAYS[date_obj.weekday()]}）')
 
         # 1. 当日の運航便を時刻表で確定
         active = get_active_routes_on(date_str)
+        if not active:
+            return (
+                f'{header}の欠航リスク\n{date_display}\n\n'
+                '運航便なし（時刻表）\n'
+                f'詳細: {DASHBOARD_URL}'
+            )
 
-        # 2. DB からリスクデータを取得（None = DBエラー）
-        rows = self._query_risks(date_str)
-        if rows is None:
+        # 2. 時間別リスクを取得（None = DBエラー）
+        hourly = self._query_hourly_risks(date_str)
+        if hourly is None:
             return (
                 f'{header} {date_display} の予報\n\n'
                 'データ取得中にエラーが発生しました。\n'
                 f'詳細: {DASHBOARD_URL}'
             )
 
-        # rows を {route: (risk, wind, wave)} に変換（廃止キーは除外）
-        db_risks = {
-            route: (risk, wind, wave)
-            for route, risk, wind, wave in rows
-            if route in ROUTE_DISPLAY
-        }
-
         lines = [f'{header}の欠航リスク', date_display, '']
         has_alert = False
 
-        # リスクが高い順→低い順で並べ替え
-        def sort_key(route):
-            risk = db_risks.get(route, (None,))[0]
-            return RISK_ORDER.index(risk) if risk in RISK_ORDER else 99
+        # 利用可能な forecast_hour リスト（ソート済み）
+        avail_hours = sorted({h for (_, h) in hourly.keys()})
 
-        for route in sorted(active, key=sort_key):
-            name = ROUTE_DISPLAY[route]
-            if route in db_risks:
-                risk, wind, wave = db_risks[route]
+        def _nearest_risk(route: str, dep_hour: int):
+            """出発時刻の hour に最も近い forecast_hour のリスクを返す。"""
+            if not avail_hours:
+                return None, None, None
+            best_h = min(avail_hours, key=lambda h: abs(h - dep_hour))
+            return hourly.get((route, best_h), (None, None, None))
+
+        # リスク優先度（各航路の最悪便で並べ替え）
+        def route_worst_risk(route):
+            sailings = get_timetable_sailings(route, date_str)
+            worst = len(RISK_ORDER)
+            for dep, _ in sailings:
+                dep_h = int(dep.split(':')[0])
+                risk, _, _ = _nearest_risk(route, dep_h)
+                idx = RISK_ORDER.index(risk) if risk in RISK_ORDER else len(RISK_ORDER)
+                worst = min(worst, idx)
+            return worst
+
+        for route in sorted(active, key=route_worst_risk):
+            name = ROUTE_DISPLAY.get(route, route)
+            sailings = get_timetable_sailings(route, date_str)
+
+            if not sailings:
+                lines.append(f'❓ {name}  （時刻表データなし）')
+                continue
+
+            for dep_time, arr_time in sailings:
+                dep_h = int(dep_time.split(':')[0])
+                risk, wind, wave = _nearest_risk(route, dep_h)
+
+                if risk is None:
+                    lines.append(f'❓ {name} {dep_time}発  （予報データなし）')
+                    continue
+
                 emoji = RISK_EMOJI.get(risk, '❓')
                 parts = []
                 if wind:
@@ -352,12 +410,9 @@ class LineBotService:
                 if wave:
                     parts.append(f'波{wave:.1f}m')
                 detail = '（' + ' '.join(parts) + '）' if parts else ''
-                lines.append(f'{emoji} {name}  {risk}{detail}')
+                lines.append(f'{emoji} {name} {dep_time}発  {risk}{detail}')
                 if risk in ('HIGH', 'MEDIUM'):
                     has_alert = True
-            else:
-                # 時刻表に便はあるがDB未収録（夏季新設便の初日など）
-                lines.append(f'❓ {name}  （予報データなし）')
 
         lines.append('')
         if has_alert:
