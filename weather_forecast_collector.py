@@ -1077,7 +1077,9 @@ class WeatherForecastCollector:
             if not flights:
                 continue
 
-            # 鴛泊（oshidomari）の時間別天気予報を取得（最新レコードを使用）
+            # 鴛泊の時間別天気予報を取得（最新レコードを使用）
+            # weather_forecast の location は日本語（'鴛泊'）で保存されている
+            OSHIDOMARI_LOC = '鴛泊'
             cursor.execute('''
                 SELECT forecast_hour,
                        AVG(COALESCE(wind_speed_max, wind_speed_numeric)) as wind_speed,
@@ -1085,15 +1087,15 @@ class WeatherForecastCollector:
                        AVG(visibility) as visibility
                 FROM weather_forecast
                 WHERE forecast_date = ?
-                  AND location = 'oshidomari'
+                  AND location = ?
                   AND id IN (
                       SELECT MAX(id) FROM weather_forecast
-                      WHERE forecast_date = ? AND location = 'oshidomari'
+                      WHERE forecast_date = ? AND location = ?
                       GROUP BY forecast_hour
                   )
                 GROUP BY forecast_hour
                 ORDER BY forecast_hour
-            ''', (forecast_date, forecast_date))
+            ''', (forecast_date, OSHIDOMARI_LOC, forecast_date, OSHIDOMARI_LOC))
 
             hourly_weather = {row[0]: row[1:] for row in cursor.fetchall()}
 
