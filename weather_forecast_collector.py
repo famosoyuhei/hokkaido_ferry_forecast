@@ -942,76 +942,126 @@ class WeatherForecastCollector:
         print(f"[OK] Generated {generated} sailing-time weather assignments")
         return generated
 
-    def generate_cancellation_forecasts(self):
-        """Generate cancellation risk forecasts from weather data"""
+    # 航路キー → (出発港名, 到着港名)  ← weather_forecast.location の値（日本語）
+    # 旧実装では全航路に同一ロケーションの気象値を上書きしていた。
+    # 修正: 各航路の出発港・到着港のワーストケース気象でリスクを計算する。
+    ROUTE_PORT_MAP: Dict[str, Tuple[str, str]] = {
+        'wakkanai_oshidomari': ('稚内', '鴛泊'),
+        'oshidomari_wakkanai': ('鴛泊', '稚内'),
+        'wakkanai_kafuka':     ('稚内', '香深'),
+        'kafuka_wakkanai':     ('香深', '稚内'),
+        'oshidomari_kafuka':   ('鴛泊', '香深'),
+        'kafuka_oshidomari':   ('香深', '鴛泊'),
+        'kutsugata_kafuka':    ('沓形', '香深'),
+        'kafuka_kutsugata':    ('香深', '沓形'),
+    }
 
+    def generate_cancellation_forecasts(self):
+        """
+        航路ごとの欠航リスク予報を生成する。
+
+        修正前の問題: 全航路に同じロケーションの気象値を割り当てていたため
+        全航路が一様な値になっていた。
+
+        修正後: ROUTE_PORT_MAP で出発港・到着港を特定し、
+        両港のワーストケース気象（最大風速・最大波高・最小視程）で
+        リスクを計算する。
+        """
         print("\n[INFO] Generating cancellation risk forecasts")
 
         conn = sqlite3.connect(self.db_file)
         cursor = conn.cursor()
 
-        # Get forecast data grouped by date and hour
+        today = today_jst_str()
+
+        # ── Step 1: 気象データを (date, hour, location) → (wind, wave, vis, temp) に集約 ──
         cursor.execute('''
             SELECT
                 forecast_date,
                 forecast_hour,
                 location,
                 AVG(COALESCE(wind_speed_max, wind_speed_numeric)) as wind_speed,
-                AVG(wave_height_max) as wave_height,
-                AVG(visibility) as visibility,
-                AVG(temperature) as temperature
+                AVG(COALESCE(wave_height_max, wave_height_min))   as wave_height,
+                AVG(visibility)                                    as visibility,
+                AVG(temperature)                                   as temperature
             FROM weather_forecast
             WHERE forecast_date >= ?
             GROUP BY forecast_date, forecast_hour, location
             HAVING wind_speed IS NOT NULL OR wave_height IS NOT NULL
-            ORDER BY forecast_date, forecast_hour
-        ''', (today_jst_str(),))
+            ORDER BY forecast_date, forecast_hour, location
+        ''', (today,))
 
-        forecasts = cursor.fetchall()
-        generated = 0
-
-        # 日付ごとのアクティブ航路キャッシュ（時刻表 JSON から動的取得）
-        # wakkanai_kutsugata / kutsugata_wakkanai は存在しない航路なので使わない。
-        # 沓形-香深便（kutsugata_kafuka / kafuka_kutsugata）は 6/1〜9/30 のみ自動追加される。
-        # 年が変わっても heartland_{year}_timetable.json を追加するだけで対応できる。
-        _routes_cache: dict = {}
-
-        for forecast_date, forecast_hour, location, wind_speed, wave_height, visibility, temperature in forecasts:
-            if wind_speed is None and wave_height is None:
-                continue
-
-            # Use defaults if data is missing (wave_height stays None if unavailable)
-            wind_speed = wind_speed if wind_speed is not None else 10.0
-            wave_height = wave_height if wave_height is not None else None
-
-            # Calculate risk (with seasonal adjustment)
-            risk_level, risk_score, risk_factors = self.calculate_cancellation_risk(
-                wind_speed, wave_height, visibility, forecast_date
+        # weather_map: (date, hour, loc_name) → (wind, wave, vis, temp)
+        weather_map: Dict[Tuple[str, int, str], Tuple] = {}
+        date_hour_set: set = set()
+        for row in cursor.fetchall():
+            d, h, loc, wind, wave, vis, temp = row
+            weather_map[(d, h, loc)] = (
+                wind if wind is not None else 0.0,
+                wave,   # None のままにする（Marine API 欠損を誤魔化さない）
+                vis,
+                temp,
             )
+            date_hour_set.add((d, h))
 
-            # Determine recommended action
-            if risk_level == "HIGH":
-                action = "High cancellation risk - Consider alternative dates"
-            elif risk_level == "MEDIUM":
-                action = "Moderate risk - Monitor weather updates"
-            elif risk_level == "LOW":
-                action = "Low risk - Normal operations expected"
-            else:
-                action = "Minimal risk - Good conditions"
+        generated = 0
+        _routes_cache: dict = {}
+        now_str = jst_isoformat()
 
-            # Calculate confidence based on forecast horizon
-            # Confidence decreases with time
-            # forecast_date is a naive date string; compare against naive today
-            horizon_days = (datetime.fromisoformat(forecast_date) - datetime.fromisoformat(today_jst_str())).days
-            confidence = max(0.5, 1.0 - (horizon_days * 0.07))
-
-            # 当日の運航便を時刻表から動的取得（キャッシュ済み）
+        # ── Step 2: 日付×時間×航路 ループ ──
+        for forecast_date, forecast_hour in sorted(date_hour_set):
+            # 時刻表から当日の運航便を取得（キャッシュ）
             if forecast_date not in _routes_cache:
                 _routes_cache[forecast_date] = get_active_routes_on(forecast_date)
             active_routes = _routes_cache[forecast_date]
 
-            # Save forecast for each route
             for route in active_routes:
+                dep_loc, arr_loc = self.ROUTE_PORT_MAP.get(route, ('稚内', '稚内'))
+
+                dep = weather_map.get((forecast_date, forecast_hour, dep_loc))
+                arr = weather_map.get((forecast_date, forecast_hour, arr_loc))
+
+                # どちらか一方でもなければスキップ（気象データ未収録）
+                if dep is None and arr is None:
+                    continue
+
+                # ワーストケース: 風速・波高は最大、視程は最小
+                def _pick(a, b, mode='max'):
+                    vals = [v for v in [a, b] if v is not None]
+                    if not vals:
+                        return None
+                    return max(vals) if mode == 'max' else min(vals)
+
+                dep_w, dep_wv, dep_vis, dep_t = dep if dep else (None, None, None, None)
+                arr_w, arr_wv, arr_vis, arr_t = arr if arr else (None, None, None, None)
+
+                wind_speed  = _pick(dep_w,  arr_w,  'max') or 0.0
+                wave_height = _pick(dep_wv, arr_wv, 'max')
+                visibility  = _pick(dep_vis, arr_vis, 'min')
+                # 気温は平均（どちらかあれば使う）
+                temps = [t for t in [dep_t, arr_t] if t is not None]
+                temperature = sum(temps) / len(temps) if temps else None
+
+                # リスク計算
+                risk_level, risk_score, risk_factors = self.calculate_cancellation_risk(
+                    wind_speed, wave_height, visibility, forecast_date
+                )
+
+                if risk_level == "HIGH":
+                    action = "High cancellation risk - Consider alternative dates"
+                elif risk_level == "MEDIUM":
+                    action = "Moderate risk - Monitor weather updates"
+                elif risk_level == "LOW":
+                    action = "Low risk - Normal operations expected"
+                else:
+                    action = "Minimal risk - Good conditions"
+
+                horizon_days = (
+                    datetime.fromisoformat(forecast_date) -
+                    datetime.fromisoformat(today)
+                ).days
+                confidence = max(0.5, 1.0 - (horizon_days * 0.07))
+
                 try:
                     cursor.execute('''
                         INSERT OR REPLACE INTO cancellation_forecast (
@@ -1024,10 +1074,9 @@ class WeatherForecastCollector:
                         forecast_date, forecast_hour, route,
                         risk_level, risk_score, json.dumps(risk_factors),
                         wind_speed, wave_height, visibility, temperature,
-                        action, confidence, jst_isoformat()
+                        action, confidence, now_str,
                     ))
                     generated += 1
-
                 except Exception as e:
                     print(f"[WARNING] Failed to save cancellation forecast: {e}")
 
