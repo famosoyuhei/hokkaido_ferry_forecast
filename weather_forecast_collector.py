@@ -1098,7 +1098,6 @@ class WeatherForecastCollector:
             ''', (forecast_date, OSHIDOMARI_LOC, forecast_date, OSHIDOMARI_LOC))
 
             hourly_weather = {row[0]: row[1:] for row in cursor.fetchall()}
-            print(f"  [DEBUG] {forecast_date}: flights={len(flights)}, hourly_weather_hours={sorted(hourly_weather.keys())[:5]}...")
 
             # 各便のリスク計算
             for flight in flights:
