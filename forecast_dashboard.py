@@ -1295,6 +1295,60 @@ def admin_debug_accuracy_data():
             'timestamp': jst_isoformat()
         }), 500
 
+@app.route('/admin/debug-flight-forecast')
+@require_admin
+def admin_debug_flight_forecast():
+    """
+    飛行機予報が0件になる原因を調査する一時的なデバッグエンドポイント。
+    鴛泊の weather_forecast データと flight_cancellation_forecast の状態を返す。
+    """
+    import os
+    from jst_utils import now_jst, today_jst_str
+    data_dir = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH') or os.environ.get('RAILWAY_VOLUME_MOUNT') or '.'
+    db_file = os.path.join(data_dir, 'ferry_weather_forecast.db')
+
+    result = {}
+    try:
+        conn = sqlite3.connect(db_file)
+
+        today = today_jst_str()
+        # 鴛泊の今日分 weather_forecast サンプル
+        rows = conn.execute('''
+            SELECT forecast_date, forecast_hour,
+                   wind_speed_max, wind_speed_numeric, wind_direction_deg,
+                   visibility, location
+            FROM weather_forecast
+            WHERE forecast_date = ? AND location = '鴛泊'
+            ORDER BY forecast_hour
+            LIMIT 10
+        ''', (today,)).fetchall()
+        result['oshidomari_today'] = [
+            {'date': r[0], 'hour': r[1], 'wind_max': r[2],
+             'wind_numeric': r[3], 'wind_dir_deg': r[4],
+             'visibility': r[5], 'location': r[6]}
+            for r in rows
+        ]
+
+        # 全 location の種類
+        locs = conn.execute(
+            "SELECT DISTINCT location FROM weather_forecast WHERE forecast_date = ?", (today,)
+        ).fetchall()
+        result['locations_today'] = [r[0] for r in locs]
+
+        # flight_cancellation_forecast の状態
+        row = conn.execute(
+            'SELECT COUNT(*), MAX(forecast_for_date) FROM flight_cancellation_forecast'
+        ).fetchone()
+        result['flight_forecast_count'] = row[0]
+        result['flight_forecast_max_date'] = row[1]
+
+        conn.close()
+        result['checked_at'] = now_jst().isoformat()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/admin/test-ferry-db-path')
 @require_admin
 def admin_test_ferry_db_path():
