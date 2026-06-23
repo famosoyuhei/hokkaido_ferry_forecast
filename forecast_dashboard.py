@@ -195,11 +195,11 @@ class ForecastDashboard:
         ''', (date, date))
 
         routes = []
+        active_routes = set(get_active_routes_on(date))
         for row in cursor.fetchall():
             route, risk, score, wind, wave, vis, action = row
 
-            # Route name mapping（存在する全航路 + 廃止済み誤キーは除外）
-            BANNED_ROUTES = {'wakkanai_kutsugata', 'kutsugata_wakkanai'}
+            # 表示対象は当日の公式時刻表に存在する航路だけに限定する。
             route_names = {
                 'wakkanai_oshidomari': '稚内 → 鴛泊（利尻）',
                 'wakkanai_kafuka':     '稚内 → 香深（礼文）',
@@ -210,8 +210,8 @@ class ForecastDashboard:
                 'kutsugata_kafuka':    '沓形（利尻）→ 香深（礼文）',  # 夏季 6/1〜9/30
                 'kafuka_kutsugata':    '香深（礼文）→ 沓形（利尻）',  # 夏季 6/1〜9/30
             }
-            if route in BANNED_ROUTES:
-                continue  # 存在しない航路キーは除外
+            if route not in active_routes:
+                continue
 
             routes.append({
                 'route': route,
@@ -1050,6 +1050,27 @@ def admin_run_accuracy_only():
         })
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
+@app.route('/admin/export-accuracy-data')
+@require_admin
+def admin_export_accuracy_data():
+    """Return read-only ferry/flight accuracy datasets for n8n and Sheets."""
+    from accuracy_sheet_exporter import build_accuracy_payload
+
+    try:
+        days = min(max(request.args.get('days', default=90, type=int), 1), 3650)
+        payload = build_accuracy_payload(
+            days=days,
+            start_date=request.args.get('start') or None,
+            end_date=request.args.get('end') or None,
+        )
+        return jsonify(payload)
+    except ValueError as exc:
+        return jsonify({'status': 'error', 'error': str(exc), 'timestamp': jst_isoformat()}), 400
+    except Exception as exc:
+        app.logger.exception('Accuracy data export failed')
+        return jsonify({'status': 'error', 'error': str(exc), 'timestamp': jst_isoformat()}), 500
 
 
 @app.route('/admin/run-bulk-accuracy')

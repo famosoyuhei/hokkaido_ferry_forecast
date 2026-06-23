@@ -1,0 +1,118 @@
+{
+  "name": "Hokkaido Ferry & Flight Accuracy to Google Sheets",
+  "nodes": [
+    {
+      "parameters": {"rule": {"interval": [{"field": "days", "daysInterval": 1, "triggerAtHour": 7, "triggerAtMinute": 40}]}},
+      "id": "95f45d74-49d5-4cb7-9757-524c11115d41",
+      "name": "Daily 07:40 JST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-760, -80]
+    },
+    {
+      "parameters": {},
+      "id": "0b86d125-66b9-4b77-9833-7e40e69d980b",
+      "name": "Manual Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-760, 100]
+    },
+    {
+      "parameters": {
+        "url": "https://web-production-a628.up.railway.app/admin/export-accuracy-data?days=90",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [{"name": "X-Admin-Token", "value": "={{ $env.FORECAST_ADMIN_TOKEN }}"}]},
+        "options": {"timeout": 120000}
+      },
+      "id": "ff794146-2ea6-4818-a8c6-adb4051905b9",
+      "name": "Fetch Accuracy Snapshot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-520, 0]
+    },
+    {
+      "parameters": {"jsCode": "const rows = $input.first().json.datasets?.daily_metrics ?? [];\nreturn rows.map(json => ({ json }));"},
+      "id": "1c32204f-b9f4-4ca8-bf22-9ebbd8a94cb7",
+      "name": "Daily Metrics Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-260, -300]
+    },
+    {
+      "parameters": {"jsCode": "const rows = $input.first().json.datasets?.ferry_details ?? [];\nreturn rows.map(json => ({ json }));"},
+      "id": "f2c42bc6-1a67-4b18-8a8e-eef0e4de7ad8",
+      "name": "Ferry Detail Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-260, -100]
+    },
+    {
+      "parameters": {"jsCode": "const rows = $input.first().json.datasets?.flight_details ?? [];\nreturn rows.map(json => ({ json }));"},
+      "id": "dd79559e-b05e-4581-b81f-b4d83f1b38dd",
+      "name": "Flight Detail Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-260, 100]
+    },
+    {
+      "parameters": {"jsCode": "const rows = $input.first().json.datasets?.alerts ?? [];\nreturn rows.map(json => ({ json }));"},
+      "id": "09823d61-a02a-43b8-bfd3-874d3fafde13",
+      "name": "Alert Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-260, 300]
+    },
+    {
+      "parameters": {"operation": "appendOrUpdate", "documentId": {"__rl": true, "value": "1C2kvlDZxo0XBagaZfZw3muShhm2Z3XGu9wMIK90kmUM", "mode": "id"}, "sheetName": {"__rl": true, "value": "Daily Metrics", "mode": "name"}, "columns": {"mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["key"], "schema": []}, "options": {}},
+      "id": "f6a50520-8f0b-441f-97de-11a028451d50",
+      "name": "Upsert Daily Metrics",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [20, -300]
+    },
+    {
+      "parameters": {"operation": "appendOrUpdate", "documentId": {"__rl": true, "value": "1C2kvlDZxo0XBagaZfZw3muShhm2Z3XGu9wMIK90kmUM", "mode": "id"}, "sheetName": {"__rl": true, "value": "Ferry Details", "mode": "name"}, "columns": {"mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["key"], "schema": []}, "options": {}},
+      "id": "7fb749d7-a5c4-494a-bc55-563c6879a15f",
+      "name": "Upsert Ferry Details",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [20, -100]
+    },
+    {
+      "parameters": {"operation": "appendOrUpdate", "documentId": {"__rl": true, "value": "1C2kvlDZxo0XBagaZfZw3muShhm2Z3XGu9wMIK90kmUM", "mode": "id"}, "sheetName": {"__rl": true, "value": "Flight Details", "mode": "name"}, "columns": {"mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["key"], "schema": []}, "options": {}},
+      "id": "f3fde2b2-eb5a-4194-a2ed-98f815e47627",
+      "name": "Upsert Flight Details",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [20, 100]
+    },
+    {
+      "parameters": {"operation": "appendOrUpdate", "documentId": {"__rl": true, "value": "1C2kvlDZxo0XBagaZfZw3muShhm2Z3XGu9wMIK90kmUM", "mode": "id"}, "sheetName": {"__rl": true, "value": "Alerts", "mode": "name"}, "columns": {"mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["key"], "schema": []}, "options": {}},
+      "id": "c7ec2093-5b85-446a-95db-079f5dbf7052",
+      "name": "Upsert Alerts",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [20, 300]
+    }
+  ],
+  "connections": {
+    "Daily 07:40 JST": {"main": [[{"node": "Fetch Accuracy Snapshot", "type": "main", "index": 0}]]},
+    "Manual Test": {"main": [[{"node": "Fetch Accuracy Snapshot", "type": "main", "index": 0}]]},
+    "Fetch Accuracy Snapshot": {"main": [[
+      {"node": "Daily Metrics Rows", "type": "main", "index": 0},
+      {"node": "Ferry Detail Rows", "type": "main", "index": 0},
+      {"node": "Flight Detail Rows", "type": "main", "index": 0},
+      {"node": "Alert Rows", "type": "main", "index": 0}
+    ]]},
+    "Daily Metrics Rows": {"main": [[{"node": "Upsert Daily Metrics", "type": "main", "index": 0}]]},
+    "Ferry Detail Rows": {"main": [[{"node": "Upsert Ferry Details", "type": "main", "index": 0}]]},
+    "Flight Detail Rows": {"main": [[{"node": "Upsert Flight Details", "type": "main", "index": 0}]]},
+    "Alert Rows": {"main": [[{"node": "Upsert Alerts", "type": "main", "index": 0}]]}
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {"timezone": "Asia/Tokyo", "executionOrder": "v1"},
+  "versionId": "e7493dad-31fb-4cb2-a5cc-d57ea29ad589",
+  "meta": {"templateCredsSetupCompleted": false},
+  "tags": []
+}

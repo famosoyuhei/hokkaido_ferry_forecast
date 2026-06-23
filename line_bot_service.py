@@ -300,9 +300,10 @@ class LineBotService:
         if not rows:
             return {}
         result = {}
+        active_routes = set(get_active_routes_on(today))
         for route, risk, wind, wave in rows:
-            if route not in ROUTE_DISPLAY:
-                continue  # 廃止済み航路キー（wakkanai_kutsugata等）はスキップ
+            if route not in active_routes or route not in ROUTE_DISPLAY:
+                continue
             result[route] = {'risk': risk, 'wind': wind, 'wave': wave}
         return result
 
