@@ -16,6 +16,7 @@
 | 海上気象実測取得 | `docs/ai_employees/actual_weather_employee.md` | `actual_weather_collector.py` |
 | フェリー運航記録取得 | `docs/ai_employees/ferry_operation_collector_employee.md` | `improved_ferry_collector.py` |
 | 予報精度監査 | `docs/ai_employees/accuracy_auditor_employee.md` | `unified_accuracy_tracker.py` |
+| スプレッドシート全面監査 | `docs/ai_employees/spreadsheet_auditor_employee.md` | `accuracy_sheet_exporter.py` |
 | 問題点整理・修正依頼 | `docs/ai_employees/issue_prompt_composer_employee.md` | `issue_prompt_composer.py` |
 | 欠航リサーチスキル | `skills/ferry-cancellation-research/SKILL.md` | — |
 
@@ -31,6 +32,7 @@
 | 06:00 | `improved_ferry_collector.py` | 当日運航状況取得 |
 | 06:30 | `actual_weather_collector.py` | 前日実測気象取得 |
 | 07:00 | `unified_accuracy_tracker.py` | 精度監査 |
+| 07:05 | `accuracy_sheet_exporter.py` | スプレッドシート全面監査用データ出力・整合性確認 |
 | 07:20 | `issue_prompt_composer.py` | 問題点整理（異常時のみ出力） |
 | 11:00 | `weather_forecast_collector.py` | 昼の予報更新 |
 | 17:00 | `weather_forecast_collector.py` | 夕の予報更新 |
@@ -309,6 +311,17 @@ skills/ferry-cancellation-research/references/rishiri_flight_{year}_timetable.js
     grep -rn "flight_routes\s*=\s*\["                      *.py  # ハードコードリスト
     grep -rn "rishiri_flight_20[0-9][0-9]_timetable"       *.py  # 年ハードコード
     ```
+
+### スプレッドシート・精度明細監査のハードルール（2026-06-25 追加）
+
+24. **予報値と実測値を同じ値で保存しない。**
+    - `predicted_wind` / `predicted_wave` / `predicted_visibility` は `cancellation_forecast` など予報時点の値。
+    - `actual_wind` / `actual_wave` / `actual_visibility` は `actual_weather` 由来の実測/再解析値。
+    - 実測気象から後知恵で再計算したリスクを、事前予報の `predicted_*` として保存しない。
+
+25. **予報値と実測値が不自然に一致したら、精度向上ではなくデータ異常として扱う。**
+    - 風速・波高・視程が同一行で完全一致する状態が多数ある場合は `forecast_actual_leakage` として監査する。
+    - スプレッドシートへ出す前に、明細行から日次指標を再計算して保存済み集計と照合する。
 
 ---
 

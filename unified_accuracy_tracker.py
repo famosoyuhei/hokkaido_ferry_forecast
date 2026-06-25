@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 Unified Accuracy Tracker
-Calculates hindcast accuracy per sailing:
-  - For each actual sailing, fetch weather from its departure port at departure hour
-  - Compute hindcast risk from actual weather
-  - Compare to actual operated/cancelled outcome
+Calculates per-sailing forecast accuracy:
+  - Match each actual sailing with the saved cancellation forecast for its route
+  - Fetch actual weather from the relevant port(s) at departure hour
+  - Compare forecast risk to actual operated/cancelled outcome
 """
 
 import sys
@@ -324,50 +324,61 @@ class UnifiedAccuracyTracker:
         forecast_by_route = {row[0]: row[1:] for row in forecast_cursor.fetchall()}
         print(f"  Found {len(forecast_by_route)} route forecasts")
 
-        # --- First pass: collect weather for each sailing ---
-        sailing_data = []   # (route, dep_time, is_cancelled, wind, wave, vis, use_hindcast)
+        # --- First pass: pair each actual sailing with its saved forecast and actual weather ---
+        sailing_data = []
         for route, dep_time, is_cancelled, _ in sailings:
+            forecast = forecast_by_route.get(route)
+            if forecast is None:
+                continue
+
             m = re.search(r'(\d{1,2}):', dep_time or '')
             dep_hour = int(m.group(1)) if m else 6
 
             # Worst-case weather: for Rebun routes uses MAX(departure, kafuka) weather
-            wind, wave, vis = self._get_route_weather(
+            actual_wind, actual_wave, actual_vis = self._get_route_weather(
                 forecast_cursor, target_date, route, dep_hour
             )
 
-            use_hindcast = (wind is not None and self.ROUTE_DEPARTURE_PORT.get(route) is not None)
+            forecast_risk, forecast_score, pred_wind, pred_wave, pred_vis = forecast
 
-            if not use_hindcast:
-                if route not in forecast_by_route:
-                    continue
-                wind = forecast_by_route[route][2]
-                wave = forecast_by_route[route][3]
-                vis  = forecast_by_route[route][4]
-
-            sailing_data.append((route, dep_time, is_cancelled, wind, wave, vis, use_hindcast))
+            sailing_data.append((
+                route, dep_time, is_cancelled,
+                forecast_risk, forecast_score, pred_wind, pred_wave, pred_vis,
+                actual_wind, actual_wave, actual_vis,
+            ))
 
         # --- Detect maintenance day before writing records ---
-        wind_values = [sd[3] for sd in sailing_data]
+        wind_values = [sd[8] for sd in sailing_data]
         is_maint_day = self._detect_maintenance_day(sailings, wind_values)
         if is_maint_day:
             print(f"  *** Likely dock maintenance day detected — flagging all sailings ***")
 
         # --- Per-sailing evaluation ---
         matched = correct = tp = tn = fp = fn = 0
-        hindcast_used = 0
+        actual_weather_matched = 0
+        wind_errors = []
+        wave_errors = []
+        visibility_errors = []
         # Separate counters that exclude maintenance days
         matched_ex = correct_ex = tp_ex = tn_ex = fp_ex = fn_ex = 0
 
         unified_conn = sqlite3.connect(self.forecast_db)
         unified_cursor = unified_conn.cursor()
 
-        for route, dep_time, is_cancelled, wind, wave, vis, use_hindcast in sailing_data:
-            if use_hindcast:
-                eval_risk, eval_score = self._calc_risk(wind, wave, vis)
-                hindcast_used += 1
-            else:
-                eval_risk  = forecast_by_route[route][0]
-                eval_score = forecast_by_route[route][1]
+        for (
+            route, dep_time, is_cancelled,
+            eval_risk, eval_score, pred_wind, pred_wave, pred_vis,
+            actual_wind, actual_wave, actual_vis,
+        ) in sailing_data:
+            if actual_wind is not None:
+                actual_weather_matched += 1
+
+            if pred_wind is not None and actual_wind is not None:
+                wind_errors.append(abs(pred_wind - actual_wind))
+            if pred_wave is not None and actual_wave is not None:
+                wave_errors.append(abs(pred_wave - actual_wave))
+            if pred_vis is not None and actual_vis is not None:
+                visibility_errors.append(abs(pred_vis - actual_vis))
 
             actual_cancelled = bool(is_cancelled)
             predicted_high   = eval_risk in ['HIGH', 'MEDIUM']
@@ -402,15 +413,15 @@ class UnifiedAccuracyTracker:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 target_date, route, dep_time,
-                eval_risk, eval_score, wind, wave, vis,
+                eval_risk, eval_score, pred_wind, pred_wave, pred_vis,
                 'CANCELLED' if actual_cancelled else 'OPERATED',
-                wind, wave, vis,
+                actual_wind, actual_wave, actual_vis,
                 is_correct,
                 predicted_high and not actual_cancelled,
                 not predicted_high and actual_cancelled,
                 1 if is_maint_day else 0,
                 datetime.now(self.jst).isoformat(),
-                'hindcast' if use_hindcast else 'forecast',
+                'forecast',
             ))
 
         unified_conn.commit()
@@ -421,17 +432,25 @@ class UnifiedAccuracyTracker:
         precision = tp_ex / (tp_ex + fp_ex) if (tp_ex + fp_ex) > 0 else 0
         recall    = tp_ex / (tp_ex + fn_ex) if (tp_ex + fn_ex) > 0 else 0
         f1        = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+        avg_wind_error = sum(wind_errors) / len(wind_errors) if wind_errors else None
+        avg_wave_error = sum(wave_errors) / len(wave_errors) if wave_errors else None
+        avg_visibility_error = (
+            sum(visibility_errors) / len(visibility_errors) if visibility_errors else None
+        )
 
         unified_cursor.execute('''
             INSERT OR REPLACE INTO unified_daily_summary
             (summary_date, total_predictions, correct_predictions, accuracy_rate,
              true_positives, true_negatives, false_positives, false_negatives,
-             precision_score, recall_score, f1_score, calculated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             precision_score, recall_score, f1_score,
+             avg_wind_error, avg_wave_error, avg_visibility_error,
+             calculated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             target_date, matched, correct, accuracy_rate,
             tp_ex, tn_ex, fp_ex, fn_ex,
             precision, recall, f1,
+            avg_wind_error, avg_wave_error, avg_visibility_error,
             datetime.now(self.jst).isoformat()
         ))
 
@@ -440,7 +459,7 @@ class UnifiedAccuracyTracker:
         forecast_conn.close()
 
         maint_note = ' [MAINTENANCE DAY — excluded from P/R/F1]' if is_maint_day else ''
-        print(f"  Hindcast used for {hindcast_used}/{matched} sailings{maint_note}")
+        print(f"  Actual weather matched for {actual_weather_matched}/{matched} forecasted sailings{maint_note}")
         print(f"  Accuracy: {accuracy_rate:.1f}%  "
               f"Precision: {precision:.3f}  Recall: {recall:.3f}  F1: {f1:.3f}")
         print(f"  TP={tp_ex} TN={tn_ex} FP={fp_ex} FN={fn_ex} (excl. maintenance)")

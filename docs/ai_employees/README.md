@@ -10,6 +10,7 @@
 | 海上気象実測取得AI社員 | 各港・航行時間帯の実測/再解析気象を取得する | `actual_weather_collector.py` | 1日1回、前日分 |
 | フェリー運航記録取得AI社員 | ハートランドフェリーの便別運航/欠航記録を取得する | `improved_ferry_collector.py` | 1日1回以上 |
 | 予報精度監査AI社員 | 予報、実測、運航実績を突合し、精度と失敗パターンを監査する | `unified_accuracy_tracker.py` | 1日1回 |
+| スプレッドシート全面監査AI社員 | Sheets/JSON出力を明細から再計算し、予報値と実測値の混入や集計不整合を検出する | `accuracy_sheet_exporter.py` / `docs/ai_employees/spreadsheet_auditor_employee.md` | 1日1回、精度監査後 |
 | UI監査AI社員 | ダッシュボードAPIの応答・データ鮮度・航路カバレッジを毎日確認する | `ui_monitor.py` | 1日1回 |
 | LINE連携監査AI社員 | LINE SDK・ユーザー登録数・朝通知送信実績を毎日確認する | `line_audit.py` | 1日1回 |
 | 問題点整理・修正依頼プロンプトAI社員 | 監査結果から修正候補を整理し、実装依頼プロンプトを作る | `issue_prompt_composer.py` | 監査後、週1回または異常時 |
