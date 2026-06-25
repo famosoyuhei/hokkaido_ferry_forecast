@@ -25,7 +25,6 @@ from typing import Dict, List, Optional, Tuple
 from jst_utils import now_jst, today_jst_str, get_active_routes_on
 
 # EXPECTED_ROUTES は廃止。check_forecast_coverage() 内で時刻表から動的取得する。
-# wakkanai_kutsugata / kutsugata_wakkanai は存在しない航路なので使わない。
 
 VALID_RISK_LEVELS = {'HIGH', 'MEDIUM', 'LOW', 'MINIMAL'}
 

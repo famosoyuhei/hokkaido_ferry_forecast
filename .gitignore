@@ -44,3 +44,9 @@ Thumbs.db
 # Temporary files
 *.tmp
 temp/
+
+# Generated spreadsheet artifacts (Google Sheets is the production destination)
+outputs/
+
+# Python TemporaryDirectory scratch folders created by local test runs
+tmp????????/

@@ -33,8 +33,7 @@ def _safe_min(a, b):
 class UnifiedAccuracyTracker:
 
     # Maps route name → departure port (matches actual_weather location keys)
-    # wakkanai_kutsugata / kutsugata_wakkanai は存在しない航路。使用禁止。
-    # 沓形関連は kutsugata_kafuka（沓形→香深）/ kafuka_kutsugata（香深→沓形）のみ。
+    # 沓形関連は香深との夏季航路のみ。
     ROUTE_DEPARTURE_PORT = {
         'wakkanai_oshidomari': 'wakkanai',
         'oshidomari_wakkanai': 'oshidomari',
