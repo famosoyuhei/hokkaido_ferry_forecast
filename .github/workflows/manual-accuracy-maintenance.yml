@@ -1,0 +1,47 @@
+name: Manual Accuracy Maintenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: 'Start date (YYYY-MM-DD)'
+        required: true
+        default: '2026-04-05'
+      end:
+        description: 'End date (YYYY-MM-DD, blank = yesterday JST)'
+        required: false
+        default: ''
+
+jobs:
+  recalculate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger bulk ferry accuracy recalculation
+        run: |
+          set -euo pipefail
+          start="${{ inputs.start }}"
+          end="${{ inputs.end }}"
+          url="https://web-production-a628.up.railway.app/admin/run-bulk-accuracy?start=${start}"
+          if [ -n "$end" ]; then
+            url="${url}&end=${end}"
+          fi
+          response=$(curl -sS -w "\n%{http_code}" --max-time 900 \
+            -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+            "$url")
+          http_code=$(echo "$response" | tail -n 1)
+          body=$(echo "$response" | head -n -1)
+          echo "HTTP $http_code"
+          echo "$body" | python3 -m json.tool || echo "$body"
+          test "$http_code" = "200"
+
+      - name: Trigger latest accuracy run
+        run: |
+          set -euo pipefail
+          response=$(curl -sS -w "\n%{http_code}" --max-time 180 \
+            -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+            "https://web-production-a628.up.railway.app/admin/run-accuracy-only")
+          http_code=$(echo "$response" | tail -n 1)
+          body=$(echo "$response" | head -n -1)
+          echo "HTTP $http_code"
+          echo "$body" | python3 -m json.tool || echo "$body"
+          test "$http_code" = "200"

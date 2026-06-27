@@ -185,6 +185,33 @@ class FlightStatusCollector:
             'cancellation_reason': flight.get('reason_description', ''),
         }
 
+    def _infer_completed_scheduled_status(self, date_str: str, sched: Dict) -> Dict:
+        """
+        Use a conservative fallback for completed timetable flights when
+        FlightAware returned no matching cancellation/diversion record.
+
+        This keeps the accuracy dataset daily-complete while marking the value
+        as inferred rather than pretending it came from an explicit status feed.
+        """
+        try:
+            rishiri_dt = self.jst.localize(
+                datetime.strptime(f"{date_str} {sched['rishiri_time']}", '%Y-%m-%d %H:%M')
+            )
+        except Exception:
+            rishiri_dt = self.jst.localize(datetime.strptime(f'{date_str} 23:59', '%Y-%m-%d %H:%M'))
+
+        if now_jst() <= rishiri_dt + timedelta(hours=2):
+            return {}
+
+        return {
+            'scheduled_time': sched['rishiri_time'],
+            'actual_time': '',
+            'status': 'operated_inferred',
+            'is_cancelled': 0,
+            'is_diverted': 0,
+            'cancellation_reason': '',
+        }
+
     def collect_for_date(self, date_str: str) -> int:
         """
         指定日の利尻空港発着便を収集・保存する。
@@ -226,6 +253,8 @@ class FlightStatusCollector:
             role = sched['rishiri_role']
             key  = f'{flight_no}_{role}'
             info = fetched.get(key, {})
+            if not info:
+                info = self._infer_completed_scheduled_status(date_str, sched)
 
             try:
                 conn.execute('''

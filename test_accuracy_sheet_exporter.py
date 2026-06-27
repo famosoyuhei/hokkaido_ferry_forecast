@@ -35,7 +35,7 @@ class AccuracySheetExporterTest(unittest.TestCase):
         forecast.execute(
             "INSERT INTO unified_operation_accuracy VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             ('2026-06-20', 'wakkanai_oshidomari', '06:30', 'MINIMAL', 0, 5, 1, 10,
-             'OPERATED', 5, 1, 10, 1, 0, 0, 0, '2026-06-21T07:00:00+09:00', 'hindcast'),
+             'OPERATED', 5, 1, 10, 1, 0, 0, 0, '2026-06-21T07:00:00+09:00', 'forecast'),
         )
         forecast.execute(
             "INSERT INTO flight_cancellation_forecast VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -96,6 +96,44 @@ class AccuracySheetExporterTest(unittest.TestCase):
             self.assertEqual(list(Path(empty).iterdir()), [])
         finally:
             empty.rmdir()
+
+    def test_legacy_hindcast_ferry_rows_are_excluded_and_alerted(self):
+        forecast = sqlite3.connect(self.root / 'ferry_weather_forecast.db')
+        forecast.execute(
+            "INSERT INTO unified_operation_accuracy VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            ('2026-06-21', 'wakkanai_kafuka', '06:30', 'MINIMAL', 0, 4, 0.5, None,
+             'OPERATED', 4, 0.5, None, 1, 0, 0, 0, '2026-06-22T07:00:00+09:00', 'hindcast'),
+        )
+        forecast.commit()
+        forecast.close()
+
+        payload = build_accuracy_payload(
+            start_date='2026-06-21', end_date='2026-06-21', data_dir=str(self.root)
+        )
+        ferry = payload['datasets']['ferry_details'][0]
+        self.assertFalse(ferry['included_in_accuracy'])
+        self.assertEqual(ferry['exclusion_reason'], 'legacy_hindcast_requires_recalc')
+        self.assertTrue(any(a['type'] == 'LEGACY_HINDCAST_RECALC_REQUIRED' for a in payload['datasets']['alerts']))
+
+    def test_unknown_flight_without_disruption_is_included_as_inferred_operated(self):
+        actual = sqlite3.connect(self.root / 'heartland_ferry_real_data.db')
+        actual.execute("DELETE FROM flight_status_rishiri WHERE scrape_date = ? AND flight_no = ? AND rishiri_role = ?",
+                       ('2026-06-20', 'JAL2880', 'departure'))
+        actual.execute(
+            "INSERT INTO flight_status_rishiri VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            ('2026-06-20', 'JAL2880', 'HAC', 'ATR42-600', 'ris_okd', 'departure',
+             '09:00', '', 'unknown', 0, 0, '', '2026-06-21T05:00:00+09:00'),
+        )
+        actual.commit()
+        actual.close()
+
+        payload = build_accuracy_payload(
+            start_date='2026-06-20', end_date='2026-06-20', data_dir=str(self.root)
+        )
+        flight = payload['datasets']['flight_details'][0]
+        self.assertTrue(flight['included_in_accuracy'])
+        self.assertEqual(flight['actual_status'], 'operated_inferred')
+        self.assertTrue(flight['actual_status_inferred'])
 
 
 if __name__ == '__main__':

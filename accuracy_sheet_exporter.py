@@ -27,6 +27,7 @@ NON_WEATHER_REASON_WORDS = (
     'maintenance', 'mechanical', 'crew', 'aircraft change', 'schedule change',
     '整備', '機材', '乗員', 'ダイヤ', '季節運休',
 )
+LEGACY_FERRY_DATA_SOURCES = {'hindcast'}
 
 
 def _date_range(days: int, start_date: Optional[str], end_date: Optional[str]) -> Tuple[str, str]:
@@ -129,8 +130,14 @@ def _ferry_details(conn: Optional[sqlite3.Connection], start: str, end: str) -> 
     details = []
     for row in rows:
         maintenance = bool(row['is_likely_maintenance'])
+        legacy_source = (row['data_source'] or '').lower() in LEGACY_FERRY_DATA_SOURCES
         predicted = (row['predicted_risk'] or '').upper() in PREDICTED_DISRUPTION_LEVELS
         actual = (row['actual_status'] or '').upper() == 'CANCELLED'
+        exclusion_reason = ''
+        if maintenance:
+            exclusion_reason = 'likely_maintenance'
+        elif legacy_source:
+            exclusion_reason = 'legacy_hindcast_requires_recalc'
         details.append({
             'key': f"ferry:{row['operation_date']}:{row['route']}:{row['departure_time'] or ''}",
             'transport': 'ferry',
@@ -151,8 +158,8 @@ def _ferry_details(conn: Optional[sqlite3.Connection], start: str, end: str) -> 
             'is_correct': bool(row['is_correct']) if row['is_correct'] is not None else None,
             'false_positive': bool(row['false_positive']),
             'false_negative': bool(row['false_negative']),
-            'included_in_accuracy': not maintenance,
-            'exclusion_reason': 'likely_maintenance' if maintenance else '',
+            'included_in_accuracy': not exclusion_reason,
+            'exclusion_reason': exclusion_reason,
             'data_source': row['data_source'],
             'calculated_at': row['calculated_at'],
         })
@@ -214,10 +221,15 @@ def _flight_details(
         exclusion_reason = ''
         if forecast is None:
             exclusion_reason = 'missing_forecast'
-        elif not status or status == 'unknown':
-            exclusion_reason = 'unknown_actual_status'
         elif _likely_non_weather(reason):
             exclusion_reason = 'likely_non_weather'
+        inferred_operated = False
+        if forecast is not None and (not status or status == 'unknown'):
+            if not actual_row['is_cancelled'] and not actual_row['is_diverted'] and not reason:
+                status = 'operated_inferred'
+                inferred_operated = True
+            else:
+                exclusion_reason = 'unknown_actual_status'
         risk = forecast['risk_level'] if forecast else None
         predicted = (risk or '').upper() in PREDICTED_DISRUPTION_LEVELS
         actual_disruption = bool(actual_row['is_cancelled'] or actual_row['is_diverted'])
@@ -239,7 +251,7 @@ def _flight_details(
             'wind_direction': forecast['wind_direction'] if forecast else None,
             'crosswind_component': forecast['crosswind_component'] if forecast else None,
             'visibility': forecast['visibility'] if forecast else None,
-            'actual_status': actual_row['status'],
+            'actual_status': status or actual_row['status'],
             'is_cancelled': bool(actual_row['is_cancelled']),
             'is_diverted': bool(actual_row['is_diverted']),
             'cancellation_reason': reason,
@@ -250,6 +262,7 @@ def _flight_details(
             'false_negative': (not predicted and actual_disruption) if included else False,
             'included_in_accuracy': included,
             'exclusion_reason': exclusion_reason,
+            'actual_status_inferred': inferred_operated,
             'forecast_generated_at': forecast['generated_at'] if forecast else None,
             'collected_at': actual_row['collected_at'],
         })
@@ -279,6 +292,26 @@ def _alerts(ferry_details: List[Dict], flight_details: List[Dict], end: str) -> 
                 'transport': transport, 'date': end, 'type': 'FALSE_NEGATIVE',
                 'message': f'対象期間に見逃しが {len(false_negatives)} 件あります。閾値変更前に元データを確認してください。',
             })
+    legacy_hindcast = [
+        row for row in ferry_details
+        if row.get('exclusion_reason') == 'legacy_hindcast_requires_recalc'
+    ]
+    if legacy_hindcast:
+        alerts.append({
+            'key': f'ferry:legacy_hindcast:{end}', 'severity': 'HIGH',
+            'transport': 'ferry', 'date': end, 'type': 'LEGACY_HINDCAST_RECALC_REQUIRED',
+            'message': f'予報値と実測値が混在しうる旧hindcast明細が {len(legacy_hindcast)} 件あります。bulk accuracy再計算後にSheetsを再同期してください。',
+        })
+    inferred_flights = [
+        row for row in flight_details
+        if row.get('actual_status_inferred') and row.get('included_in_accuracy')
+    ]
+    if inferred_flights:
+        alerts.append({
+            'key': f'flight:inferred_operated:{end}', 'severity': 'MEDIUM',
+            'transport': 'flight', 'date': end, 'type': 'INFERRED_FLIGHT_STATUS',
+            'message': f'飛行機実績 {len(inferred_flights)} 件はFlightAware欠航情報なしのため運航推定として評価しています。',
+        })
     return alerts
 
 
