@@ -17,6 +17,7 @@
 | フェリー運航記録取得 | `docs/ai_employees/ferry_operation_collector_employee.md` | `improved_ferry_collector.py` |
 | 予報精度監査 | `docs/ai_employees/accuracy_auditor_employee.md` | `unified_accuracy_tracker.py` |
 | スプレッドシート全面監査 | `docs/ai_employees/spreadsheet_auditor_employee.md` | `accuracy_sheet_exporter.py` |
+| 永久保存DB・Sheets充填監査 | `docs/ai_employees/accuracy_fill_auditor_employee.md` | `accuracy_fill_auditor.py` |
 | 問題点整理・修正依頼 | `docs/ai_employees/issue_prompt_composer_employee.md` | `issue_prompt_composer.py` |
 | 欠航リサーチスキル | `skills/ferry-cancellation-research/SKILL.md` | — |
 
@@ -34,6 +35,7 @@
 | 07:00 | `unified_accuracy_tracker.py` | 精度監査 |
 | 07:05 | `accuracy_sheet_exporter.py` | スプレッドシート全面監査用データ出力・整合性確認 |
 | 07:20 | `issue_prompt_composer.py` | 問題点整理（異常時のみ出力） |
+| 07:50 | `accuracy_fill_auditor.py` | 永久保存DB・Google Sheetsへの精度検証データ充填確認 |
 | 11:00 | `weather_forecast_collector.py` | 昼の予報更新 |
 | 17:00 | `weather_forecast_collector.py` | 夕の予報更新 |
 | 23:00 | `weather_forecast_collector.py` | 夜の予報更新 |
@@ -322,6 +324,13 @@ skills/ferry-cancellation-research/references/rishiri_flight_{year}_timetable.js
 25. **予報値と実測値が不自然に一致したら、精度向上ではなくデータ異常として扱う。**
     - 風速・波高・視程が同一行で完全一致する状態が多数ある場合は `forecast_actual_leakage` として監査する。
     - スプレッドシートへ出す前に、明細行から日次指標を再計算して保存済み集計と照合する。
+
+26. **精度検証に必要なデータは永久保存DBとGoogle Sheetsの両方で毎日充填確認する。**
+    - `accuracy_fill_auditor.py` を精度監査・Sheets同期後に実行する。
+    - 永久保存DBの `/admin/export-accuracy-data` に対象日の `daily_metrics` / `ferry_details` / `flight_details` が存在することを確認する。
+    - Google Sheets の `Daily Metrics` / `Ferry Details` / `Flight Details` に同じ対象日キーが存在することを確認する。
+    - フェリー明細は対象日の `actual_wind` と `actual_wave` がNULLのままなら異常。`actual_visibility` はソース欠損がありうるため単独では異常にしない。
+    - Sheets確認用の `GOOGLE_SHEETS_API_KEY` または `GOOGLE_SHEETS_BEARER_TOKEN` が未設定なら、監査不能ではなく重大異常として扱う。
 
 ---
 
