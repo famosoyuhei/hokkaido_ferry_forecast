@@ -45,3 +45,21 @@ jobs:
           echo "HTTP $http_code"
           echo "$body" | python3 -m json.tool || echo "$body"
           test "$http_code" = "200"
+
+      - name: Export accuracy payload
+        run: |
+          set -euo pipefail
+          response=$(curl -sS -w "\n%{http_code}" --max-time 180 \
+            -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+            "https://web-production-a628.up.railway.app/admin/export-accuracy-data?days=90")
+          http_code=$(echo "$response" | tail -n 1)
+          body=$(echo "$response" | head -n -1)
+          echo "HTTP $http_code"
+          test "$http_code" = "200"
+          echo "$body" | python3 -m json.tool > accuracy-export.json
+
+      - name: Upload accuracy export artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: accuracy-export
+          path: accuracy-export.json
