@@ -1,0 +1,58 @@
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	﻿2026-06-10T23:55:45.3540213Z Current runner version: '2.335.1'
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3563409Z ##[group]Runner Image Provisioner
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3564254Z Hosted Compute Agent
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3564900Z Version: 20260527.539
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3565543Z Commit: a891dd388383b896fa6ac04a82c0b75cec981078
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3566276Z Build Date: 2026-05-27T21:39:57Z
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3567037Z Worker ID: {79804018-7ef1-4524-84c2-0a949addf17f}
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3567735Z Azure Region: westus
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3568318Z ##[endgroup]
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3570001Z ##[group]Operating System
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3570640Z Ubuntu
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3571265Z 24.04.4
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3571799Z LTS
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3572337Z ##[endgroup]
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3572894Z ##[group]Runner Image
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3573480Z Image: ubuntu-24.04
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3574109Z Version: 20260607.184.1
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3575334Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260607.184/images/ubuntu/Ubuntu2404-Readme.md
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3576901Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260607.184
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3577873Z ##[endgroup]
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3579331Z ##[group]GITHUB_TOKEN Permissions
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3581368Z Contents: read
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3582054Z Metadata: read
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3582647Z Packages: read
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3583249Z ##[endgroup]
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3585761Z Secret source: Actions
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3586642Z Prepare workflow directory
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.3912387Z Prepare all required actions
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4052266Z Complete job name: Run Hindcast Accuracy Tracking
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4852948Z ##[group]Run echo "Running hindcast accuracy tracking..."
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4854757Z ^[[36;1mecho "Running hindcast accuracy tracking..."^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4856037Z ^[[36;1mMAX_RETRIES=3^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4857222Z ^[[36;1mRETRY_DELAY=30^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4858501Z ^[[36;1mfor i in $(seq 1 $MAX_RETRIES); do^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4860309Z ^[[36;1m  response=$(curl -s -w "\n%{http_code}" --max-time 120 \^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4862924Z ^[[36;1m    -H "X-Admin-Token: ***" \^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4864686Z ^[[36;1m    "https://web-production-a628.up.railway.app/admin/run-accuracy-only")^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4866621Z ^[[36;1m  http_code=$(echo "$response" | tail -n 1)^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4867905Z ^[[36;1m  body=$(echo "$response" | head -n -1)^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4869706Z ^[[36;1m  echo "Attempt $i/$MAX_RETRIES - HTTP Status: $http_code"^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4871209Z ^[[36;1m  if [ "$http_code" = "200" ]; then^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4872794Z ^[[36;1m    echo "Accuracy tracking successful"^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4877351Z ^[[36;1m    echo "$body" | python3 -c "import sys,json;d=json.load(sys.stdin);r=d.get('result',{});print('  Status:',d.get('status','?'));r and print('  Accuracy:',r.get('accuracy_rate','?'),'%  P:',round(r.get('precision',0),3),'R:',round(r.get('recall',0),3),'F1:',round(r.get('f1_score',0),3));r.get('is_likely_maintenance') and print('  *** Maintenance day — P/R/F1 excluded ***')" 2>/dev/null || true^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4881913Z ^[[36;1m    exit 0^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4883052Z ^[[36;1m  fi^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4884343Z ^[[36;1m  echo "Failed (status $http_code). Retrying in ${RETRY_DELAY}s..."^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4885959Z ^[[36;1m  sleep $RETRY_DELAY^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4887047Z ^[[36;1mdone^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4888095Z ^[[36;1mecho "Failed after $MAX_RETRIES attempts"^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.4889561Z ^[[36;1mexit 1^[[0m
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.5542849Z shell: /usr/bin/bash -e {0}
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.5544469Z ##[endgroup]
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:45.5775768Z Running hindcast accuracy tracking...
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:49.7638035Z Attempt 1/3 - HTTP Status: 200
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:49.7638512Z Accuracy tracking successful
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:49.7822092Z   Status: success
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:49.7822704Z   Accuracy: 100.0 %  P: 0.0 R: 0.0 F1: 0.0
+Run Hindcast Accuracy Tracking	UNKNOWN STEP	2026-06-10T23:55:49.7989392Z Cleaning up orphan processes

@@ -1,0 +1,189 @@
+{
+  "ferry_routes": {
+    "wakkanai_oshidomari": {
+      "route_name": "稚内 - 鴛泊",
+      "departure": {
+        "port": "稚内港",
+        "lat": 45.4094,
+        "lon": 141.6739,
+        "prefecture": "北海道",
+        "city": "稚内市"
+      },
+      "arrival": {
+        "port": "鴛泊港", 
+        "lat": 45.2398,
+        "lon": 141.2042,
+        "prefecture": "北海道",
+        "city": "利尻富士町",
+        "island": "利尻島"
+      },
+      "route_info": {
+        "distance_km": 52.3,
+        "typical_duration_min": 100,
+        "ferry_company": "ハートランドフェリー",
+        "seasonal_schedule": {
+          "summer": {"daily_services": 4, "first_departure": "06:00", "last_departure": "17:30"},
+          "winter": {"daily_services": 2, "first_departure": "08:00", "last_departure": "15:00"}
+        },
+        "winter_suspension_months": [],
+        "rough_weather_threshold": {
+          "wind_speed_ms": 15.0,
+          "wave_height_m": 3.0,
+          "visibility_km": 1.0
+        }
+      }
+    },
+    "wakkanai_kutsugata": {
+      "route_name": "稚内 - 沓形",
+      "departure": {
+        "port": "稚内港",
+        "lat": 45.4094,
+        "lon": 141.6739,
+        "prefecture": "北海道",
+        "city": "稚内市"
+      },
+      "arrival": {
+        "port": "沓形港",
+        "lat": 45.2480,
+        "lon": 141.2198,
+        "prefecture": "北海道", 
+        "city": "利尻町",
+        "island": "利尻島"
+      },
+      "route_info": {
+        "distance_km": 51.8,
+        "typical_duration_min": 100,
+        "ferry_company": "ハートランドフェリー",
+        "seasonal_schedule": {
+          "summer": {"daily_services": 3, "first_departure": "07:30", "last_departure": "16:30"},
+          "winter": {"daily_services": 2, "first_departure": "09:00", "last_departure": "14:30"}
+        },
+        "winter_suspension_months": [],
+        "rough_weather_threshold": {
+          "wind_speed_ms": 15.0,
+          "wave_height_m": 3.0,
+          "visibility_km": 1.0
+        }
+      }
+    },
+    "wakkanai_kafuka": {
+      "route_name": "稚内 - 香深",
+      "departure": {
+        "port": "稚内港",
+        "lat": 45.4094,
+        "lon": 141.6739,
+        "prefecture": "北海道",
+        "city": "稚内市"
+      },
+      "arrival": {
+        "port": "香深港",
+        "lat": 45.3456,
+        "lon": 141.0311,
+        "prefecture": "北海道",
+        "city": "礼文町", 
+        "island": "礼文島"
+      },
+      "route_info": {
+        "distance_km": 38.2,
+        "typical_duration_min": 55,
+        "ferry_company": "ハートランドフェリー",
+        "seasonal_schedule": {
+          "summer": {"daily_services": 5, "first_departure": "06:30", "last_departure": "18:00"},
+          "winter": {"daily_services": 3, "first_departure": "08:30", "last_departure": "15:30"}
+        },
+        "winter_suspension_months": [],
+        "rough_weather_threshold": {
+          "wind_speed_ms": 12.0,
+          "wave_height_m": 2.5,
+          "visibility_km": 1.2
+        }
+      }
+    }
+  },
+  "weather_monitoring_points": [
+    {
+      "point_id": "wakkanai_harbor",
+      "name": "稚内港",
+      "lat": 45.4094,
+      "lon": 141.6739,
+      "elevation_m": 5,
+      "priority": 1
+    },
+    {
+      "point_id": "rishiri_strait",
+      "name": "利尻海峡中央",
+      "lat": 45.325,
+      "lon": 141.44,
+      "elevation_m": 0,
+      "priority": 1
+    },
+    {
+      "point_id": "rebun_strait", 
+      "name": "礼文海峡中央",
+      "lat": 45.375,
+      "lon": 141.35,
+      "elevation_m": 0,
+      "priority": 1
+    },
+    {
+      "point_id": "oshidomari_harbor",
+      "name": "鴛泊港",
+      "lat": 45.2398,
+      "lon": 141.2042,
+      "elevation_m": 3,
+      "priority": 2
+    },
+    {
+      "point_id": "kutsugata_harbor",
+      "name": "沓形港",
+      "lat": 45.2480,
+      "lon": 141.2198,
+      "elevation_m": 8,
+      "priority": 2
+    },
+    {
+      "point_id": "kafuka_harbor",
+      "name": "香深港",
+      "lat": 45.3456,
+      "lon": 141.0311,
+      "elevation_m": 12,
+      "priority": 2
+    }
+  ],
+  "cancellation_criteria": {
+    "general": {
+      "wind_speed_threshold_ms": 15.0,
+      "wave_height_threshold_m": 3.0,
+      "visibility_threshold_km": 0.5,
+      "temperature_threshold_c": -15.0
+    },
+    "winter_specific": {
+      "enhanced_wind_threshold_ms": 12.0,
+      "snow_intensity_threshold_mmh": 10.0,
+      "sea_ice_alert_distance_km": 10.0,
+      "ship_icing_temperature_c": -10.0
+    },
+    "route_specific": {
+      "wakkanai_kafuka": {
+        "wind_threshold_reduction": 0.8,
+        "comment": "最短航路のため若干緩和"
+      },
+      "wakkanai_oshidomari": {
+        "wind_threshold_factor": 1.0,
+        "comment": "標準基準"
+      },
+      "wakkanai_kutsugata": {
+        "wind_threshold_factor": 1.1,
+        "comment": "港湾条件により若干厳格"
+      }
+    }
+  },
+  "forecast_settings": {
+    "update_interval_minutes": 60,
+    "forecast_horizon_hours": 72,
+    "early_warning_hours": 24,
+    "confidence_threshold": 0.7,
+    "winter_months": [11, 12, 1, 2, 3],
+    "peak_winter_months": [1, 2]
+  }
+}

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}システム情報 - 北海道フェリー予測システム{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2>ℹ️ システム情報</h2>
+        <p class="text-muted">北海道フェリー予測システムについて</p>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">🚢 システム概要</h5>
+    </div>
+    <div class="card-body">
+        <p>北海道フェリー予測システムは、稚内⇔利尻島・礼文島間のフェリー運航状況を予測するシステムです。</p>
+        <ul>
+            <li>気象条件を分析して運航リスクを評価</li>
+            <li>データ蓄積により予測精度が段階的に向上</li>
+            <li>冬季の厳しい条件（流氷・降雪・低温）に特化</li>
+        </ul>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">🎯 対象航路</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <h6>稚内 ⇔ 鴛泊</h6>
+                <small class="text-muted">利尻島（鴛泊港）</small>
+            </div>
+            <div class="col-md-4">
+                <h6>稚内 ⇔ 沓形</h6>
+                <small class="text-muted">利尻島（沓形港）</small>
+            </div>
+            <div class="col-md-4">
+                <h6>稚内 ⇔ 香深</h6>
+                <small class="text-muted">礼文島（香深港）</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">⚡ 予測精度の進化</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h6 class="text-muted">初期段階</h6>
+                    <p class="h4">0-49件</p>
+                    <small>気象条件ルールベース</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h6 class="text-primary">学習段階</h6>
+                    <p class="h4">50-199件</p>
+                    <small>ルール + 基本機械学習</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h6 class="text-success">成熟段階</h6>
+                    <p class="h4">200-499件</p>
+                    <small>ハイブリッド予測</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h6 class="text-warning">完成段階</h6>
+                    <p class="h4">500件+</p>
+                    <small>高精度機械学習</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">🌤️ 分析要素</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>基本気象要素</h6>
+                <ul>
+                    <li>💨 風速・風向</li>
+                    <li>🌊 波高予報</li>
+                    <li>👁️ 視界（霧・降雪）</li>
+                    <li>🌡️ 気温</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>冬季特化要素</h6>
+                <ul>
+                    <li>❄️ 流氷情報</li>
+                    <li>🌨️ 降雪・吹雪</li>
+                    <li>🧊 船体凍結リスク</li>
+                    <li>⛄ 港湾設備凍結</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">📱 モバイル対応</h5>
+    </div>
+    <div class="card-body">
+        <p>このWebアプリはスマートフォン・タブレットに最適化されています。</p>
+        <ul>
+            <li>📱 レスポンシブデザイン</li>
+            <li>⚡ 軽量・高速読み込み</li>
+            <li>🔄 リアルタイム更新</li>
+            <li>📶 オフライン対応（予定）</li>
+        </ul>
+        <p><small class="text-muted">ホーム画面に追加してアプリのように使用できます。</small></p>
+    </div>
+</div>
+{% endblock %}

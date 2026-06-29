@@ -1,0 +1,59 @@
+{
+  "name": "北海道フェリー運航予報",
+  "short_name": "フェリー予報",
+  "description": "稚内⇔利尻・礼文島 7日間欠航リスク予測アプリ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#667eea",
+  "theme_color": "#667eea",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/static/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["travel", "weather"],
+  "screenshots": [
+    {
+      "src": "/static/screenshot.png",
+      "sizes": "540x720",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "今日の予報",
+      "short_name": "今日",
+      "description": "本日の航路別予報を表示",
+      "url": "/#today",
+      "icons": [
+        {
+          "src": "/static/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "7日間予報",
+      "short_name": "週間予報",
+      "description": "7日間の欠航リスク予測",
+      "url": "/#forecast",
+      "icons": [
+        {
+          "src": "/static/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

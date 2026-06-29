@@ -1,0 +1,3781 @@
+{
+  "generated_at": "2025-08-31T08:57:23.438244",
+  "forecast_period": "7_days",
+  "total_days": 7,
+  "forecast_data": {
+    "2025-08-31": {
+      "date": "2025-08-31",
+      "date_display": "08月31日",
+      "weekday": "日",
+      "services": [
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "06:30",
+          "arrival_time": "08:25",
+          "service_no": "1",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 16.1,
+            "wave_height": 0.7,
+            "visibility": 8.6,
+            "temperature": 14.9,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 11.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437221",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "07:15",
+          "arrival_time": "08:55",
+          "service_no": "1",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 20.4,
+            "wave_height": 4.2,
+            "visibility": 9.1,
+            "temperature": 16.5,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 60,
+            "risk_level": "Critical",
+            "risk_color": "danger",
+            "risk_factors": [
+              "風やや強",
+              "高波"
+            ],
+            "is_likely_cancelled": true
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437151",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "08:25",
+          "arrival_time": "10:05",
+          "service_no": "1",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 5.8,
+            "wave_height": 1.6,
+            "visibility": 12.7,
+            "temperature": 13.1,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437194",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "08:55",
+          "arrival_time": "10:50",
+          "service_no": "1",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 6.5,
+            "wave_height": 3.3,
+            "visibility": 6.5,
+            "temperature": 23.6,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 22.0,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "波やや高"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437245",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "oshidomari_kafuka",
+          "route_name": "鴛泊→香深",
+          "departure_port": "鴛泊",
+          "arrival_port": "香深",
+          "departure_time": "09:30",
+          "arrival_time": "10:15",
+          "service_no": "1",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 11.0,
+            "wave_height": 1.3,
+            "visibility": 2.9,
+            "temperature": 25.5,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437272",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "10:30",
+          "arrival_time": "12:25",
+          "service_no": "2",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 11.2,
+            "wave_height": 4.0,
+            "visibility": 2.4,
+            "temperature": 19.8,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 22.0,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "波やや高"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437229",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "kafuka_oshidomari",
+          "route_name": "香深→鴛泊",
+          "departure_port": "香深",
+          "arrival_port": "鴛泊",
+          "departure_time": "10:40",
+          "arrival_time": "11:25",
+          "service_no": "1",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 11.1,
+            "wave_height": 3.9,
+            "visibility": 7.5,
+            "temperature": 13.2,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 19.8,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [
+              "波やや高"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437288",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "11:15",
+          "arrival_time": "12:55",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 5.4,
+            "wave_height": 3.1,
+            "visibility": 9.3,
+            "temperature": 26.8,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 20,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "波やや高"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437169",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "12:05",
+          "arrival_time": "13:45",
+          "service_no": "2",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 14.9,
+            "wave_height": 3.2,
+            "visibility": 10.2,
+            "temperature": 21.7,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 20,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "波やや高"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437203",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "oshidomari_kafuka",
+          "route_name": "鴛泊→香深",
+          "departure_port": "鴛泊",
+          "arrival_port": "香深",
+          "departure_time": "13:15",
+          "arrival_time": "14:00",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 20.6,
+            "wave_height": 2.2,
+            "visibility": 6.5,
+            "temperature": 19.4,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 24.750000000000004,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "風やや強"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437280",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "wakkanai_kutsugata",
+          "route_name": "稚内→沓形",
+          "departure_port": "稚内",
+          "arrival_port": "沓形",
+          "departure_time": "13:30",
+          "arrival_time": "15:10",
+          "service_no": "1",
+          "vessel": "季節船",
+          "weather": {
+            "wind_speed": 21.4,
+            "wave_height": 2.4,
+            "visibility": 12.7,
+            "temperature": 19.2,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 25,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "風やや強"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437302",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "14:20",
+          "arrival_time": "16:15",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 20.3,
+            "wave_height": 4.4,
+            "visibility": 13.5,
+            "temperature": 23.2,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 66.0,
+            "risk_level": "Critical",
+            "risk_color": "danger",
+            "risk_factors": [
+              "風やや強",
+              "高波"
+            ],
+            "is_likely_cancelled": true
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437253",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "14:50",
+          "arrival_time": "16:45",
+          "service_no": "3",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 15.5,
+            "wave_height": 4.5,
+            "visibility": 1.6,
+            "temperature": 27.0,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 66.0,
+            "risk_level": "Critical",
+            "risk_color": "danger",
+            "risk_factors": [
+              "高波",
+              "視界やや悪"
+            ],
+            "is_likely_cancelled": true
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437238",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "kafuka_oshidomari",
+          "route_name": "香深→鴛泊",
+          "departure_port": "香深",
+          "arrival_port": "鴛泊",
+          "departure_time": "15:30",
+          "arrival_time": "16:15",
+          "service_no": "2",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 3.8,
+            "wave_height": 1.3,
+            "visibility": 4.3,
+            "temperature": 21.7,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437295",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "kutsugata_wakkanai",
+          "route_name": "沓形→稚内",
+          "departure_port": "沓形",
+          "arrival_port": "稚内",
+          "departure_time": "15:40",
+          "arrival_time": "17:20",
+          "service_no": "1",
+          "vessel": "季節船",
+          "weather": {
+            "wind_speed": 20.2,
+            "wave_height": 1.3,
+            "visibility": 11.1,
+            "temperature": 18.7,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 25,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "風やや強"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437309",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "16:40",
+          "arrival_time": "18:20",
+          "service_no": "3",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 11.9,
+            "wave_height": 2.3,
+            "visibility": 6.8,
+            "temperature": 12.7,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437185",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "16:40",
+          "arrival_time": "18:20",
+          "service_no": "3",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 3.1,
+            "wave_height": 1.4,
+            "visibility": 13.6,
+            "temperature": 16.7,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437211",
+          "forecast_confidence": 100.0
+        },
+        {
+          "date": "2025-08-31",
+          "date_display": "08月31日",
+          "weekday": "日",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "17:10",
+          "arrival_time": "19:05",
+          "service_no": "3",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 20.1,
+            "wave_height": 4.4,
+            "visibility": 14.3,
+            "temperature": 12.0,
+            "forecast_confidence": 100.0
+          },
+          "risk": {
+            "risk_score": 66.0,
+            "risk_level": "Critical",
+            "risk_color": "danger",
+            "risk_factors": [
+              "風やや強",
+              "高波"
+            ],
+            "is_likely_cancelled": true
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437262",
+          "forecast_confidence": 100.0
+        }
+      ],
+      "total_services": 18,
+      "high_risk_services": 4,
+      "cancelled_services": 4
+    },
+    "2025-09-01": {
+      "date": "2025-09-01",
+      "date_display": "09月01日",
+      "weekday": "月",
+      "services": [
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "06:30",
+          "arrival_time": "08:25",
+          "service_no": "1",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 14.4,
+            "wave_height": 0.5,
+            "visibility": 7.1,
+            "temperature": 25.5,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 3.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437384",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "07:15",
+          "arrival_time": "08:55",
+          "service_no": "1",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 3.9,
+            "wave_height": 3.2,
+            "visibility": 3.2,
+            "temperature": 20.9,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 23,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "波やや高"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437338",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "08:25",
+          "arrival_time": "10:05",
+          "service_no": "1",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 12.2,
+            "wave_height": 1.9,
+            "visibility": 10.1,
+            "temperature": 18.9,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 3,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437361",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "08:55",
+          "arrival_time": "10:50",
+          "service_no": "1",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 7.4,
+            "wave_height": 2.3,
+            "visibility": 13.5,
+            "temperature": 21.9,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 3.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437409",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "oshidomari_kafuka",
+          "route_name": "鴛泊→香深",
+          "departure_port": "鴛泊",
+          "arrival_port": "香深",
+          "departure_time": "09:30",
+          "arrival_time": "10:15",
+          "service_no": "1",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 13.4,
+            "wave_height": 1.9,
+            "visibility": 9.8,
+            "temperature": 9.2,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 3.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437431",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "10:30",
+          "arrival_time": "12:25",
+          "service_no": "2",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 5.4,
+            "wave_height": 2.3,
+            "visibility": 10.7,
+            "temperature": 23.0,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 3.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437392",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "kafuka_oshidomari",
+          "route_name": "香深→鴛泊",
+          "departure_port": "香深",
+          "arrival_port": "鴛泊",
+          "departure_time": "10:40",
+          "arrival_time": "11:25",
+          "service_no": "1",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 5.3,
+            "wave_height": 2.1,
+            "visibility": 4.8,
+            "temperature": 21.2,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 3.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437446",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "11:15",
+          "arrival_time": "12:55",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 10.0,
+            "wave_height": 1.6,
+            "visibility": 14.9,
+            "temperature": 12.3,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 3,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437346",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "12:05",
+          "arrival_time": "13:45",
+          "service_no": "2",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 14.3,
+            "wave_height": 2.3,
+            "visibility": 7.3,
+            "temperature": 15.5,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 3,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437368",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "oshidomari_kafuka",
+          "route_name": "鴛泊→香深",
+          "departure_port": "鴛泊",
+          "arrival_port": "香深",
+          "departure_time": "13:15",
+          "arrival_time": "14:00",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 3.1,
+            "wave_height": 1.7,
+            "visibility": 7.4,
+            "temperature": 20.2,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 3.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437438",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "wakkanai_kutsugata",
+          "route_name": "稚内→沓形",
+          "departure_port": "稚内",
+          "arrival_port": "沓形",
+          "departure_time": "13:30",
+          "arrival_time": "15:10",
+          "service_no": "1",
+          "vessel": "季節船",
+          "weather": {
+            "wind_speed": 10.2,
+            "wave_height": 2.7,
+            "visibility": 2.8,
+            "temperature": 20.9,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 13,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437460",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "14:20",
+          "arrival_time": "16:15",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 4.3,
+            "wave_height": 3.3,
+            "visibility": 11.8,
+            "temperature": 24.8,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 25.0,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "波やや高"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437417",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "14:50",
+          "arrival_time": "16:45",
+          "service_no": "3",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 14.9,
+            "wave_height": 1.8,
+            "visibility": 12.7,
+            "temperature": 14.9,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 3.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437400",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "kafuka_oshidomari",
+          "route_name": "香深→鴛泊",
+          "departure_port": "香深",
+          "arrival_port": "鴛泊",
+          "departure_time": "15:30",
+          "arrival_time": "16:15",
+          "service_no": "2",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 4.6,
+            "wave_height": 1.9,
+            "visibility": 6.6,
+            "temperature": 23.8,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 3.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437453",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "kutsugata_wakkanai",
+          "route_name": "沓形→稚内",
+          "departure_port": "沓形",
+          "arrival_port": "稚内",
+          "departure_time": "15:40",
+          "arrival_time": "17:20",
+          "service_no": "1",
+          "vessel": "季節船",
+          "weather": {
+            "wind_speed": 19.0,
+            "wave_height": 1.3,
+            "visibility": 13.2,
+            "temperature": 26.8,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 28,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "風やや強"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437469",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "16:40",
+          "arrival_time": "18:20",
+          "service_no": "3",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 10.3,
+            "wave_height": 3.9,
+            "visibility": 5.1,
+            "temperature": 17.6,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 23,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "波やや高"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437353",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "16:40",
+          "arrival_time": "18:20",
+          "service_no": "3",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 7.3,
+            "wave_height": 1.3,
+            "visibility": 10.4,
+            "temperature": 13.0,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 3,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437375",
+          "forecast_confidence": 90.0
+        },
+        {
+          "date": "2025-09-01",
+          "date_display": "09月01日",
+          "weekday": "月",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "17:10",
+          "arrival_time": "19:05",
+          "service_no": "3",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 10.2,
+            "wave_height": 0.6,
+            "visibility": 6.3,
+            "temperature": 19.9,
+            "forecast_confidence": 90.0
+          },
+          "risk": {
+            "risk_score": 3.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437424",
+          "forecast_confidence": 90.0
+        }
+      ],
+      "total_services": 18,
+      "high_risk_services": 0,
+      "cancelled_services": 0
+    },
+    "2025-09-02": {
+      "date": "2025-09-02",
+      "date_display": "09月02日",
+      "weekday": "火",
+      "services": [
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "06:30",
+          "arrival_time": "08:25",
+          "service_no": "1",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 7.5,
+            "wave_height": 1.0,
+            "visibility": 14.4,
+            "temperature": 12.6,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437537",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "07:15",
+          "arrival_time": "08:55",
+          "service_no": "1",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 12.0,
+            "wave_height": 3.0,
+            "visibility": 13.8,
+            "temperature": 19.9,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 16,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437494",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "08:25",
+          "arrival_time": "10:05",
+          "service_no": "1",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 3.3,
+            "wave_height": 2.2,
+            "visibility": 12.2,
+            "temperature": 25.1,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437515",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "08:55",
+          "arrival_time": "10:50",
+          "service_no": "1",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 4.7,
+            "wave_height": 0.9,
+            "visibility": 3.8,
+            "temperature": 21.9,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437560",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "oshidomari_kafuka",
+          "route_name": "鴛泊→香深",
+          "departure_port": "鴛泊",
+          "arrival_port": "香深",
+          "departure_time": "09:30",
+          "arrival_time": "10:15",
+          "service_no": "1",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 7.5,
+            "wave_height": 0.4,
+            "visibility": 6.2,
+            "temperature": 11.1,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437584",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "10:30",
+          "arrival_time": "12:25",
+          "service_no": "2",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 8.8,
+            "wave_height": 2.4,
+            "visibility": 2.7,
+            "temperature": 17.1,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437546",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "kafuka_oshidomari",
+          "route_name": "香深→鴛泊",
+          "departure_port": "香深",
+          "arrival_port": "鴛泊",
+          "departure_time": "10:40",
+          "arrival_time": "11:25",
+          "service_no": "1",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 11.0,
+            "wave_height": 1.9,
+            "visibility": 4.0,
+            "temperature": 25.0,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437598",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "11:15",
+          "arrival_time": "12:55",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 8.8,
+            "wave_height": 1.6,
+            "visibility": 6.7,
+            "temperature": 12.4,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437501",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "12:05",
+          "arrival_time": "13:45",
+          "service_no": "2",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 7.6,
+            "wave_height": 3.2,
+            "visibility": 3.4,
+            "temperature": 15.8,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 26,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "波やや高"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437522",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "oshidomari_kafuka",
+          "route_name": "鴛泊→香深",
+          "departure_port": "鴛泊",
+          "arrival_port": "香深",
+          "departure_time": "13:15",
+          "arrival_time": "14:00",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 11.1,
+            "wave_height": 3.0,
+            "visibility": 1.6,
+            "temperature": 19.7,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 30.750000000000004,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "視界やや悪"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437591",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "wakkanai_kutsugata",
+          "route_name": "稚内→沓形",
+          "departure_port": "稚内",
+          "arrival_port": "沓形",
+          "departure_time": "13:30",
+          "arrival_time": "15:10",
+          "service_no": "1",
+          "vessel": "季節船",
+          "weather": {
+            "wind_speed": 3.5,
+            "wave_height": 1.9,
+            "visibility": 14.0,
+            "temperature": 14.4,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437614",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "14:20",
+          "arrival_time": "16:15",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 4.7,
+            "wave_height": 0.7,
+            "visibility": 5.9,
+            "temperature": 27.1,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437570",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "14:50",
+          "arrival_time": "16:45",
+          "service_no": "3",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 12.1,
+            "wave_height": 2.0,
+            "visibility": 9.5,
+            "temperature": 20.9,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437553",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "kafuka_oshidomari",
+          "route_name": "香深→鴛泊",
+          "departure_port": "香深",
+          "arrival_port": "鴛泊",
+          "departure_time": "15:30",
+          "arrival_time": "16:15",
+          "service_no": "2",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 4.0,
+            "wave_height": 0.6,
+            "visibility": 12.5,
+            "temperature": 17.8,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437605",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "kutsugata_wakkanai",
+          "route_name": "沓形→稚内",
+          "departure_port": "沓形",
+          "arrival_port": "稚内",
+          "departure_time": "15:40",
+          "arrival_time": "17:20",
+          "service_no": "1",
+          "vessel": "季節船",
+          "weather": {
+            "wind_speed": 14.8,
+            "wave_height": 2.0,
+            "visibility": 5.7,
+            "temperature": 12.4,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437621",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "16:40",
+          "arrival_time": "18:20",
+          "service_no": "3",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 6.2,
+            "wave_height": 2.2,
+            "visibility": 4.4,
+            "temperature": 19.2,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437508",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "16:40",
+          "arrival_time": "18:20",
+          "service_no": "3",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 3.4,
+            "wave_height": 0.5,
+            "visibility": 5.8,
+            "temperature": 11.8,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437529",
+          "forecast_confidence": 80.0
+        },
+        {
+          "date": "2025-09-02",
+          "date_display": "09月02日",
+          "weekday": "火",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "17:10",
+          "arrival_time": "19:05",
+          "service_no": "3",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 10.8,
+            "wave_height": 2.5,
+            "visibility": 2.9,
+            "temperature": 19.9,
+            "forecast_confidence": 80.0
+          },
+          "risk": {
+            "risk_score": 6.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437577",
+          "forecast_confidence": 80.0
+        }
+      ],
+      "total_services": 18,
+      "high_risk_services": 0,
+      "cancelled_services": 0
+    },
+    "2025-09-03": {
+      "date": "2025-09-03",
+      "date_display": "09月03日",
+      "weekday": "水",
+      "services": [
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "06:30",
+          "arrival_time": "08:25",
+          "service_no": "1",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 11.7,
+            "wave_height": 2.4,
+            "visibility": 6.7,
+            "temperature": 18.3,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 9.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437687",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "07:15",
+          "arrival_time": "08:55",
+          "service_no": "1",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 12.8,
+            "wave_height": 0.8,
+            "visibility": 8.5,
+            "temperature": 11.2,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 9,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437639",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "08:25",
+          "arrival_time": "10:05",
+          "service_no": "1",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 8.0,
+            "wave_height": 2.0,
+            "visibility": 6.6,
+            "temperature": 21.1,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 9,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437661",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "08:55",
+          "arrival_time": "10:50",
+          "service_no": "1",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 3.7,
+            "wave_height": 0.7,
+            "visibility": 3.3,
+            "temperature": 23.3,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 9.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437710",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "oshidomari_kafuka",
+          "route_name": "鴛泊→香深",
+          "departure_port": "鴛泊",
+          "arrival_port": "香深",
+          "departure_time": "09:30",
+          "arrival_time": "10:15",
+          "service_no": "1",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 12.4,
+            "wave_height": 0.8,
+            "visibility": 14.2,
+            "temperature": 25.4,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 9.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437733",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "10:30",
+          "arrival_time": "12:25",
+          "service_no": "2",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 10.3,
+            "wave_height": 0.4,
+            "visibility": 2.9,
+            "temperature": 27.6,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 9.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437694",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "kafuka_oshidomari",
+          "route_name": "香深→鴛泊",
+          "departure_port": "香深",
+          "arrival_port": "鴛泊",
+          "departure_time": "10:40",
+          "arrival_time": "11:25",
+          "service_no": "1",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 7.0,
+            "wave_height": 3.1,
+            "visibility": 5.1,
+            "temperature": 10.2,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 28.8,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "波やや高"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437748",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "11:15",
+          "arrival_time": "12:55",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 4.4,
+            "wave_height": 1.2,
+            "visibility": 1.1,
+            "temperature": 20.7,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 24,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "視界やや悪"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437646",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "12:05",
+          "arrival_time": "13:45",
+          "service_no": "2",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 6.6,
+            "wave_height": 1.6,
+            "visibility": 7.4,
+            "temperature": 14.9,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 9,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437669",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "oshidomari_kafuka",
+          "route_name": "鴛泊→香深",
+          "departure_port": "鴛泊",
+          "arrival_port": "香深",
+          "departure_time": "13:15",
+          "arrival_time": "14:00",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 6.6,
+            "wave_height": 1.0,
+            "visibility": 8.4,
+            "temperature": 17.4,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 9.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437740",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "wakkanai_kutsugata",
+          "route_name": "稚内→沓形",
+          "departure_port": "稚内",
+          "arrival_port": "沓形",
+          "departure_time": "13:30",
+          "arrival_time": "15:10",
+          "service_no": "1",
+          "vessel": "季節船",
+          "weather": {
+            "wind_speed": 3.7,
+            "wave_height": 1.7,
+            "visibility": 1.4,
+            "temperature": 20.8,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 24,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "視界やや悪"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437762",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "14:20",
+          "arrival_time": "16:15",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 15.3,
+            "wave_height": 1.5,
+            "visibility": 3.6,
+            "temperature": 21.9,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 20.0,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437718",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "14:50",
+          "arrival_time": "16:45",
+          "service_no": "3",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 6.7,
+            "wave_height": 1.5,
+            "visibility": 14.3,
+            "temperature": 9.1,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 9.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437703",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "kafuka_oshidomari",
+          "route_name": "香深→鴛泊",
+          "departure_port": "香深",
+          "arrival_port": "鴛泊",
+          "departure_time": "15:30",
+          "arrival_time": "16:15",
+          "service_no": "2",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 12.1,
+            "wave_height": 3.1,
+            "visibility": 5.4,
+            "temperature": 15.6,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 28.8,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "波やや高"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437755",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "kutsugata_wakkanai",
+          "route_name": "沓形→稚内",
+          "departure_port": "沓形",
+          "arrival_port": "稚内",
+          "departure_time": "15:40",
+          "arrival_time": "17:20",
+          "service_no": "1",
+          "vessel": "季節船",
+          "weather": {
+            "wind_speed": 13.3,
+            "wave_height": 2.3,
+            "visibility": 4.4,
+            "temperature": 13.7,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 9,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437770",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "16:40",
+          "arrival_time": "18:20",
+          "service_no": "3",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 9.7,
+            "wave_height": 2.6,
+            "visibility": 6.1,
+            "temperature": 25.1,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 19,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437653",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "16:40",
+          "arrival_time": "18:20",
+          "service_no": "3",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 10.9,
+            "wave_height": 3.1,
+            "visibility": 4.3,
+            "temperature": 20.7,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 29,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [
+              "波やや高"
+            ],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437678",
+          "forecast_confidence": 70.0
+        },
+        {
+          "date": "2025-09-03",
+          "date_display": "09月03日",
+          "weekday": "水",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "17:10",
+          "arrival_time": "19:05",
+          "service_no": "3",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 4.6,
+            "wave_height": 0.8,
+            "visibility": 9.1,
+            "temperature": 26.7,
+            "forecast_confidence": 70.0
+          },
+          "risk": {
+            "risk_score": 9.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437726",
+          "forecast_confidence": 70.0
+        }
+      ],
+      "total_services": 18,
+      "high_risk_services": 0,
+      "cancelled_services": 0
+    },
+    "2025-09-04": {
+      "date": "2025-09-04",
+      "date_display": "09月04日",
+      "weekday": "木",
+      "services": [
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "06:30",
+          "arrival_time": "08:25",
+          "service_no": "1",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 12.1,
+            "wave_height": 1.0,
+            "visibility": 7.6,
+            "temperature": 23.6,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437836",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "07:15",
+          "arrival_time": "08:55",
+          "service_no": "1",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 2.9,
+            "wave_height": 2.0,
+            "visibility": 2.9,
+            "temperature": 23.8,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437793",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "08:25",
+          "arrival_time": "10:05",
+          "service_no": "1",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 12.7,
+            "wave_height": 2.0,
+            "visibility": 14.8,
+            "temperature": 12.1,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437816",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "08:55",
+          "arrival_time": "10:50",
+          "service_no": "1",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 7.8,
+            "wave_height": 0.5,
+            "visibility": 6.1,
+            "temperature": 12.1,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437861",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "oshidomari_kafuka",
+          "route_name": "鴛泊→香深",
+          "departure_port": "鴛泊",
+          "arrival_port": "香深",
+          "departure_time": "09:30",
+          "arrival_time": "10:15",
+          "service_no": "1",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 2.5,
+            "wave_height": 1.2,
+            "visibility": 3.6,
+            "temperature": 9.3,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437885",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "10:30",
+          "arrival_time": "12:25",
+          "service_no": "2",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 10.8,
+            "wave_height": 2.0,
+            "visibility": 6.1,
+            "temperature": 8.3,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437844",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "kafuka_oshidomari",
+          "route_name": "香深→鴛泊",
+          "departure_port": "香深",
+          "arrival_port": "鴛泊",
+          "departure_time": "10:40",
+          "arrival_time": "11:25",
+          "service_no": "1",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 4.4,
+            "wave_height": 0.7,
+            "visibility": 11.2,
+            "temperature": 9.4,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437900",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "11:15",
+          "arrival_time": "12:55",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 12.1,
+            "wave_height": 0.8,
+            "visibility": 5.8,
+            "temperature": 21.8,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437800",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "12:05",
+          "arrival_time": "13:45",
+          "service_no": "2",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 5.4,
+            "wave_height": 2.6,
+            "visibility": 10.3,
+            "temperature": 13.3,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 22,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437822",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "oshidomari_kafuka",
+          "route_name": "鴛泊→香深",
+          "departure_port": "鴛泊",
+          "arrival_port": "香深",
+          "departure_time": "13:15",
+          "arrival_time": "14:00",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 4.7,
+            "wave_height": 0.4,
+            "visibility": 13.0,
+            "temperature": 25.6,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437893",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "wakkanai_kutsugata",
+          "route_name": "稚内→沓形",
+          "departure_port": "稚内",
+          "arrival_port": "沓形",
+          "departure_time": "13:30",
+          "arrival_time": "15:10",
+          "service_no": "1",
+          "vessel": "季節船",
+          "weather": {
+            "wind_speed": 4.3,
+            "wave_height": 2.7,
+            "visibility": 8.4,
+            "temperature": 24.8,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 22,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437914",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "14:20",
+          "arrival_time": "16:15",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 4.2,
+            "wave_height": 0.5,
+            "visibility": 14.1,
+            "temperature": 19.0,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437870",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "14:50",
+          "arrival_time": "16:45",
+          "service_no": "3",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 12.3,
+            "wave_height": 1.0,
+            "visibility": 11.1,
+            "temperature": 19.2,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437852",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "kafuka_oshidomari",
+          "route_name": "香深→鴛泊",
+          "departure_port": "香深",
+          "arrival_port": "鴛泊",
+          "departure_time": "15:30",
+          "arrival_time": "16:15",
+          "service_no": "2",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 6.4,
+            "wave_height": 2.3,
+            "visibility": 13.2,
+            "temperature": 8.8,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437907",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "kutsugata_wakkanai",
+          "route_name": "沓形→稚内",
+          "departure_port": "沓形",
+          "arrival_port": "稚内",
+          "departure_time": "15:40",
+          "arrival_time": "17:20",
+          "service_no": "1",
+          "vessel": "季節船",
+          "weather": {
+            "wind_speed": 8.3,
+            "wave_height": 2.5,
+            "visibility": 7.2,
+            "temperature": 8.1,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437922",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "16:40",
+          "arrival_time": "18:20",
+          "service_no": "3",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 8.1,
+            "wave_height": 2.6,
+            "visibility": 14.2,
+            "temperature": 21.9,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 22,
+            "risk_level": "Medium",
+            "risk_color": "info",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437807",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "16:40",
+          "arrival_time": "18:20",
+          "service_no": "3",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 3.4,
+            "wave_height": 1.2,
+            "visibility": 14.6,
+            "temperature": 19.0,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437829",
+          "forecast_confidence": 60.0
+        },
+        {
+          "date": "2025-09-04",
+          "date_display": "09月04日",
+          "weekday": "木",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "17:10",
+          "arrival_time": "19:05",
+          "service_no": "3",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 4.0,
+            "wave_height": 0.3,
+            "visibility": 9.3,
+            "temperature": 14.5,
+            "forecast_confidence": 60.0
+          },
+          "risk": {
+            "risk_score": 12.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437878",
+          "forecast_confidence": 60.0
+        }
+      ],
+      "total_services": 18,
+      "high_risk_services": 0,
+      "cancelled_services": 0
+    },
+    "2025-09-05": {
+      "date": "2025-09-05",
+      "date_display": "09月05日",
+      "weekday": "金",
+      "services": [
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "06:30",
+          "arrival_time": "08:25",
+          "service_no": "1",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 10.1,
+            "wave_height": 0.7,
+            "visibility": 5.4,
+            "temperature": 14.1,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437988",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "07:15",
+          "arrival_time": "08:55",
+          "service_no": "1",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 3.7,
+            "wave_height": 0.4,
+            "visibility": 7.7,
+            "temperature": 17.3,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437942",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "08:25",
+          "arrival_time": "10:05",
+          "service_no": "1",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 7.9,
+            "wave_height": 0.4,
+            "visibility": 13.0,
+            "temperature": 19.4,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437966",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "08:55",
+          "arrival_time": "10:50",
+          "service_no": "1",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 9.8,
+            "wave_height": 1.1,
+            "visibility": 14.9,
+            "temperature": 20.7,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438012",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "oshidomari_kafuka",
+          "route_name": "鴛泊→香深",
+          "departure_port": "鴛泊",
+          "arrival_port": "香深",
+          "departure_time": "09:30",
+          "arrival_time": "10:15",
+          "service_no": "1",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 5.7,
+            "wave_height": 1.5,
+            "visibility": 5.7,
+            "temperature": 10.8,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438034",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "10:30",
+          "arrival_time": "12:25",
+          "service_no": "2",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 9.1,
+            "wave_height": 1.1,
+            "visibility": 12.7,
+            "temperature": 9.0,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437996",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "kafuka_oshidomari",
+          "route_name": "香深→鴛泊",
+          "departure_port": "香深",
+          "arrival_port": "鴛泊",
+          "departure_time": "10:40",
+          "arrival_time": "11:25",
+          "service_no": "1",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 10.2,
+            "wave_height": 1.5,
+            "visibility": 5.5,
+            "temperature": 23.1,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438048",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "11:15",
+          "arrival_time": "12:55",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 4.1,
+            "wave_height": 1.7,
+            "visibility": 14.2,
+            "temperature": 23.4,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437950",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "12:05",
+          "arrival_time": "13:45",
+          "service_no": "2",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 6.0,
+            "wave_height": 0.8,
+            "visibility": 2.9,
+            "temperature": 25.1,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437973",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "oshidomari_kafuka",
+          "route_name": "鴛泊→香深",
+          "departure_port": "鴛泊",
+          "arrival_port": "香深",
+          "departure_time": "13:15",
+          "arrival_time": "14:00",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 10.9,
+            "wave_height": 2.0,
+            "visibility": 4.3,
+            "temperature": 18.5,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438041",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "wakkanai_kutsugata",
+          "route_name": "稚内→沓形",
+          "departure_port": "稚内",
+          "arrival_port": "沓形",
+          "departure_time": "13:30",
+          "arrival_time": "15:10",
+          "service_no": "1",
+          "vessel": "季節船",
+          "weather": {
+            "wind_speed": 3.9,
+            "wave_height": 1.9,
+            "visibility": 7.2,
+            "temperature": 22.7,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438063",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "14:20",
+          "arrival_time": "16:15",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 7.3,
+            "wave_height": 2.1,
+            "visibility": 2.7,
+            "temperature": 15.0,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438019",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "14:50",
+          "arrival_time": "16:45",
+          "service_no": "3",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 2.7,
+            "wave_height": 2.0,
+            "visibility": 14.9,
+            "temperature": 21.9,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438005",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "kafuka_oshidomari",
+          "route_name": "香深→鴛泊",
+          "departure_port": "香深",
+          "arrival_port": "鴛泊",
+          "departure_time": "15:30",
+          "arrival_time": "16:15",
+          "service_no": "2",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 4.8,
+            "wave_height": 1.2,
+            "visibility": 11.7,
+            "temperature": 19.4,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438055",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "kutsugata_wakkanai",
+          "route_name": "沓形→稚内",
+          "departure_port": "沓形",
+          "arrival_port": "稚内",
+          "departure_time": "15:40",
+          "arrival_time": "17:20",
+          "service_no": "1",
+          "vessel": "季節船",
+          "weather": {
+            "wind_speed": 10.4,
+            "wave_height": 1.3,
+            "visibility": 4.6,
+            "temperature": 20.7,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438071",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "16:40",
+          "arrival_time": "18:20",
+          "service_no": "3",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 3.0,
+            "wave_height": 1.9,
+            "visibility": 8.1,
+            "temperature": 25.2,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437958",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "16:40",
+          "arrival_time": "18:20",
+          "service_no": "3",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 6.4,
+            "wave_height": 2.1,
+            "visibility": 6.5,
+            "temperature": 24.9,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.437980",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-05",
+          "date_display": "09月05日",
+          "weekday": "金",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "17:10",
+          "arrival_time": "19:05",
+          "service_no": "3",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 9.0,
+            "wave_height": 1.8,
+            "visibility": 3.2,
+            "temperature": 18.8,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 15.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438026",
+          "forecast_confidence": 50.0
+        }
+      ],
+      "total_services": 18,
+      "high_risk_services": 0,
+      "cancelled_services": 0
+    },
+    "2025-09-06": {
+      "date": "2025-09-06",
+      "date_display": "09月06日",
+      "weekday": "土",
+      "services": [
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "06:30",
+          "arrival_time": "08:25",
+          "service_no": "1",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 5.7,
+            "wave_height": 0.4,
+            "visibility": 6.3,
+            "temperature": 25.3,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438135",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "07:15",
+          "arrival_time": "08:55",
+          "service_no": "1",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 3.5,
+            "wave_height": 0.7,
+            "visibility": 6.5,
+            "temperature": 20.7,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438089",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "08:25",
+          "arrival_time": "10:05",
+          "service_no": "1",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 3.5,
+            "wave_height": 1.4,
+            "visibility": 11.9,
+            "temperature": 20.4,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438111",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "08:55",
+          "arrival_time": "10:50",
+          "service_no": "1",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 10.7,
+            "wave_height": 2.1,
+            "visibility": 8.2,
+            "temperature": 8.1,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438158",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "oshidomari_kafuka",
+          "route_name": "鴛泊→香深",
+          "departure_port": "鴛泊",
+          "arrival_port": "香深",
+          "departure_time": "09:30",
+          "arrival_time": "10:15",
+          "service_no": "1",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 2.0,
+            "wave_height": 1.2,
+            "visibility": 12.6,
+            "temperature": 12.1,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438181",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "10:30",
+          "arrival_time": "12:25",
+          "service_no": "2",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 4.6,
+            "wave_height": 1.3,
+            "visibility": 11.5,
+            "temperature": 16.2,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438142",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "kafuka_oshidomari",
+          "route_name": "香深→鴛泊",
+          "departure_port": "香深",
+          "arrival_port": "鴛泊",
+          "departure_time": "10:40",
+          "arrival_time": "11:25",
+          "service_no": "1",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 4.4,
+            "wave_height": 1.2,
+            "visibility": 7.0,
+            "temperature": 18.3,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438198",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "11:15",
+          "arrival_time": "12:55",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 10.4,
+            "wave_height": 1.2,
+            "visibility": 13.2,
+            "temperature": 15.5,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438096",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "12:05",
+          "arrival_time": "13:45",
+          "service_no": "2",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 9.9,
+            "wave_height": 0.5,
+            "visibility": 14.2,
+            "temperature": 8.7,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438119",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "oshidomari_kafuka",
+          "route_name": "鴛泊→香深",
+          "departure_port": "鴛泊",
+          "arrival_port": "香深",
+          "departure_time": "13:15",
+          "arrival_time": "14:00",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 6.7,
+            "wave_height": 2.0,
+            "visibility": 5.9,
+            "temperature": 15.0,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438189",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "wakkanai_kutsugata",
+          "route_name": "稚内→沓形",
+          "departure_port": "稚内",
+          "arrival_port": "沓形",
+          "departure_time": "13:30",
+          "arrival_time": "15:10",
+          "service_no": "1",
+          "vessel": "季節船",
+          "weather": {
+            "wind_speed": 4.7,
+            "wave_height": 1.9,
+            "visibility": 14.8,
+            "temperature": 21.5,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438213",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "14:20",
+          "arrival_time": "16:15",
+          "service_no": "2",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 5.7,
+            "wave_height": 0.9,
+            "visibility": 11.9,
+            "temperature": 19.1,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438165",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "wakkanai_kafuka_outbound",
+          "route_name": "稚内→香深",
+          "departure_port": "稚内",
+          "arrival_port": "香深",
+          "departure_time": "14:50",
+          "arrival_time": "16:45",
+          "service_no": "3",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 5.8,
+            "wave_height": 0.3,
+            "visibility": 14.7,
+            "temperature": 21.3,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438150",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "kafuka_oshidomari",
+          "route_name": "香深→鴛泊",
+          "departure_port": "香深",
+          "arrival_port": "鴛泊",
+          "departure_time": "15:30",
+          "arrival_time": "16:15",
+          "service_no": "2",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 7.9,
+            "wave_height": 2.1,
+            "visibility": 9.6,
+            "temperature": 23.1,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438206",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "kutsugata_wakkanai",
+          "route_name": "沓形→稚内",
+          "departure_port": "沓形",
+          "arrival_port": "稚内",
+          "departure_time": "15:40",
+          "arrival_time": "17:20",
+          "service_no": "1",
+          "vessel": "季節船",
+          "weather": {
+            "wind_speed": 10.2,
+            "wave_height": 0.7,
+            "visibility": 4.6,
+            "temperature": 25.9,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438220",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "wakkanai_oshidomari_outbound",
+          "route_name": "稚内→鴛泊",
+          "departure_port": "稚内",
+          "arrival_port": "鴛泊",
+          "departure_time": "16:40",
+          "arrival_time": "18:20",
+          "service_no": "3",
+          "vessel": "サイプリア宗谷",
+          "weather": {
+            "wind_speed": 10.1,
+            "wave_height": 0.9,
+            "visibility": 2.5,
+            "temperature": 17.5,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438104",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "oshidomari_wakkanai_inbound",
+          "route_name": "鴛泊→稚内",
+          "departure_port": "鴛泊",
+          "arrival_port": "稚内",
+          "departure_time": "16:40",
+          "arrival_time": "18:20",
+          "service_no": "3",
+          "vessel": "ボレアース宗谷",
+          "weather": {
+            "wind_speed": 3.8,
+            "wave_height": 2.2,
+            "visibility": 4.4,
+            "temperature": 24.2,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438126",
+          "forecast_confidence": 50.0
+        },
+        {
+          "date": "2025-09-06",
+          "date_display": "09月06日",
+          "weekday": "土",
+          "route_id": "kafuka_wakkanai_inbound",
+          "route_name": "香深→稚内",
+          "departure_port": "香深",
+          "arrival_port": "稚内",
+          "departure_time": "17:10",
+          "arrival_time": "19:05",
+          "service_no": "3",
+          "vessel": "アマポーラ宗谷",
+          "weather": {
+            "wind_speed": 2.2,
+            "wave_height": 0.7,
+            "visibility": 12.5,
+            "temperature": 19.3,
+            "forecast_confidence": 50.0
+          },
+          "risk": {
+            "risk_score": 18.0,
+            "risk_level": "Low",
+            "risk_color": "success",
+            "risk_factors": [],
+            "is_likely_cancelled": false
+          },
+          "forecast_generated_at": "2025-08-31T08:57:23.438172",
+          "forecast_confidence": 50.0
+        }
+      ],
+      "total_services": 18,
+      "high_risk_services": 0,
+      "cancelled_services": 0
+    }
+  }
+}

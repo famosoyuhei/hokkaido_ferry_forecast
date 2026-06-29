@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ route_name }} - 7日間運航予測詳細</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="{{ route_name }}の7日間運航予測詳細">
+    <meta name="theme-color" content="#667eea">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* ヘッダー */
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.95em;
+            margin-bottom: 15px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .back-button:hover {
+            background: #f0f0f0;
+        }
+
+        .header h1 {
+            font-size: 1.6em;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .header .route-description {
+            color: #7f8c8d;
+            font-size: 0.95em;
+        }
+
+        /* 日別セクション */
+        .day-section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .day-date {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .day-weekday {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-left: 8px;
+        }
+
+        .day-summary {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .risk-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .risk-HIGH {
+            background: #ffe5e5;
+            color: #ff4757;
+        }
+
+        .risk-MEDIUM {
+            background: #fff4e5;
+            color: #ffa502;
+        }
+
+        .risk-LOW {
+            background: #e5f5ff;
+            color: #2e86de;
+        }
+
+        .risk-MINIMAL {
+            background: #e5f5e5;
+            color: #26de81;
+        }
+
+        /* 便カード */
+        .sailing-cards {
+            display: grid;
+            gap: 12px;
+        }
+
+        .sailing-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 16px;
+            border-left: 4px solid #ddd;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .sailing-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .sailing-card.risk-HIGH {
+            border-left-color: #ff4757;
+        }
+
+        .sailing-card.risk-MEDIUM {
+            border-left-color: #ffa502;
+        }
+
+        .sailing-card.risk-LOW {
+            border-left-color: #2e86de;
+        }
+
+        .sailing-card.risk-MINIMAL {
+            border-left-color: #26de81;
+        }
+
+        .sailing-time {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .time-arrow {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        .sailing-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .detail-label {
+            font-size: 0.75em;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+            font-size: 1em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .sailing-recommendation {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        /* 空便メッセージ */
+        .no-sailings {
+            text-align: center;
+            padding: 30px;
+            color: #7f8c8d;
+            font-size: 0.95em;
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 600px) {
+            .day-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .sailing-details {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <div class="header">
+            <a href="/" class="back-button">← トップページに戻る</a>
+            <h1>{{ route_name }}</h1>
+            <p class="route-description">7日間運航予測詳細</p>
+        </div>
+
+        <!-- 日別運航予測 -->
+        {% for day_data in forecast_by_day %}
+        <div class="day-section">
+            <div class="day-header">
+                <div>
+                    <span class="day-date">{{ day_data.date }}</span>
+                    <span class="day-weekday">({{ day_data.weekday }})</span>
+                </div>
+                <div class="day-summary">
+                    <span class="risk-badge risk-{{ day_data.max_risk }}">
+                        {% if day_data.max_risk == 'HIGH' %}🔴 欠航リスク高
+                        {% elif day_data.max_risk == 'MEDIUM' %}🟡 要注意
+                        {% elif day_data.max_risk == 'LOW' %}🔵 低リスク
+                        {% else %}⚪ 良好
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <div class="sailing-cards">
+                {% if day_data.sailings %}
+                    {% for sailing in day_data.sailings %}
+                    <div class="sailing-card risk-{{ sailing.risk_level }}">
+                        <div class="sailing-time">
+                            <span>🚢 {{ sailing.departure }}</span>
+                            <span class="time-arrow">→</span>
+                            <span>{{ sailing.arrival }}</span>
+                        </div>
+
+                        <div class="sailing-details">
+                            <div class="detail-item">
+                                <div class="detail-label">リスクレベル</div>
+                                <div class="detail-value">{{ sailing.risk_level }}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">リスクスコア</div>
+                                <div class="detail-value">{{ sailing.risk_score | round(1) }}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">風速</div>
+                                <div class="detail-value">{{ sailing.wind | round(1) }} m/s</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">波高</div>
+                                <div class="detail-value">{{ sailing.wave | round(1) }} m</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">視程</div>
+                                <div class="detail-value">{{ sailing.visibility | round(1) }} km</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">気温</div>
+                                <div class="detail-value">{{ sailing.temperature | round(1) }}°C</div>
+                            </div>
+                        </div>
+
+                        <div class="sailing-recommendation">
+                            {{ sailing.recommended_action }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-sailings">
+                        この日は運航便がありません
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        // Auto-refresh every 30 minutes
+        setTimeout(() => {
+            location.reload();
+        }, 30 * 60 * 1000);
+    </script>
+</body>
+</html>

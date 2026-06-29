@@ -1,0 +1,42 @@
+name: Scheduled Data Collection
+
+on:
+  schedule:
+    # Weather forecast collection (4 times daily)
+    - cron: '0 20 * * *'  # 05:00 JST (UTC+9)
+    - cron: '0 2 * * *'   # 11:00 JST
+    - cron: '0 8 * * *'   # 17:00 JST
+    - cron: '0 14 * * *'  # 23:00 JST
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  collect-weather-data:
+    runs-on: ubuntu-latest
+    name: Collect Weather Forecast Data
+
+    steps:
+      - name: Trigger weather forecast collection (with retry)
+        run: |
+          echo "Triggering weather forecast collection..."
+          MAX_RETRIES=3
+          RETRY_DELAY=30
+          for i in $(seq 1 $MAX_RETRIES); do
+            response=$(curl -s -w "\n%{http_code}" --max-time 60 \
+              -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+              https://web-production-a628.up.railway.app/admin/collect-data)
+            http_code=$(echo "$response" | tail -n 1)
+            body=$(echo "$response" | head -n -1)
+            echo "Attempt $i/$MAX_RETRIES - HTTP Status: $http_code"
+            if [ "$http_code" = "200" ]; then
+              echo "Weather forecast collection successful"
+              echo "$body"
+              exit 0
+            fi
+            echo "Failed (status $http_code). Retrying in ${RETRY_DELAY}s..."
+            echo "$body"
+            sleep $RETRY_DELAY
+          done
+          echo "Weather forecast collection failed after $MAX_RETRIES attempts"
+          exit 1

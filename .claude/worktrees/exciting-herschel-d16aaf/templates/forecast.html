@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+{% block title %}7日間運航予報 - 北海道フェリー予測システム{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2>🚢 7日間運航予報</h2>
+                <p class="text-muted mb-0">ハートランドフェリー 利尻・礼文航路 (毎日18便)</p>
+            </div>
+            <div>
+                <button class="btn btn-success" onclick="loadForecast()" id="refresh-btn">
+                    <i class="bi bi-arrow-clockwise"></i> 更新
+                </button>
+                <small class="text-muted d-block mt-1" id="last-update">最終更新: --:--</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 日付タブ -->
+<div class="row mb-4">
+    <div class="col-12">
+        <nav>
+            <div class="nav nav-tabs" id="date-tabs" role="tablist">
+                <!-- 日付タブがここに動的生成される -->
+            </div>
+        </nav>
+    </div>
+</div>
+
+<!-- 予報概要 -->
+<div id="forecast-summary" class="row mb-3" style="display:none;">
+    <div class="col-md-3">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                <h6 class="card-title">総便数</h6>
+                <h4 id="total-services" class="text-primary">--</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success bg-opacity-10">
+            <div class="card-body text-center">
+                <h6 class="card-title">正常運航予定</h6>
+                <h4 id="normal-services" class="text-success">--</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning bg-opacity-10">
+            <div class="card-body text-center">
+                <h6 class="card-title">要注意便</h6>
+                <h4 id="warning-services" class="text-warning">--</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger bg-opacity-10">
+            <div class="card-body text-center">
+                <h6 class="card-title">⚠️ 欠航リスク</h6>
+                <h4 id="high-risk-services" class="text-danger">--</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="loading" class="text-center">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">読み込み中...</span>
+    </div>
+    <p class="mt-2">7日間の運航予報データを取得中...</p>
+</div>
+
+<div id="forecast-container">
+    <div class="tab-content" id="date-content">
+        <!-- 各日の予報データがここに読み込まれます -->
+    </div>
+</div>
+
+<script>
+let forecastData = {};
+let currentDate = null;
+let autoRefreshInterval = null;
+
+function loadForecast() {
+    // ローディング表示
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('forecast-summary').style.display = 'none';
+    document.getElementById('forecast-container').innerHTML = '';
+    
+    // 更新ボタン無効化
+    document.getElementById('refresh-btn').disabled = true;
+    
+    fetch('/api/7day_forecast')
+        .then(response => response.json())
+        .then(data => {
+            forecastData = data.forecast_data || {};
+            
+            // 統計情報表示
+            updateSummaryStats();
+            
+            // 日付タブ作成
+            createDateTabs();
+            
+            // 最初の日を表示
+            const dates = Object.keys(forecastData).sort();
+            if (dates.length > 0) {
+                showDateForecast(dates[0]);
+                currentDate = dates[0];
+            }
+            
+            // ローディング終了
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('forecast-summary').style.display = 'block';
+            document.getElementById('forecast-container').style.display = 'block';
+            
+            // 更新時刻表示
+            updateLastUpdateTime();
+        })
+        .catch(error => {
+            console.error('Error loading forecast:', error);
+            document.getElementById('loading').innerHTML = 
+                '<div class="alert alert-danger">予報データの読み込みに失敗しました</div>';
+        })
+        .finally(() => {
+            document.getElementById('refresh-btn').disabled = false;
+        });
+}
+
+function updateSummaryStats() {
+    let totalServices = 0;
+    let warningServices = 0;
+    let highRiskServices = 0;
+    
+    for (const date in forecastData) {
+        const dayData = forecastData[date];
+        totalServices += dayData.services.length;
+        
+        dayData.services.forEach(service => {
+            const riskLevel = service.risk.risk_level;
+            if (riskLevel === 'High' || riskLevel === 'Critical') {
+                highRiskServices++;
+            } else if (riskLevel === 'Medium') {
+                warningServices++;
+            }
+        });
+    }
+    
+    document.getElementById('total-services').textContent = totalServices;
+    document.getElementById('warning-services').textContent = warningServices;
+    document.getElementById('high-risk-services').textContent = highRiskServices;
+}
+
+function createDateTabs() {
+    const dates = Object.keys(forecastData).sort();
+    let tabsHtml = '<ul class="nav nav-tabs mb-3" id="date-tabs">';
+    
+    dates.forEach((date, index) => {
+        const dayData = forecastData[date];
+        const activeClass = index === 0 ? 'active' : '';
+        
+        tabsHtml += `
+            <li class="nav-item">
+                <button class="nav-link ${activeClass}" onclick="showDateForecast('${date}')" 
+                        data-date="${date}">
+                    ${dayData.date_display}
+                    <br>
+                    <small class="text-muted">${dayData.weekday}曜日</small>
+                </button>
+            </li>
+        `;
+    });
+    
+    tabsHtml += '</ul>';
+    document.getElementById('forecast-container').innerHTML = tabsHtml + '<div id="date-content"></div>';
+}
+
+function showDateForecast(date) {
+    currentDate = date;
+    
+    // タブのアクティブ状態更新
+    document.querySelectorAll('#date-tabs .nav-link').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.date === date) {
+            tab.classList.add('active');
+        }
+    });
+    
+    const dayData = forecastData[date];
+    if (!dayData) return;
+    
+    let servicesHtml = '<div class="row g-3">';
+    
+    dayData.services.forEach(service => {
+        const risk = service.risk;
+        const weather = service.weather;
+        const riskScore = Math.round(risk.risk_score);
+        
+        let cardClass = 'border-success';
+        let badgeClass = 'bg-success';
+        let riskIcon = '✓';
+        let alertBanner = '';
+        
+        if (risk.risk_level === 'Critical') {
+            cardClass = 'border-danger';
+            badgeClass = 'bg-danger';
+            riskIcon = '🚫';
+            alertBanner = `
+                <div class="alert alert-danger mb-2 py-2" role="alert">
+                    <strong>⚠️ 欠航リスク極高 (${riskScore}%)</strong>
+                </div>
+            `;
+        } else if (risk.risk_level === 'High') {
+            cardClass = 'border-warning';
+            badgeClass = 'bg-warning';
+            riskIcon = '⚠️';
+            alertBanner = `
+                <div class="alert alert-warning mb-2 py-2" role="alert">
+                    <strong>⚠️ 欠航リスク高 (${riskScore}%)</strong>
+                </div>
+            `;
+        } else if (risk.risk_level === 'Medium') {
+            cardClass = 'border-info';
+            badgeClass = 'bg-info';
+            riskIcon = '⚡';
+        }
+        
+        const riskFactorsText = risk.risk_factors.length > 0 
+            ? risk.risk_factors.join(', ') 
+            : '良好';
+            
+        servicesHtml += `
+            <div class="col-md-6 col-lg-4">
+                <div class="card ${cardClass} h-100">
+                    ${alertBanner}
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <strong>${service.route_name}</strong>
+                        <span class="badge ${badgeClass}">${riskIcon} ${risk.risk_level}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <small class="text-muted">出航</small><br>
+                                <strong>${service.departure_time}</strong>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">到着</small><br>
+                                <strong>${service.arrival_time}</strong>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="small">
+                            <div class="d-flex justify-content-between">
+                                <span>欠航リスク:</span>
+                                <span class="fw-bold">${riskScore}%</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>風速:</span>
+                                <span>${weather.wind_speed}m/s</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>波高:</span>
+                                <span>${weather.wave_height}m</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>視界:</span>
+                                <span>${weather.visibility}km</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>気温:</span>
+                                <span>${weather.temperature}°C</span>
+                            </div>
+                            ${risk.risk_factors.length > 0 ? 
+                                `<div class="mt-2"><small class="text-warning">⚠️ ${riskFactorsText}</small></div>` 
+                                : ''
+                            }
+                        </div>
+                    </div>
+                    <div class="card-footer small text-muted">
+                        ${service.vessel} | 便${service.service_no}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    servicesHtml += '</div>';
+    document.getElementById('date-content').innerHTML = servicesHtml;
+}
+
+function updateLastUpdateTime() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('ja-JP', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    document.getElementById('last-update').textContent = timeString;
+}
+
+// 自動更新設定
+function setupAutoRefresh() {
+    // 5分間隔で自動更新
+    autoRefreshInterval = setInterval(() => {
+        loadForecast();
+    }, 5 * 60 * 1000);
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+}
+
+// 手動更新
+function refreshForecast() {
+    loadForecast();
+}
+
+// ページ読み込み時の初期化
+document.addEventListener('DOMContentLoaded', function() {
+    loadForecast();
+    setupAutoRefresh();
+});
+
+// ページを離れる時の処理
+window.addEventListener('beforeunload', function() {
+    stopAutoRefresh();
+});
+</script>
+</body>
+</html>
+'''
+loadForecast(3);
+</script>
+
+<style>
+.bg-orange {
+    background-color: #fd7e14 !important;
+}
+</style>
+{% endblock %}

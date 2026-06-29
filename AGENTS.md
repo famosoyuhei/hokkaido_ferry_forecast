@@ -1,203 +1,60 @@
-# Hokkaido Ferry Forecast — Codex Agent Guide
+# Hokkaido Ferry Forecast - Agent Guide
 
-**プロジェクト**: 北海道フェリー運航予報システム（稚内⇔利尻島・礼文島）
-**本番URL**: https://web-production-a628.up.railway.app/
-**最終更新**: 2026-05-30
+北海道フェリー運航予報システム（稚内⇔利尻島・礼文島）。
+本番URL: https://web-production-a628.up.railway.app/
 
----
+## Context Loading Policy
 
-## AI社員の定義
+このルートファイルは、全作業で常時読む最小ルールだけを置く。
+詳細は該当ディレクトリの `AGENTS.md` または専門ドキュメントを読む。
 
-各AI社員の詳細なルールは `docs/ai_employees/` を参照。
+- AI社員・自動化仕様: `docs/ai_employees/AGENTS.md`
+- 欠航リサーチ・時刻表JSON: `skills/ferry-cancellation-research/AGENTS.md`
+- GitHub Actions: `.github/AGENTS.md`
+- Flask画面・PWA: `templates/AGENTS.md` と `static/AGENTS.md`
 
-| AI社員 | 定義ファイル | 対応スクリプト |
-|---|---|---|
-| 海上気象予報取得 | `docs/ai_employees/marine_forecast_employee.md` | `weather_forecast_collector.py` |
-| 海上気象実測取得 | `docs/ai_employees/actual_weather_employee.md` | `actual_weather_collector.py` |
-| フェリー運航記録取得 | `docs/ai_employees/ferry_operation_collector_employee.md` | `improved_ferry_collector.py` |
-| 予報精度監査 | `docs/ai_employees/accuracy_auditor_employee.md` | `unified_accuracy_tracker.py` |
-| スプレッドシート全面監査 | `docs/ai_employees/spreadsheet_auditor_employee.md` | `accuracy_sheet_exporter.py` |
-| 永久保存DB・Sheets充填監査 | `docs/ai_employees/accuracy_fill_auditor_employee.md` | `accuracy_fill_auditor.py` |
-| 問題点整理・修正依頼 | `docs/ai_employees/issue_prompt_composer_employee.md` | `issue_prompt_composer.py` |
-| 欠航リサーチスキル | `skills/ferry-cancellation-research/SKILL.md` | — |
+## Always Hard Rules
 
-自動化実行順は `docs/ai_employees/automation_blueprint.md` を参照。
+1. `.db` ファイル、APIキー、シークレットをコミットしない。DBは本番では Railway Volume 管理。
+2. JSTを必ず明示する。Railwayの `datetime.now()` はUTCなので、必要時は `Asia/Tokyo` を使う。
+3. 欠損した風速・波高・視程を `0` で埋めない。NULLとして保存し、精度計算から除外する。
+4. 気象欠航以外（整備運休・季節運休・ダイヤ切り替え）は精度評価に混ぜない。`is_likely_maintenance` で除外する。
+5. 便別運航記録は `ferry_status_enhanced` を使う。旧 `ferry_status` を新規実装で使わない。
+6. 2026-04-05以前のデータは精度計算に使わない。スクレイパーバグで全便欠航として誤記録されている。
+7. モデル閾値はデータ確認後にだけ調整する。誤データでチューニングしない。
 
----
+## Timetable And Routes
 
-## 実行スケジュール（JST）
+- 航路リストは `jst_utils.get_active_routes_on(date_str)` で取得する。ハードコード禁止。
+- 便別時刻は `jst_utils.get_timetable_sailings(route, date_str)` を使う。
+- 時刻表JSONは年ハードコード禁止。`heartland_{year}_timetable.json` + 最新年globフォールバックを使う。
+- 時刻表にない便を欠航・運航どちらとしても記録しない。
+- 2026年の切り替え日をまたぐ処理では必ず当日ダイヤをJSONで確認する。
+  - 2026-04-28: 稚内-鴛泊、稚内-香深が2便から3便へ
+  - 2026-06-01: 夏ダイヤ開始、沓形-香深便が新設
+  - 2026-10-01: 沓形-香深便終了、稚内-香深に鴛泊経由便復活
+  - 2026-11-01: 冬ダイヤ、全航路2便へ
 
-| 時刻 | スクリプト | 目的 |
-|---|---|---|
-| 05:00 | `weather_forecast_collector.py` | 朝の予報更新 |
-| 06:00 | `improved_ferry_collector.py` | 当日運航状況取得 |
-| 06:30 | `actual_weather_collector.py` | 前日実測気象取得 |
-| 07:00 | `unified_accuracy_tracker.py` | 精度監査 |
-| 07:05 | `accuracy_sheet_exporter.py` | スプレッドシート全面監査用データ出力・整合性確認 |
-| 07:20 | `issue_prompt_composer.py` | 問題点整理（異常時のみ出力） |
-| 07:50 | `accuracy_fill_auditor.py` | 永久保存DB・Google Sheetsへの精度検証データ充填確認 |
-| 11:00 | `weather_forecast_collector.py` | 昼の予報更新 |
-| 17:00 | `weather_forecast_collector.py` | 夕の予報更新 |
-| 23:00 | `weather_forecast_collector.py` | 夜の予報更新 |
-
----
-
-## ハードルール（必ず守る）
-
-### データ・セキュリティ
-1. **DBファイルをコミットしない** — `.db` ファイルは Railway Volume で管理。`git ls-files | grep .db` でゼロであることを確認。
-2. **JST を必ず明示する** — `datetime.now()` は Railway では UTC。`datetime.now(pytz.timezone('Asia/Tokyo'))` を使う。
-3. **欠損値を 0 で埋めない** — 風速・波高・視程の欠損は NULL として保存し、精度計算から除外する。
-4. **気象欠航以外を精度評価に混ぜない** — 整備運休・季節運休・ダイヤ切り替えは `is_likely_maintenance` フラグで除外する。
-5. **ferry_status_enhanced を使う** — 便別運航記録は `ferry_status_enhanced`（`ferry_status` は旧テーブル）。
-6. **2026-04-05 以前のデータを精度計算に使わない** — それ以前はスクレイパーのバグで全便欠航と誤記録されている。
-7. **APIキー・シークレットをコミットしない** — `railway.json` は APIキーなしの Public 用。
-8. **モデル閾値はデータ確認後に調整する** — 誤ったデータでのチューニングは逆効果。データの正確性を先に確認する。
-
-### コミット前の必須チェック（2026-05-30 追加）
-9. **Python ファイルを編集したらコミット前に構文確認する**
-   ```bash
-   python -m py_compile <編集したファイル>.py
-   ```
-   ImportError も検知したい場合は `python -c "import <module>"` も実行する。
-
-10. **GitHub Actions の YAML を編集したら PyYAML で検証する**
-    ```bash
-    python -c "import yaml; yaml.safe_load(open('.github/workflows/<file>.yml', encoding='utf-8'))"
-    ```
-    jobs キーと on キー（PyYAML では `True` として扱われる）が存在することを確認する。
-
-11. **GitHub Actions `run: |` ブロックにマルチライン Python を埋め込まない**
-    - インデントされていない行（列0から始まる `import sys` など）がYAML ブロックを壊す。
-    - 単一行 `python3 -c "import sys,json; ..."` にするか、外部スクリプトを呼ぶ。
-
-### Flask/Railway での実装ルール（2026-05-30 追加）
-12. **Flask 内から同一サーバーの HTTP エンドポイントを呼ばない**
-    - `requests.get('https://web-production-a628.up.railway.app/api/...')` を admin エンドポイント内で実行すると gunicorn の単一ワーカーがデッドロックしてタイムアウトする。
-    - 内部チェックは必ず SQLite を直接クエリする。
-
-13. **subprocess でスクリプトを起動するときは `sys.executable` と絶対パスを使う**
-    ```python
-    # ❌ 間違い
-    subprocess.run(['python', 'script.py'])
-    # ✅ 正解
-    import sys, os
-    subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'script.py')])
-    ```
-    `python` コマンドは Railway 環境では venv の Python を指さないことがある。
-
-### Railway デプロイの確認ルール（2026-05-30 追加）
-14. **push 後、最低5分待ってから Railway エンドポイントをテストする**
-    - Railway のビルド・デプロイには通常 2〜5 分かかる。
-    - GitHub Actions のワークフローを即座に手動実行しても、デプロイ前の古いコードが動いている場合がある。
-    - 動作確認前に `/api/stats` 等で Railway が応答していることを確認する。
-
-### 時刻表・航路の統一ルール（2026-05-31 追加）
-15. **航路リストは必ず `jst_utils` の関数で取得する。ハードコード禁止。**
-    ```python
-    # ❌ 禁止: ハードコードされた航路リスト
-    ferry_routes = ['wakkanai_oshidomari', 'wakkanai_kafuka', ...]
-
-    # ✅ 正解: 日付を渡して時刻表から動的取得
-    from jst_utils import get_active_routes_on
-    routes = get_active_routes_on(date_str)   # その日に運航する航路のみ返す
-    ```
-    - `get_active_routes_on(date_str)` は `heartland_{year}_timetable.json` を参照し、
-      夏季限定便（沓形-香深）や便数変化も自動的に反映する。
-    - 複数日をループする場合はキャッシュ変数（`_routes_cache: dict = {}`）を使い、
-      `if date not in _routes_cache: _routes_cache[date] = get_active_routes_on(date)` とする。
-
-16. **時刻表 JSON のロードは年ハードコード禁止。年自動検出＋フォールバックパターンを使う。**
-    ```python
-    # ❌ 禁止: 年を直書き
-    path = ref_dir / 'heartland_2026_timetable.json'
-
-    # ✅ 正解: year 引数＋ glob フォールバック（weather_forecast_collector.py の
-    #          _load_timetable_for_year(year) または jst_utils._load_timetable(year) を参照）
-    path = ref_dir / f'heartland_{year}_timetable.json'
-    if not path.exists():
-        candidates = sorted(ref_dir.glob('heartland_????_timetable.json'), reverse=True)
-        path = candidates[0]   # 最新年にフォールバック
-    ```
-    - `jst_utils` では `get_timetable_sailings(route, date_str)` および
-      `get_active_routes_on(date_str)` として公開済み。新規スクリプトはこれをインポートして使う。
-    - 個別スクリプト内でロードが必要な場合は上記パターンをそのままコピーし、
-      関数名を `_load_timetable_for_year(year: int)` とする。
-
-17. **存在しない航路キーを絶対に使わない。**
-    以下は **禁止ワード** — コード・コメント・テストデータのどこにも書いてはならない。
-    ```
-    wakkanai_kutsugata   （存在しない。稚内-沓形の直行便はない）
-    kutsugata_wakkanai   （同上）
-    ```
-    正しい沓形関連キー: `kutsugata_kafuka` / `kafuka_kutsugata`（夏季 6/1〜9/30 のみ）
-
-18. **コミット前に禁止パターンの混入がないかを grep で確認する。**
-    ```bash
-    # 以下がすべて「0件」であればOK
-    grep -rn "wakkanai_kutsugata\|kutsugata_wakkanai" *.py
-    grep -rn "heartland_20[0-9][0-9]_timetable" *.py   # 年ハードコード
-    grep -rn "_load_2026_timetable\|_TIMETABLE_2026"    *.py
-    grep -rn "ferry_routes\s*=\s*\["                    *.py   # ハードコードリスト
-    ```
-    1件でも出たら修正してからコミットする。
-
----
-
-## データベース
-
-| DB | パス（本番） | 主要テーブル |
-|---|---|---|
-| ferry_weather_forecast.db | `/data/ferry_weather_forecast.db` | `actual_weather`, `cancellation_forecast`, `unified_operation_accuracy`, `unified_daily_summary` |
-| heartland_ferry_real_data.db | `/data/heartland_ferry_real_data.db` | `ferry_status_enhanced` |
-
-ローカルでは `.`（カレントディレクトリ）に保存される。
-`os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')` で切り替え。
-
----
-
-## 対象港・航路キー
+### Valid Ferry Keys
 
 港キー: `wakkanai`, `oshidomari`, `kutsugata`, `kafuka`
 
-航路キー:
+有効な航路キー:
 - `wakkanai_oshidomari` / `oshidomari_wakkanai`
 - `wakkanai_kafuka` / `kafuka_wakkanai`
 - `oshidomari_kafuka` / `kafuka_oshidomari`
-- `kutsugata_kafuka` / `kafuka_kutsugata`（夏季のみ 6/1〜9/30）
+- `kutsugata_kafuka` / `kafuka_kutsugata`（2026-06-01〜2026-09-30のみ）
 
-※ `wakkanai_kutsugata` / `kutsugata_wakkanai` は存在しない（稚内-沓形の直行便なし）
+禁止キー（コード・コメント・テストデータにも書かない）:
+- `wakkanai_kutsugata`
+- `kutsugata_wakkanai`
 
-2026年時刻表（便別出港・到着時刻）の正式データは `skills/ferry-cancellation-research/references/heartland_2026_timetable.json` を参照。
-`memory.md` は人間向け参照用、JSON が機械処理の唯一の正ソース。
+## Ferry Risk Logic
 
----
-
-## 2026年時刻表切り替え日（ハードルール）
-
-以下の日付で便数・出港時刻・運航航路が変わる。**切り替え日をまたぐ処理では必ず JSON で当日ダイヤを確認すること。**
-
-| 切り替え日 | 変化内容 |
-|---|---|
-| **2026-04-28**（4/27→4/28） | 便数増：稚内-鴛泊・稚内-香深が1日2便→3便へ |
-| **2026-06-01**（5/31→6/1） | 夏ダイヤ開始：沓形-香深便（`kutsugata_kafuka` / `kafuka_kutsugata`）が新設、全航路で出港時刻が変わる |
-| **2026-10-01**（9/30→10/1） | 秋ダイヤ：沓形-香深便が終了、稚内-香深に鴛泊経由便が復活 |
-| **2026-11-01**（10/31→11/1） | 冬ダイヤ：全航路が1日2便に減便 |
-
-**必須ルール:**
-
-1. `heartland_2026_timetable.json` の `schedules` を `start_date ≤ 対象日 ≤ end_date` で検索して当日ダイヤを決定する。
-2. 時刻表にない便を欠航・運航どちらとも記録しない。
-3. 沓形-香深便は 2026-06-01〜2026-09-30 以外の日には存在しない。
-4. 切り替え当日の気象収集・精度評価は「新ダイヤ」で行う。
-5. 便数が変わる日に前後で取得件数が違うのは正常。`parser_error` と混同しない。
-
----
-
-## リスクロジック（現行）
+`weather_forecast_collector.py` の `calculate_cancellation_risk()` と
+`unified_accuracy_tracker.py` の `_calc_risk()` は常に同期する。
 
 ```python
-# weather_forecast_collector.py の calculate_cancellation_risk() と同一
 if wind >= 35:   score += 70
 elif wind >= 30: score += 60
 elif wind >= 25: score += 50
@@ -211,159 +68,80 @@ elif wave >= 2.0: score += 15
 
 if vis < 1.0:   score += 20
 elif vis < 3.0: score += 10
-
-# 判定
-score >= 70 → HIGH
-score >= 40 → MEDIUM
-score >= 20 → LOW
-else        → MINIMAL
 ```
 
-このロジックは `unified_accuracy_tracker.py` の `_calc_risk()` と完全に同期している。変更するときは両方同時に変更する。
+判定: `score >= 70` HIGH, `>= 40` MEDIUM, `>= 20` LOW, otherwise MINIMAL.
 
----
+## Flight Forecast Rules
 
-## 飛行機予報システム（利尻⇔札幌）
+- 利尻空港（RIS/RJER）の滑走路は 07/25。横風計算は必ず `RUNWAY_HEADING_DEG = 70` を使う。
+- 01/19、RWY01、RWY19 と混同しない。
+- HACは通年の丘珠(OKD)便、ANAは6/1〜9/30のみの新千歳(CTS)便。日付から動的に就航便を取得する。
+- 飛行機リスクは風速だけでなく横風成分と視程で判定する。
+- 精度検証前に飛行機リスク閾値を変更しない。最低30日分の実運航データ蓄積後に検討する。
+- 気象データは鴛泊 `actual_weather` / `weather_forecast` を流用する。
 
-### AI社員定義
+初期リスク閾値:
+- `crosswind >= 10.0`: HIGH
+- `crosswind >= 7.0`: MEDIUM
+- `crosswind >= 4.0`: LOW
+- otherwise MINIMAL
+- `visibility < 1.6 km`: HIGH
+- `visibility < 3.0 km`: MEDIUM
 
-| AI社員 | 役割 | 対応スクリプト（予定） |
-|---|---|---|
-| 飛行機気象リスク取得AI | 横風・視程から欠航リスク計算 | `flight_risk_calculator.py` |
-| 飛行機運航記録取得AI | FlightAwareから実際の運航可否を取得 | `flight_status_collector.py` |
-| 飛行機予報精度監査AI | Hindcast精度計算 | `unified_accuracy_tracker.py`（拡張） |
+## Accuracy And Sheets Rules
 
-### 利尻空港（RIS/RJER）— 絶対に間違えないこと
+- `predicted_wind` / `predicted_wave` / `predicted_visibility` は予報時点の値だけを保存する。
+- `actual_wind` / `actual_wave` / `actual_visibility` は `actual_weather` 由来にする。
+- 実測気象から後知恵で再計算したリスクを `predicted_*` に保存しない。
+- 予報値と実測値が多数完全一致する場合は `forecast_actual_leakage` としてデータ異常扱い。
+- Sheets出力前に明細行から日次指標を再計算し、保存済み集計と照合する。
+- `accuracy_fill_auditor.py` は精度監査・Sheets同期後に実行し、永久保存DBとGoogle Sheetsの両方を確認する。
+- Sheets確認用の `GOOGLE_SHEETS_API_KEY` または `GOOGLE_SHEETS_BEARER_TOKEN` が未設定なら重大異常として扱う。
 
-```
-滑走路: 07/25（方位 070°/250° = 東西方向）
-         ↑ 南北方向（01/19）ではない。北風・南風が最悪横風。
+## Flask And Railway Rules
 
-横風計算:
-  crosswind = wind_speed × sin(|70 - wind_direction_deg| を 0〜180 に正規化)
-  北風(360°) → |70-360|=290 → 360-290=70° → sin(70°)=0.94 → 最悪
-  南風(180°) → |70-180|=110° → sin(110°)=0.94 → 最悪
-  東風( 90°) → |70-90| = 20° → sin(20°)=0.34 → ほぼ向かい風
-  西風(270°) → |70-270|=200 → 360-200=160° → sin(160°)=0.34 → ほぼ追い風
-```
+- Flask内から同一サーバーのHTTPエンドポイントを呼ばない。内部チェックはSQLiteを直接クエリする。
+- `subprocess` でスクリプトを起動する時は `sys.executable` と絶対パスを使う。
+- push後にRailwayを確認する場合は最低5分待ち、先に `/api/stats` などで応答確認する。
+- `forecast_dashboard.py` 変更時は `/api/stats` エンドポイントの動作を確認する。
 
-### 就航便（2026年）
+## Commit Checks
 
-| 航空会社 | 機材 | 路線 | 運航期間 | 便数 |
-|---|---|---|---|---|
-| HAC（北海道エアシステム） | ATR42-600（48席） | 利尻(RIS)⇔札幌丘珠(OKD) | **通年** | 1日1〜2往復 |
-| ANA Wings | 大型機（126席） | 利尻(RIS)⇔札幌新千歳(CTS) | **夏季のみ 6/1〜9/30** | 1日1往復 |
-
-### リスク判定ロジック（初期値 — 検証前に変更禁止）
-
-```python
-RUNWAY_HEADING_DEG = 70   # RWY07
-
-def crosswind_component(wind_speed, wind_dir_deg):
-    angle = abs(RUNWAY_HEADING_DEG - wind_dir_deg) % 360
-    if angle > 180:
-        angle = 360 - angle
-    return wind_speed * math.sin(math.radians(angle))
-
-# リスク判定（ATR42-600 / HAC運航基準、推定値）
-crosswind >= 10.0  → HIGH    # 運航限界近傍
-crosswind >=  7.0  → MEDIUM
-crosswind >=  4.0  → LOW
-else               → MINIMAL
-
-# 視程（非精密進入 VOR/DME 最低値）
-visibility < 1.6 km → HIGH
-visibility < 3.0 km → MEDIUM
-```
-
-⚠️ **これらは推定初期値。実際の運航データを蓄積してから調整すること。**
-フェリーと同じ「誤データで閾値調整」の堂々巡りを繰り返さない。
-
-### 気象データソース
-
-`oshidomari`（鴛泊）の `actual_weather` / `weather_forecast` を流用する。
-利尻空港は鴛泊港の近隣にあり、新規データ収集不要。
-
-### スケジュールファイル
-
-```
-skills/ferry-cancellation-research/references/rishiri_flight_{year}_timetable.json
-```
-
-年ベース + glob フォールバック（フェリーと同じパターン）。
-
-### ハードルール（飛行機予報専用）
-
-19. **横風計算では必ず `RUNWAY_HEADING_DEG = 70` を使う。01/19（南北）と混同禁止。**
-
-20. **HAC通年便とANA夏季便を混同しない。**
-    - HAC: 通年、丘珠(OKD)
-    - ANA: 6/1〜9/30のみ、新千歳(CTS)
-    - 日付から動的に就航便を取得すること（ハードコード禁止）
-
-21. **「飛行機の欠航リスク = 風速だけ」と短絡しない。**
-    横風成分（風向と滑走路方位の角度差）が決定的。同じ風速でも方向次第で全く異なる。
-
-22. **精度検証前にリスク閾値を変更しない。**
-    実際の運航データ（FlightAware）が最低30日分蓄積されてから調整する。
-
-23. **コミット前に飛行機予報関連の禁止パターンも確認する。**
-    ```bash
-    grep -rn "runway.*01\|runway.*19\|RWY01\|RWY19" *.py  # 滑走路誤記
-    grep -rn "flight_routes\s*=\s*\["                      *.py  # ハードコードリスト
-    grep -rn "rishiri_flight_20[0-9][0-9]_timetable"       *.py  # 年ハードコード
-    ```
-
-### スプレッドシート・精度明細監査のハードルール（2026-06-25 追加）
-
-24. **予報値と実測値を同じ値で保存しない。**
-    - `predicted_wind` / `predicted_wave` / `predicted_visibility` は `cancellation_forecast` など予報時点の値。
-    - `actual_wind` / `actual_wave` / `actual_visibility` は `actual_weather` 由来の実測/再解析値。
-    - 実測気象から後知恵で再計算したリスクを、事前予報の `predicted_*` として保存しない。
-
-25. **予報値と実測値が不自然に一致したら、精度向上ではなくデータ異常として扱う。**
-    - 風速・波高・視程が同一行で完全一致する状態が多数ある場合は `forecast_actual_leakage` として監査する。
-    - スプレッドシートへ出す前に、明細行から日次指標を再計算して保存済み集計と照合する。
-
-26. **精度検証に必要なデータは永久保存DBとGoogle Sheetsの両方で毎日充填確認する。**
-    - `accuracy_fill_auditor.py` を精度監査・Sheets同期後に実行する。
-    - 永久保存DBの `/admin/export-accuracy-data` に対象日の `daily_metrics` / `ferry_details` / `flight_details` が存在することを確認する。
-    - Google Sheets の `Daily Metrics` / `Ferry Details` / `Flight Details` に同じ対象日キーが存在することを確認する。
-    - フェリー明細は対象日の `actual_wind` と `actual_wave` がNULLのままなら異常。`actual_visibility` はソース欠損がありうるため単独では異常にしない。
-    - Sheets確認用の `GOOGLE_SHEETS_API_KEY` または `GOOGLE_SHEETS_BEARER_TOKEN` が未設定なら、監査不能ではなく重大異常として扱う。
-
----
-
-## 外部APIエンドポイント（参照用）
-
-| API | 用途 |
-|---|---|
-| https://api.open-meteo.com/v1/forecast | 風速・視程予報（稚内・鴛泊・沓形・香深の緯度経度で4港取得） |
-| https://marine-api.open-meteo.com/v1/marine | 波高予報 |
-| https://archive-api.open-meteo.com/v1/archive | 実測/再解析（ERA5）|
-| https://www.jma.go.jp/bosai/forecast/ | 気象庁天気予報 |
-| https://heartlandferry.jp/status/ | ハートランドフェリー運航状況 |
-| https://flightaware.com/live/airport/RJER | FlightAware 利尻空港リアルタイム便情報 |
-
----
-
-## 修正依頼プロンプトの生成
-
-`issue_prompt_composer.py` を実行すると `docs/ai_employees/issue_prompt_composer_employee.md` の形式に従った Markdown プロンプトが生成される。
+Pythonを編集したら:
 
 ```bash
-python issue_prompt_composer.py           # デフォルト: 直近14日
-python issue_prompt_composer.py --days 30 # 直近30日
-python issue_prompt_composer.py --output issue_prompt.md  # ファイルへ出力
+python -m py_compile <edited_file>.py
 ```
 
-生成されたプロンプトは Claude Code または Codex に貼り付けて修正依頼として使う。
+コミット前の禁止パターン確認:
 
----
+```bash
+grep -rn "wakkanai_kutsugata\|kutsugata_wakkanai" *.py
+grep -rn "heartland_20[0-9][0-9]_timetable" *.py
+grep -rn "_load_2026_timetable\|_TIMETABLE_2026" *.py
+grep -rn "ferry_routes\s*=\s*\[" *.py
+grep -rn "runway.*01\|runway.*19\|RWY01\|RWY19" *.py
+grep -rn "flight_routes\s*=\s*\[" *.py
+grep -rn "rishiri_flight_20[0-9][0-9]_timetable" *.py
+```
 
-## 開発作業の注意
+## Database Paths
 
-- コードを変更したら `git status` でステージングを確認してからコミット
-- `forecast_dashboard.py` の変更は `/api/stats` エンドポイントで動作確認
-- `weather_forecast_collector.py` の `calculate_cancellation_risk()` を変更したら `unified_accuracy_tracker.py` の `_calc_risk()` も同じ変更を適用する
-- 新規スクリプトは既存の `actual_weather_collector.py` を参考にして JST・DB パス・エラーハンドリングを揃える
+本番:
+- `/data/ferry_weather_forecast.db`
+- `/data/heartland_ferry_real_data.db`
+
+ローカル:
+- カレントディレクトリ
+- `os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')` で切り替える。
+
+## Main Scripts
+
+- `weather_forecast_collector.py`: 海上気象予報取得
+- `actual_weather_collector.py`: 海上気象実測取得
+- `improved_ferry_collector.py`: フェリー運航記録取得
+- `unified_accuracy_tracker.py`: 予報精度監査
+- `accuracy_sheet_exporter.py`: Sheets全面監査用データ出力
+- `accuracy_fill_auditor.py`: 永久保存DB・Sheets充填監査
+- `issue_prompt_composer.py`: 問題点整理・修正依頼生成

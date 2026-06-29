@@ -1,0 +1,19 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "commands": [
+      "pip install -r requirements.txt"
+    ]
+  },
+  "deploy": {
+    "startCommand": "echo 'Ferry data collection system deployed'"
+  },
+  "cron": [
+    {
+      "name": "daily_ferry_collection",
+      "command": "python cloud_ferry_collector.py",
+      "schedule": "0 6 * * *",
+      "timezone": "Asia/Tokyo"
+    }
+  ]
+}
