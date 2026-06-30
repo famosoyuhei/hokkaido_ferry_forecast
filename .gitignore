@@ -50,3 +50,6 @@ outputs/
 
 # Python TemporaryDirectory scratch folders created by local test runs
 tmp????????/
+
+# Claude Code / Codex worktrees (isolated copies, never commit)
+.claude/worktrees/
