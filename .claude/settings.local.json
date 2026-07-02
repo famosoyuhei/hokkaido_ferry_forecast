@@ -59,7 +59,12 @@
       "Bash(railway login *)",
       "mcp__Claude_in_Chrome__tabs_context_mcp",
       "PowerShell(python system_review.py --mode full)",
-      "PowerShell(gh run view 27314142430 --repo famosoyuhei/hokkaido_ferry_forecast --log > accuracy_run_log.txt; \\(Get-Content accuracy_run_log.txt | Measure-Object -Line\\).Lines)"
+      "PowerShell(gh run view 27314142430 --repo famosoyuhei/hokkaido_ferry_forecast --log > accuracy_run_log.txt; \\(Get-Content accuracy_run_log.txt | Measure-Object -Line\\).Lines)",
+      "Bash(git checkout *)",
+      "Bash(git merge merge/safe-cleanup --no-ff -m ' *)",
+      "Bash(git branch *)",
+      "Bash(git worktree *)",
+      "PowerShell(git -C \"C:\\\\Users\\\\ichry\\\\Desktop\\\\hokkaido_ferry_forecast\" worktree prune 2>&1)"
     ],
     "deny": [],
     "ask": []
