@@ -26,7 +26,7 @@ AI社員定義と自動化スケジュールを編集する時だけ読む。
 | 07:00 | `unified_accuracy_tracker.py` | 精度監査 |
 | 07:05 | `accuracy_sheet_exporter.py` | スプレッドシート全面監査用データ出力・整合性確認 |
 | 07:20 | `issue_prompt_composer.py` | 問題点整理（異常時のみ出力） |
-| 07:50 | `accuracy_fill_auditor.py` | 永久保存DB・Google Sheetsへの精度検証データ充填確認 |
+| 09:20 | `accuracy_fill_auditor.py` | 永久保存DB・Google Sheetsへの精度検証データ充填確認 |
 | 11:00 | `weather_forecast_collector.py` | 昼の予報更新 |
 | 17:00 | `weather_forecast_collector.py` | 夕の予報更新 |
 | 23:00 | `weather_forecast_collector.py` | 夜の予報更新 |

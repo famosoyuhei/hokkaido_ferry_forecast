@@ -2,9 +2,9 @@
   "name": "Hokkaido Ferry & Flight Accuracy to Google Sheets",
   "nodes": [
     {
-      "parameters": {"rule": {"interval": [{"field": "days", "daysInterval": 1, "triggerAtHour": 7, "triggerAtMinute": 40}]}},
+      "parameters": {"rule": {"interval": [{"field": "days", "daysInterval": 1, "triggerAtHour": 9, "triggerAtMinute": 0}]}},
       "id": "95f45d74-49d5-4cb7-9757-524c11115d41",
-      "name": "Daily 07:40 JST",
+      "name": "Daily 09:00 JST",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [-760, -80]
@@ -96,7 +96,7 @@
     }
   ],
   "connections": {
-    "Daily 07:40 JST": {"main": [[{"node": "Fetch Accuracy Snapshot", "type": "main", "index": 0}]]},
+    "Daily 09:00 JST": {"main": [[{"node": "Fetch Accuracy Snapshot", "type": "main", "index": 0}]]},
     "Manual Test": {"main": [[{"node": "Fetch Accuracy Snapshot", "type": "main", "index": 0}]]},
     "Fetch Accuracy Snapshot": {"main": [[
       {"node": "Daily Metrics Rows", "type": "main", "index": 0},

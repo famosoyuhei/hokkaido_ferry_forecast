@@ -6,7 +6,7 @@ Google Sheets に同期して可視化するための追加構成です。
 ## 安全性
 
 - `/admin/export-accuracy-data` は SQLite を `mode=ro` / `query_only` で開き、書き込みません。
-- n8n は既存収集・監査の完了後、毎日 07:40 JST に1回だけ実行します。
+- n8n は既存収集・監査の完了後、毎日 09:00 JST に1回だけ実行します。GitHub Actionsのスケジュール遅延で精度監査が08時台まで遅れる日があるため、Sheets同期はその後に実行します。
 - 予報閾値は変更しません。見逃しはアラート化し、元データ確認後の判断材料にします。
 - フェリーの整備運休、飛行機の実績 `unknown`・予報欠損・明らかな非気象理由は精度母数から除外します。
 - 飛行機は便時刻以前に生成された最新予報だけを使い、出発後の予報が混ざる評価リークを防ぎます。
@@ -23,7 +23,7 @@ Google Sheets に同期して可視化するための追加構成です。
    - Google Sheets IDは同梱ワークフローへ設定済みです。別シートへ複製する場合のみ、4つのGoogle SheetsノードでIDを差し替えます。
 4. 4つの Google Sheets ノードに同じ Google OAuth2 credential を選択します。
 5. `Manual Test` から実行し、4シートへデータが入ることを確認します。
-6. `Daily 07:40 JST` ワークフローを Active にします。
+6. `Daily 09:00 JST` ワークフローを Active にします。
 
 n8n Cloud などで `$env` が利用できない場合は、管理トークンをHeader Auth credentialへ移してください。
 ワークフローJSONへトークンを直書きしないでください。

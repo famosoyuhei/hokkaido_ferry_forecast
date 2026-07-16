@@ -2,8 +2,8 @@ name: Accuracy Fill Audit
 
 on:
   schedule:
-    # Run at 22:50 UTC (07:50 JST), after accuracy tracking and Sheets sync.
-    - cron: '50 22 * * *'
+    # Run at 00:20 UTC (09:20 JST), after accuracy tracking and Sheets sync.
+    - cron: '20 0 * * *'
   workflow_dispatch:
 
 jobs:
