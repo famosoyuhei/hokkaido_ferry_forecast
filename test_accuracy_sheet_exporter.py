@@ -1,8 +1,9 @@
 import sqlite3
 import unittest
+from datetime import datetime
 from pathlib import Path
 
-from accuracy_sheet_exporter import build_accuracy_payload
+from accuracy_sheet_exporter import JST, build_accuracy_payload
 
 
 class AccuracySheetExporterTest(unittest.TestCase):
@@ -134,6 +135,95 @@ class AccuracySheetExporterTest(unittest.TestCase):
         self.assertTrue(flight['included_in_accuracy'])
         self.assertEqual(flight['actual_status'], 'operated_inferred')
         self.assertTrue(flight['actual_status_inferred'])
+
+    def test_snapshot_datasets_include_forecasts_and_actuals(self):
+        service_date = datetime.now(JST).date().isoformat()
+        forecast = sqlite3.connect(self.root / 'ferry_weather_forecast.db')
+        forecast.executescript('''
+            CREATE TABLE cancellation_forecast (
+                id INTEGER PRIMARY KEY, forecast_for_date TEXT, route TEXT,
+                forecast_hour INTEGER, risk_level TEXT, risk_score REAL,
+                risk_factors TEXT, wind_forecast REAL, wave_forecast REAL,
+                visibility_forecast REAL, temperature_forecast REAL,
+                confidence REAL, generated_at TEXT
+            );
+            CREATE TABLE sailing_weather_forecast (
+                service_date TEXT, route TEXT, departure_time TEXT, arrival_time TEXT,
+                port_role TEXT, port_key TEXT, port_name TEXT, forecast_hour INTEGER,
+                scheduled_reference_time TEXT, window_start_time TEXT, window_end_time TEXT,
+                minutes_from_departure INTEGER, via_oshidomari INTEGER,
+                wind_speed REAL, wind_direction REAL, wind_gusts REAL,
+                wave_height REAL, wave_direction REAL, wave_period REAL,
+                wind_wave_height REAL, swell_wave_height REAL, visibility REAL,
+                precipitation REAL, snowfall REAL, temperature REAL, pressure_msl REAL,
+                weather_code TEXT, source TEXT, source_time TEXT, valid_time TEXT,
+                assigned_at TEXT
+            );
+            CREATE TABLE actual_sailing_weather (
+                service_date TEXT, route TEXT, departure_time TEXT, arrival_time TEXT,
+                port_role TEXT, port_key TEXT, port_name TEXT, weather_hour INTEGER,
+                scheduled_reference_time TEXT, window_start_time TEXT, window_end_time TEXT,
+                minutes_from_departure INTEGER, via_oshidomari INTEGER,
+                wind_speed REAL, wind_direction REAL, wind_gusts REAL,
+                wave_height REAL, wave_direction REAL, wave_period REAL,
+                wind_wave_height REAL, swell_wave_height REAL, visibility REAL,
+                precipitation REAL, snowfall REAL, temperature REAL, pressure_msl REAL,
+                weather_code TEXT, source TEXT, valid_time TEXT, assigned_at TEXT
+            );
+        ''')
+        forecast.execute(
+            "INSERT INTO cancellation_forecast VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (1, service_date, 'wakkanai_oshidomari', 6, 'HIGH', 75, 'wind',
+             22, 3.2, 8, 12, 0.9, f'{service_date}T04:00:00+09:00'),
+        )
+        forecast.execute(
+            "INSERT INTO sailing_weather_forecast VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (service_date, 'wakkanai_oshidomari', '06:30', '08:10',
+             'departure', 'wakkanai', '稚内', 6, '06:30', '06:00', '07:00',
+             0, 0, 22, 300, 28, 3.2, 300, 6, 2.4, 0.8, 8,
+             0, 0, 12, 1010, 'cloudy', 'open-meteo',
+             f'{service_date}T04:00:00+09:00', f'{service_date}T06:00:00+09:00',
+             f'{service_date}T04:00:00+09:00'),
+        )
+        forecast.execute(
+            "INSERT INTO actual_sailing_weather VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (service_date, 'wakkanai_oshidomari', '06:30', '08:10',
+             'departure', 'wakkanai', '稚内', 6, '06:30', '06:00', '07:00',
+             0, 0, 24, 310, 30, 3.5, 310, 7, 2.7, 0.9, 6,
+             0, 0, 11, 1008, 'rain', 'open-meteo-archive',
+             f'{service_date}T06:00:00+09:00', f'{service_date}T09:00:00+09:00'),
+        )
+        forecast.execute(
+            "INSERT INTO flight_cancellation_forecast VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (3, service_date, 'ris_okd', 'JAL2880', 'HAC', 'ATR42-600', '09:00',
+             'departure', 'MEDIUM', 45, 9, 270, 7.5, 5, f'{service_date}T04:00:00+09:00'),
+        )
+        forecast.commit()
+        forecast.close()
+
+        actual = sqlite3.connect(self.root / 'heartland_ferry_real_data.db')
+        actual.executescript('''
+            CREATE TABLE ferry_status_enhanced (
+                scrape_date TEXT, route TEXT, departure_time TEXT,
+                operational_status TEXT, is_cancelled INTEGER
+            );
+        ''')
+        actual.execute(
+            "INSERT INTO ferry_status_enhanced VALUES (?,?,?,?,?)",
+            (service_date, 'wakkanai_oshidomari', '06:30', 'CANCELLED', 1),
+        )
+        actual.commit()
+        actual.close()
+
+        payload = build_accuracy_payload(start_date=service_date, end_date=service_date, data_dir=str(self.root))
+        forecast_snapshots = payload['datasets']['forecast_snapshots']
+        actual_snapshots = payload['datasets']['actual_snapshots']
+
+        self.assertTrue(any(row['key'].startswith('ferry_forecast:') for row in forecast_snapshots))
+        self.assertTrue(any(row['key'].startswith('flight_forecast:') for row in forecast_snapshots))
+        ferry_actual = next(row for row in actual_snapshots if row['key'].startswith('ferry_actual:'))
+        self.assertEqual(ferry_actual['actual_status'], 'CANCELLED')
+        self.assertTrue(ferry_actual['actual_disruption'])
 
 
 if __name__ == '__main__':

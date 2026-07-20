@@ -63,6 +63,22 @@
       "position": [-260, 300]
     },
     {
+      "parameters": {"jsCode": "const rows = $input.first().json.datasets?.forecast_snapshots ?? [];\nreturn rows.map(json => ({ json }));"},
+      "id": "7b5b8b5a-5c46-4f6a-9df3-ae88d5b1d501",
+      "name": "Forecast Snapshot Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-260, 500]
+    },
+    {
+      "parameters": {"jsCode": "const rows = $input.first().json.datasets?.actual_snapshots ?? [];\nreturn rows.map(json => ({ json }));"},
+      "id": "d091a3ef-0fb3-448c-8091-37d7312ab323",
+      "name": "Actual Snapshot Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-260, 700]
+    },
+    {
       "parameters": {"operation": "appendOrUpdate", "documentId": {"__rl": true, "value": "1C2kvlDZxo0XBagaZfZw3muShhm2Z3XGu9wMIK90kmUM", "mode": "id"}, "sheetName": {"__rl": true, "value": "Daily Metrics", "mode": "name"}, "columns": {"mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["key"], "schema": []}, "options": {}},
       "id": "f6a50520-8f0b-441f-97de-11a028451d50",
       "name": "Upsert Daily Metrics",
@@ -93,6 +109,22 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [20, 300]
+    },
+    {
+      "parameters": {"operation": "appendOrUpdate", "documentId": {"__rl": true, "value": "1C2kvlDZxo0XBagaZfZw3muShhm2Z3XGu9wMIK90kmUM", "mode": "id"}, "sheetName": {"__rl": true, "value": "Forecast Snapshots", "mode": "name"}, "columns": {"mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["key"], "schema": []}, "options": {}},
+      "id": "65b63abf-0957-4c4e-bfce-2735d72589a1",
+      "name": "Upsert Forecast Snapshots",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [20, 500]
+    },
+    {
+      "parameters": {"operation": "appendOrUpdate", "documentId": {"__rl": true, "value": "1C2kvlDZxo0XBagaZfZw3muShhm2Z3XGu9wMIK90kmUM", "mode": "id"}, "sheetName": {"__rl": true, "value": "Actual Snapshots", "mode": "name"}, "columns": {"mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["key"], "schema": []}, "options": {}},
+      "id": "ef3a79c1-4f73-4cc2-8c51-0c46c0705766",
+      "name": "Upsert Actual Snapshots",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [20, 700]
     }
   ],
   "connections": {
@@ -102,12 +134,16 @@
       {"node": "Daily Metrics Rows", "type": "main", "index": 0},
       {"node": "Ferry Detail Rows", "type": "main", "index": 0},
       {"node": "Flight Detail Rows", "type": "main", "index": 0},
-      {"node": "Alert Rows", "type": "main", "index": 0}
+      {"node": "Alert Rows", "type": "main", "index": 0},
+      {"node": "Forecast Snapshot Rows", "type": "main", "index": 0},
+      {"node": "Actual Snapshot Rows", "type": "main", "index": 0}
     ]]},
     "Daily Metrics Rows": {"main": [[{"node": "Upsert Daily Metrics", "type": "main", "index": 0}]]},
     "Ferry Detail Rows": {"main": [[{"node": "Upsert Ferry Details", "type": "main", "index": 0}]]},
     "Flight Detail Rows": {"main": [[{"node": "Upsert Flight Details", "type": "main", "index": 0}]]},
-    "Alert Rows": {"main": [[{"node": "Upsert Alerts", "type": "main", "index": 0}]]}
+    "Alert Rows": {"main": [[{"node": "Upsert Alerts", "type": "main", "index": 0}]]},
+    "Forecast Snapshot Rows": {"main": [[{"node": "Upsert Forecast Snapshots", "type": "main", "index": 0}]]},
+    "Actual Snapshot Rows": {"main": [[{"node": "Upsert Actual Snapshots", "type": "main", "index": 0}]]}
   },
   "pinData": {},
   "active": false,

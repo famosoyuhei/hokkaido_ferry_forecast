@@ -3,7 +3,8 @@ name: Scheduled Data Collection
 on:
   schedule:
     # Weather forecast collection (4 times daily)
-    - cron: '0 20 * * *'  # 05:00 JST (UTC+9)
+    # 04:00 JST run is the daily pre-first-sailing forecast snapshot source.
+    - cron: '0 19 * * *'  # 04:00 JST (UTC+9)
     - cron: '0 2 * * *'   # 11:00 JST
     - cron: '0 8 * * *'   # 17:00 JST
     - cron: '0 14 * * *'  # 23:00 JST
