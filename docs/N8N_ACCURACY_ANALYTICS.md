@@ -19,14 +19,13 @@ Google Sheets に同期して可視化するための追加構成です。
    - `https://docs.google.com/spreadsheets/d/1C2kvlDZxo0XBagaZfZw3muShhm2Z3XGu9wMIK90kmUM/edit`
    - ExcelアプリやMicrosoft 365は不要です。
 2. n8n に `n8n/ferry-flight-accuracy-to-sheets.json` をインポートします。
-3. n8n の環境変数を設定します。
-   - `FORECAST_ADMIN_TOKEN`: Railway の `ADMIN_TOKEN` と同じ値
-   - Google Sheets IDは同梱ワークフローへ設定済みです。別シートへ複製する場合のみ、4つのGoogle SheetsノードでIDを差し替えます。
+3. n8n の credential を設定します。
+   - `Forecast Admin Token`: HTTP Header Auth credential。Header名は `X-Admin-Token`、値は Railway の `ADMIN_TOKEN` と同じ値
+   - Google Sheets IDは同梱ワークフローへ設定済みです。別シートへ複製する場合のみ、6つのGoogle SheetsノードでIDを差し替えます。
 4. 6つの Google Sheets ノードに同じ Google OAuth2 credential を選択します。
 5. `Manual Test` から実行し、6シートへデータが入ることを確認します。
 6. `Daily 09:00 JST` ワークフローを Active にします。
 
-n8n Cloud などで `$env` が利用できない場合は、管理トークンをHeader Auth credentialへ移してください。
 ワークフローJSONへトークンを直書きしないでください。
 
 ## API

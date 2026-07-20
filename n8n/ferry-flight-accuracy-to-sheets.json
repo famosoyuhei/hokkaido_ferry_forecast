@@ -20,8 +20,8 @@
     {
       "parameters": {
         "url": "https://web-production-a628.up.railway.app/admin/export-accuracy-data?days=90",
-        "sendHeaders": true,
-        "headerParameters": {"parameters": [{"name": "X-Admin-Token", "value": "={{ $env.FORECAST_ADMIN_TOKEN }}"}]},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "options": {"timeout": 120000}
       },
       "id": "ff794146-2ea6-4818-a8c6-adb4051905b9",
