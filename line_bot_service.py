@@ -34,7 +34,8 @@ try:
     )
     from linebot.v3.messaging import (
         Configuration, ApiClient, MessagingApi,
-        PushMessageRequest, ReplyMessageRequest, TextMessage
+        PushMessageRequest, ReplyMessageRequest, TextMessage,
+        QuickReply, QuickReplyItem, MessageAction
     )
     LINE_SDK_AVAILABLE = True
 except ImportError:
@@ -52,6 +53,7 @@ ROUTE_DISPLAY = {
     'kutsugata_kafuka':    '沓形→香深',  # 夏季のみ（6/1〜9/30）
     'kafuka_kutsugata':    '香深→沓形',  # 夏季のみ（6/1〜9/30）
 }
+ROUTE_DISPLAY_REVERSE = {v: k for k, v in ROUTE_DISPLAY.items()}
 RISK_EMOJI = {'HIGH': '🔴', 'MEDIUM': '🟡', 'LOW': '🟢', 'MINIMAL': '⚪'}
 RISK_ORDER = ['HIGH', 'MEDIUM', 'LOW', 'MINIMAL']
 WEEKDAYS = ['月', '火', '水', '木', '金', '土', '日']
@@ -171,6 +173,10 @@ class LineBotService:
             '稚内⇔沓形（利尻）\n'
             '鴛泊⇔香深\n\n'
             '「予報」と送ると今日のリスクを確認できます。\n\n'
+            '📦 仕入れ計画などで特定の航路を継続的に見たい方へ:\n'
+            '「航路設定」と送ると航路を1つ選べます。設定すると、\n'
+            'リスクの高低に関わらず毎朝その航路の状況と\n'
+            '今後7日間の見通しをお届けします。\n\n'
             f'詳細予報: {DASHBOARD_URL}'
         )
         self._push(user_id, welcome)
@@ -219,6 +225,31 @@ class LineBotService:
             msg = self._format_flight_message()
             self._reply(event.reply_token, msg)
 
+        elif text in ('週間', '1週間', '週間予報', '7日間', '今週'):
+            msg = self._format_weekly_message(user_id)
+            self._reply(event.reply_token, msg)
+
+        elif text in ('航路設定', '路線設定', '航路変更', 'ルート設定', '通知設定'):
+            self._send_route_menu(event.reply_token)
+
+        elif text in ROUTE_DISPLAY_REVERSE:
+            route_key = ROUTE_DISPLAY_REVERSE[text]
+            self._set_subscribed_routes(user_id, [route_key])
+            self._reply(event.reply_token,
+                f'✅ 「{text}」に絞った通知に設定しました。\n\n'
+                '毎朝、この航路の本日の状況と今後7日間の見通しを\n'
+                'リスクの高低に関わらずお届けします。\n\n'
+                '「週間」でいつでも見通しを確認できます。\n'
+                '解除するには「全航路」と送ってください。'
+            )
+
+        elif text in ('全航路', '航路解除', '解除'):
+            self._set_subscribed_routes(user_id, [])
+            self._reply(event.reply_token,
+                '✅ 航路の絞り込みを解除しました。\n'
+                '全航路を対象に、リスクが高い日のみ通知します。'
+            )
+
         elif text in ('ヘルプ', 'help', '？', '?', 'コマンド'):
             self._reply(event.reply_token,
                 '【コマンド一覧】\n'
@@ -226,8 +257,13 @@ class LineBotService:
                 '「明日」: 明日のフェリーリスク確認\n'
                 '「明後日」: 明後日のフェリーリスク確認\n'
                 '「実績」: 直近7日間の欠航実績\n'
-                '「飛行機」: 利尻空港の飛行機予報\n\n'
-                '欠航リスクが高い日は毎朝自動通知します。\n'
+                '「飛行機」: 利尻空港の飛行機予報\n'
+                '「航路設定」: 通知する航路を1つ選ぶ（仕入れ計画向け）\n'
+                '「週間」: 設定した航路の7日間見通し\n'
+                '「全航路」: 航路の絞り込みを解除\n\n'
+                '航路を設定していない場合、欠航リスクが高い日のみ\n'
+                '毎朝自動通知します。設定している場合は毎朝、\n'
+                'リスクの高低に関わらずその航路の状況を届けます。\n'
                 f'詳細: {DASHBOARD_URL}'
             )
 
@@ -332,6 +368,120 @@ class LineBotService:
                 rows.append({'date': d, 'risk': None, 'wind': None, 'wave': None})
         conn.close()
         return rows
+
+    def _get_route_forecast_days(self, route: str, days_ahead: int = 7) -> List[dict]:
+        """
+        指定航路の明日から今後N日間の日別最悪リスクを返す。
+        [{date, risk, wind, wave}]（データがない日は risk=None）
+        """
+        today = datetime.now(jst)
+        start_date = (today + timedelta(days=1)).strftime('%Y-%m-%d')
+        end_date = (today + timedelta(days=days_ahead)).strftime('%Y-%m-%d')
+
+        conn = sqlite3.connect(self.forecast_db)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT forecast_for_date, risk_level, wind_forecast, wave_forecast
+            FROM cancellation_forecast
+            WHERE route = ?
+              AND forecast_for_date BETWEEN ? AND ?
+              AND id IN (
+                  SELECT MAX(id) FROM cancellation_forecast
+                  WHERE route = ? AND forecast_for_date BETWEEN ? AND ?
+                  GROUP BY forecast_for_date, forecast_hour
+              )
+            ORDER BY forecast_for_date
+        ''', (route, start_date, end_date, route, start_date, end_date))
+        rows = cursor.fetchall()
+        conn.close()
+
+        by_date: Dict[str, list] = {}
+        for date, risk, wind, wave in rows:
+            by_date.setdefault(date, []).append((risk, wind, wave))
+
+        result = []
+        for i in range(1, days_ahead + 1):
+            d_str = (today + timedelta(days=i)).strftime('%Y-%m-%d')
+            entries = by_date.get(d_str)
+            if not entries:
+                result.append({'date': d_str, 'risk': None, 'wind': None, 'wave': None})
+                continue
+            entries.sort(key=lambda e: RISK_ORDER.index(e[0]) if e[0] in RISK_ORDER else len(RISK_ORDER))
+            worst_risk, wind, wave = entries[0]
+            result.append({'date': d_str, 'risk': worst_risk, 'wind': wind, 'wave': wave})
+        return result
+
+    def _format_weekly_message(self, user_id: str) -> str:
+        """ユーザーが設定した航路の7日間見通しを返す。航路未設定なら設定を促す。"""
+        conn = sqlite3.connect(self.notif_db)
+        row = conn.execute(
+            'SELECT subscribed_routes FROM line_users WHERE line_user_id=?', (user_id,)
+        ).fetchone()
+        conn.close()
+
+        routes = json.loads(row[0] or '[]') if row else []
+        routes = [r for r in routes if r in ROUTE_DISPLAY]
+        if not routes:
+            return (
+                '📅 週間予報を見るには、まず航路を設定してください。\n\n'
+                '「航路設定」と送ると、対象航路を選べます。'
+            )
+
+        lines = ['📅 週間予報（明日から7日間）', '']
+        for route in routes:
+            name = ROUTE_DISPLAY[route]
+            lines.append(f'━━ {name} ━━')
+            for f in self._get_route_forecast_days(route, days_ahead=7):
+                d = datetime.strptime(f['date'], '%Y-%m-%d')
+                d_str = d.strftime(f'%m/%d（{WEEKDAYS[d.weekday()]}）')
+                if not f['risk']:
+                    lines.append(f'{d_str}  ❓ 予報データなし')
+                    continue
+                emoji = RISK_EMOJI.get(f['risk'], '❓')
+                parts = []
+                if f['wind']:
+                    parts.append(f"風{f['wind']:.0f}m/s")
+                if f['wave']:
+                    parts.append(f"波{f['wave']:.1f}m")
+                detail = '（' + ' '.join(parts) + '）' if parts else ''
+                lines.append(f'{d_str}  {emoji} {f["risk"]}{detail}')
+            lines.append('')
+
+        lines.append('※ 先の日ほど予報精度は下がります。仕入れ判断は直前の更新も確認してください。')
+        lines.append(f'詳細: {DASHBOARD_URL}')
+        return '\n'.join(lines)
+
+    def _send_route_menu(self, reply_token: str):
+        """航路選択のクイックリプライを送る。"""
+        if not self.enabled:
+            return
+        items = [
+            QuickReplyItem(action=MessageAction(label=name, text=name))
+            for name in ROUTE_DISPLAY.values()
+        ]
+        items.append(QuickReplyItem(action=MessageAction(label='全航路（解除）', text='全航路')))
+
+        configuration = Configuration(access_token=self.channel_access_token)
+        with ApiClient(configuration) as api_client:
+            api = MessagingApi(api_client)
+            api.reply_message(ReplyMessageRequest(
+                reply_token=reply_token,
+                messages=[TextMessage(
+                    text='通知を絞り込む航路を選んでください👇\n（設定すると毎朝その航路の7日間見通しが届きます）',
+                    quick_reply=QuickReply(items=items)
+                )]
+            ))
+
+    def _set_subscribed_routes(self, user_id: str, routes: List[str]):
+        """ユーザーの購読航路を更新する。"""
+        now = datetime.now(jst).isoformat()
+        conn = sqlite3.connect(self.notif_db)
+        conn.execute(
+            'UPDATE line_users SET subscribed_routes=?, updated_at=? WHERE line_user_id=?',
+            (json.dumps(routes, ensure_ascii=False), now, user_id)
+        )
+        conn.commit()
+        conn.close()
 
     def _format_risk_message(self, date_str: str, header: str) -> str:
         """
@@ -658,8 +808,15 @@ class LineBotService:
     ) -> Optional[str]:
         """
         通知メッセージを生成する。
-        HIGH/MEDIUM リスクが1件もない場合は None を返す（送信スキップ）。
-        for_user_id が指定された場合、その user の設定を読み込む。
+
+        - 航路を1つに絞っているユーザー（仕入れ計画向け・digest モード）:
+          リスクの高低に関わらず、本日の状況 + 今後7日間の見通しを毎朝送る
+          （定点観測レポート）。予報データが1件もない場合のみ None。
+        - それ以外のユーザー: 従来通りアラート専用。HIGH/MEDIUM リスクが
+          1件もなければ None を返し、送信をスキップする。
+
+        for_user_id が指定された場合、その user の設定（購読航路・閾値）を
+        DB から読み込んで route_filter / min_risk を上書きする。
         """
         # ユーザー設定の読み込み
         if for_user_id:
@@ -674,11 +831,13 @@ class LineBotService:
                 route_filter = json.loads(routes_json or '[]') or None
                 min_risk = min_risk_val or 'HIGH'
 
-        today_risks = self._get_today_risks()
-        future_risks = self._get_forecast_days(3)
-        today = datetime.now(jst)
+        single_route = route_filter[0] if route_filter and len(route_filter) == 1 else None
+        digest_mode = single_route is not None
 
-        # アラート対象の絞り込み
+        today_risks = self._get_today_risks()
+        today = datetime.now(jst)
+        today_str = today.strftime(f'%m/%d（{WEEKDAYS[today.weekday()]}）')
+
         threshold_idx = RISK_ORDER.index(min_risk)
 
         def is_alerted(risk: Optional[str]) -> bool:
@@ -686,58 +845,102 @@ class LineBotService:
                 return False
             return RISK_ORDER.index(risk) <= threshold_idx
 
-        filtered_today = {
-            r: v for r, v in today_risks.items()
-            if (route_filter is None or r in route_filter) and is_alerted(v['risk'])
-        }
+        if digest_mode:
+            future_days = self._get_route_forecast_days(single_route, days_ahead=7)
+            today_info = today_risks.get(single_route)
 
-        has_future_alert = any(is_alerted(f['risk']) for f in future_risks)
+            has_data = today_info is not None or any(f['risk'] for f in future_days)
+            if not has_data:
+                return None  # まだ予報データが収集されていない
 
-        if not filtered_today and not has_future_alert:
-            return None
+            route_name = ROUTE_DISPLAY.get(single_route, single_route)
+            lines = [f'🚢 {route_name} 定点予報', today_str, '']
 
-        # メッセージ組み立て
-        today_str = today.strftime(f'%m/%d（{WEEKDAYS[today.weekday()]}）')
-        lines = [f'🚢 フェリー欠航リスク通知', today_str, '']
-
-        # 本日のリスク
-        lines.append('━━ 本日のリスク ━━')
-        if filtered_today:
-            sorted_routes = sorted(
-                filtered_today.items(),
-                key=lambda x: RISK_ORDER.index(x[1]['risk'])
-            )
-            for route, info in sorted_routes:
-                if route not in ROUTE_DISPLAY:
-                    continue  # 廃止済み航路キーはスキップ
-                emoji = RISK_EMOJI.get(info['risk'], '❓')
-                name = ROUTE_DISPLAY[route]
+            lines.append('━━ 本日 ━━')
+            if today_info:
+                emoji = RISK_EMOJI.get(today_info['risk'], '❓')
                 parts = []
-                if info['wind']:
-                    parts.append(f"風{info['wind']:.0f}m/s")
-                if info['wave']:
-                    parts.append(f"波{info['wave']:.1f}m")
+                if today_info['wind']:
+                    parts.append(f"風{today_info['wind']:.0f}m/s")
+                if today_info['wave']:
+                    parts.append(f"波{today_info['wave']:.1f}m")
                 detail = '（' + ' '.join(parts) + '）' if parts else ''
-                lines.append(f"{emoji} {name}  {info['risk']}{detail}")
+                lines.append(f"{emoji} {today_info['risk']}{detail}")
+            else:
+                lines.append('❓ 予報データなし（本日運航なし、または未収集）')
+
+            lines.append('')
+            lines.append('━━ 今後7日間の見通し ━━')
+            for f in future_days:
+                d = datetime.strptime(f['date'], '%Y-%m-%d')
+                d_str = d.strftime(f'%m/%d({WEEKDAYS[d.weekday()]})')
+                if not f['risk']:
+                    lines.append(f'{d_str}  ❓ データなし')
+                    continue
+                emoji = RISK_EMOJI.get(f['risk'], '❓')
+                wind_str = f" 風{f['wind']:.0f}m/s" if f['wind'] else ''
+                lines.append(f"{d_str}  {emoji} {f['risk']}{wind_str}")
+
+            lines.append('')
+            any_alert = is_alerted(today_info['risk']) if today_info else False
+            any_alert = any_alert or any(is_alerted(f['risk']) for f in future_days)
+            if any_alert:
+                lines.append('⚠️ 仕入れ計画をご確認ください')
+            else:
+                lines.append('✅ 直近は欠航リスクが低い見込みです')
+            lines.append('※ 先の日ほど予報精度は下がります。直前の更新も確認してください。')
+
         else:
-            lines.append('⚪ 欠航リスクなし')
+            future_risks = self._get_forecast_days(3)
 
-        # 今後3日間
-        lines.append('')
-        lines.append('━━ 今後3日間 ━━')
-        for f in future_risks:
-            if not f['risk']:
-                continue
-            d = datetime.strptime(f['date'], '%Y-%m-%d')
-            d_str = d.strftime(f'%m/%d({WEEKDAYS[d.weekday()]})')
-            emoji = RISK_EMOJI.get(f['risk'], '❓')
-            lines.append(f"{d_str} {emoji} {f['risk']}")
+            filtered_today = {
+                r: v for r, v in today_risks.items()
+                if (route_filter is None or r in route_filter) and is_alerted(v['risk'])
+            }
 
-        lines.append('')
+            has_future_alert = any(is_alerted(f['risk']) for f in future_risks)
 
-        has_high = any(v['risk'] == 'HIGH' for v in filtered_today.values())
-        if has_high:
-            lines.append('⚠️ 仕入れ計画をご確認ください')
+            if not filtered_today and not has_future_alert:
+                return None
+
+            lines = [f'🚢 フェリー欠航リスク通知', today_str, '']
+
+            lines.append('━━ 本日のリスク ━━')
+            if filtered_today:
+                sorted_routes = sorted(
+                    filtered_today.items(),
+                    key=lambda x: RISK_ORDER.index(x[1]['risk'])
+                )
+                for route, info in sorted_routes:
+                    if route not in ROUTE_DISPLAY:
+                        continue  # 廃止済み航路キーはスキップ
+                    emoji = RISK_EMOJI.get(info['risk'], '❓')
+                    name = ROUTE_DISPLAY[route]
+                    parts = []
+                    if info['wind']:
+                        parts.append(f"風{info['wind']:.0f}m/s")
+                    if info['wave']:
+                        parts.append(f"波{info['wave']:.1f}m")
+                    detail = '（' + ' '.join(parts) + '）' if parts else ''
+                    lines.append(f"{emoji} {name}  {info['risk']}{detail}")
+            else:
+                lines.append('⚪ 欠航リスクなし')
+
+            lines.append('')
+            lines.append('━━ 今後3日間 ━━')
+            for f in future_risks:
+                if not f['risk']:
+                    continue
+                d = datetime.strptime(f['date'], '%Y-%m-%d')
+                d_str = d.strftime(f'%m/%d({WEEKDAYS[d.weekday()]})')
+                emoji = RISK_EMOJI.get(f['risk'], '❓')
+                lines.append(f"{d_str} {emoji} {f['risk']}")
+
+            lines.append('')
+
+            has_high = any(v['risk'] == 'HIGH' for v in filtered_today.values())
+            if has_high:
+                lines.append('⚠️ 仕入れ計画をご確認ください')
 
         lines.append(f'詳細: {DASHBOARD_URL}')
 
