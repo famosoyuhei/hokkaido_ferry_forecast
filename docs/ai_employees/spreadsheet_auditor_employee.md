@@ -6,7 +6,9 @@ Google Sheets または `accuracy_sheet_exporter.py` が出力する表形式デ
 
 ## 現行対応
 
-現時点では専用スクリプトは未実装。入力データは `/admin/export-accuracy-data` または `accuracy_sheet_exporter.py` のJSON出力を正とする。
+`spreadsheet_auditor.py` が本ルールを実装する。入力データは `/admin/export-accuracy-data` または `accuracy_sheet_exporter.py` のJSON出力を正とする。`--skip-sheets` を付けない限り、同じルールセットをGoogle Sheetsの同名タブにも適用し、DB/Sheets間のドリフトも通常の異常として検出する。
+
+毎日09:25 JST（永久保存DB・Sheets充填監査の直後）にGitHub Actions（`spreadsheet-audit.yml`）で自動実行する。
 
 ## 監査対象
 
