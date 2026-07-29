@@ -38,6 +38,44 @@ def _blank(value) -> bool:
     return value is None or str(value).strip() == ''
 
 
+def _parse_time_to_minutes(value) -> Optional[int]:
+    """Normalize a time-of-day value to minutes since midnight.
+
+    Google Sheets sometimes reformats a plain "HH:MM" string it auto-detects
+    as a time cell (e.g. into "6:55:00 AM" or a day-fraction serial number).
+    Comparing raw strings against the timetable would then false-positive on
+    every row, so both sides of the timetable-membership check go through
+    this normalizer instead of exact string equality.
+    """
+    if _blank(value):
+        return None
+    text = str(value).strip()
+    try:
+        as_float = float(text)
+        if 0 <= as_float < 1:
+            return round(as_float * 24 * 60) % 1440
+    except ValueError:
+        pass
+    am_pm = None
+    upper = text.upper()
+    if upper.endswith('AM') or upper.endswith('PM'):
+        am_pm = upper[-2:]
+        text = text[:-2].strip()
+    parts = text.split(':')
+    if len(parts) < 2:
+        return None
+    try:
+        hour = int(parts[0])
+        minute = int(parts[1])
+    except ValueError:
+        return None
+    if am_pm == 'PM' and hour < 12:
+        hour += 12
+    elif am_pm == 'AM' and hour == 12:
+        hour = 0
+    return (hour * 60 + minute) % 1440
+
+
 def _as_float(value) -> Optional[float]:
     if _blank(value):
         return None
@@ -232,11 +270,14 @@ def _rule_ferry_timetable(source: str, rows: List[Dict], issues: List[Dict]) -> 
         cache_key = (route, date)
         if cache_key not in cache:
             try:
-                cache[cache_key] = {d for d, _a in get_timetable_sailings(route, date)}
+                cache[cache_key] = {
+                    _parse_time_to_minutes(d) for d, _a in get_timetable_sailings(route, date)
+                }
             except Exception:
                 cache[cache_key] = None
         sailings = cache[cache_key]
-        if sailings is not None and dep not in sailings:
+        dep_minutes = _parse_time_to_minutes(dep)
+        if sailings and dep_minutes is not None and dep_minutes not in sailings:
             bad.append(row.get('key'))
     if bad:
         _add_issue(
@@ -416,13 +457,37 @@ def _audit_source(source: str, datasets: Dict[str, List[Dict]], issues: List[Dic
     _rule_sudden_change(source, daily_rows, issues)
 
 
+def _filter_datasets_by_period(datasets: Dict[str, List[Dict]], start: str, end: str) -> Dict[str, List[Dict]]:
+    """Restrict each dataset to rows dated within [start, end].
+
+    Google Sheets tabs accumulate the full history since the project began,
+    while the DB export is a rolling window (e.g. the last 14 days). Auditing
+    the full Sheets history against the same rules every day would make any
+    old, already-understood anomaly (e.g. the documented April schedule
+    changeover) fail the job forever. Rows without a usable date pass through
+    unfiltered rather than being silently dropped.
+    """
+    filtered = {}
+    for name, rows in datasets.items():
+        kept = []
+        for row in rows:
+            date = row.get('date')
+            if _blank(date) or (start <= str(date) <= end):
+                kept.append(row)
+        filtered[name] = kept
+    return filtered
+
+
 def audit_payload(payload: Dict, sheets: Optional[Dict[str, List[Dict]]] = None) -> Dict:
     datasets = payload.get('datasets') or {}
     issues: List[Dict] = []
 
     _audit_source('db_export', datasets, issues)
     if sheets is not None:
-        _audit_source('sheets', sheets, issues)
+        period = payload.get('period') or {}
+        start, end = period.get('start'), period.get('end')
+        windowed_sheets = _filter_datasets_by_period(sheets, start, end) if start and end else sheets
+        _audit_source('sheets', windowed_sheets, issues)
 
     high_count = sum(1 for issue in issues if issue['severity'] == 'HIGH')
     medium_count = sum(1 for issue in issues if issue['severity'] == 'MEDIUM')
