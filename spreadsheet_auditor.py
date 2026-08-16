@@ -21,7 +21,7 @@ from urllib.request import Request, urlopen
 
 import pytz
 
-from accuracy_fill_auditor import DEFAULT_SHEETS_ID, fetch_sheets
+from accuracy_fill_auditor import DEFAULT_SHEETS_ID, SHEETS_SYNC_LAG_DAYS, _shift_date, fetch_sheets
 from flight_timetable_utils import get_active_flights_on
 from jst_utils import get_timetable_sailings
 
@@ -486,7 +486,14 @@ def audit_payload(payload: Dict, sheets: Optional[Dict[str, List[Dict]]] = None)
     if sheets is not None:
         period = payload.get('period') or {}
         start, end = period.get('start'), period.get('end')
-        windowed_sheets = _filter_datasets_by_period(sheets, start, end) if start and end else sheets
+        if start and end:
+            # n8n syncs Sheets from the DB once daily and can lag a day behind
+            # on the most recent date, so exclude that tail from the sheets
+            # side of the audit rather than flagging a transient sync gap.
+            sheets_end = _shift_date(end, -SHEETS_SYNC_LAG_DAYS)
+            windowed_sheets = _filter_datasets_by_period(sheets, start, sheets_end)
+        else:
+            windowed_sheets = sheets
         _audit_source('sheets', windowed_sheets, issues)
 
     high_count = sum(1 for issue in issues if issue['severity'] == 'HIGH')

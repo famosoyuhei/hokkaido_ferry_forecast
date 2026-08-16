@@ -17,6 +17,12 @@ import pytz
 
 JST = pytz.timezone('Asia/Tokyo')
 DEFAULT_SHEETS_ID = '1C2kvlDZxo0XBagaZfZw3muShhm2Z3XGu9wMIK90kmUM'
+# n8n syncs Google Sheets from the permanent DB once daily. A day's accuracy
+# rows can finish calculating shortly before that sync runs, so the sheet
+# occasionally doesn't catch up until the following day's sync. Checking the
+# sheet against a date this many days earlier than the DB gives that sync one
+# full extra cycle before a gap is treated as a real problem.
+SHEETS_SYNC_LAG_DAYS = 1
 SHEET_RANGES = {
     'daily_metrics': ('Daily Metrics', 'A1:N1001'),
     'ferry_details': ('Ferry Details', 'A1:W2000'),
@@ -27,6 +33,10 @@ SHEET_RANGES = {
 
 def _yesterday_jst() -> str:
     return (datetime.now(JST) - timedelta(days=1)).date().isoformat()
+
+
+def _shift_date(date_str: str, days: int) -> str:
+    return (datetime.strptime(date_str, '%Y-%m-%d').date() + timedelta(days=days)).isoformat()
 
 
 def _load_json(path: Optional[str], url: Optional[str], admin_token: Optional[str]) -> Dict:
@@ -121,7 +131,12 @@ def _group_daily(rows: Iterable[Dict]) -> Dict[str, Dict[str, Dict]]:
     return grouped
 
 
-def audit_payload(payload: Dict, expected_date: str, sheets: Optional[Dict[str, List[Dict]]] = None) -> Dict:
+def audit_payload(
+    payload: Dict,
+    expected_date: str,
+    sheets: Optional[Dict[str, List[Dict]]] = None,
+    sheets_expected_date: Optional[str] = None,
+) -> Dict:
     datasets = payload.get('datasets') or {}
     issues: List[Dict] = []
 
@@ -188,13 +203,14 @@ def audit_payload(payload: Dict, expected_date: str, sheets: Optional[Dict[str, 
         )
 
     if sheets is not None:
-        _audit_sheets(sheets, datasets, expected_date, issues)
+        _audit_sheets(sheets, datasets, sheets_expected_date or expected_date, issues)
 
     high_count = sum(1 for issue in issues if issue['severity'] == 'HIGH')
     return {
         'status': 'fail' if high_count else 'success',
         'generated_at': datetime.now(JST).isoformat(),
         'expected_date': expected_date,
+        'sheets_expected_date': sheets_expected_date or expected_date,
         'counts': {
             'db_daily_metrics': len(daily_rows),
             'db_ferry_details': len(ferry_rows),
@@ -214,10 +230,10 @@ def _audit_sheets(sheets: Dict[str, List[Dict]], datasets: Dict, expected_date: 
         db_rows = datasets.get(dataset) or []
         sheet_rows = sheets.get(dataset) or []
         latest = _latest_date(sheet_rows)
-        if latest != expected_date:
+        if not latest or latest < expected_date:
             _add_issue(
                 issues, 'HIGH', 'SHEET_DATE_MISMATCH',
-                f'{dataset} sheet latest date is {latest or "none"}, expected {expected_date}.',
+                f'{dataset} sheet latest date is {latest or "none"}, expected at least {expected_date}.',
                 dataset=dataset, latest_date=latest, expected_date=expected_date,
             )
 
@@ -251,6 +267,10 @@ def main() -> int:
     parser.add_argument('--accuracy-url', help='Admin export URL')
     parser.add_argument('--admin-token', default=os.environ.get('ADMIN_TOKEN'))
     parser.add_argument('--expected-date', default=_yesterday_jst())
+    parser.add_argument(
+        '--sheets-lag-days', type=int, default=SHEETS_SYNC_LAG_DAYS,
+        help='Extra days of buffer allowed for the once-daily Sheets sync before flagging a gap as stale.',
+    )
     parser.add_argument('--sheets-id', default=os.environ.get('GOOGLE_SHEETS_ID') or DEFAULT_SHEETS_ID)
     parser.add_argument('--skip-sheets', action='store_true')
     parser.add_argument('--output')
@@ -259,7 +279,8 @@ def main() -> int:
     try:
         payload = _load_json(args.input, args.accuracy_url, args.admin_token)
         sheets = None if args.skip_sheets else fetch_sheets(args.sheets_id)
-        report = audit_payload(payload, args.expected_date, sheets)
+        sheets_expected_date = _shift_date(args.expected_date, -args.sheets_lag_days)
+        report = audit_payload(payload, args.expected_date, sheets, sheets_expected_date)
     except Exception as exc:
         report = {
             'status': 'fail',
