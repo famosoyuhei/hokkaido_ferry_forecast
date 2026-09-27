@@ -23,11 +23,16 @@ DEFAULT_SHEETS_ID = '1C2kvlDZxo0XBagaZfZw3muShhm2Z3XGu9wMIK90kmUM'
 # sheet against a date this many days earlier than the DB gives that sync one
 # full extra cycle before a gap is treated as a real problem.
 SHEETS_SYNC_LAG_DAYS = 1
+# Column-only, open-ended ranges: a fixed row cap (e.g. 'A1:W2000') silently
+# truncates once the tab grows past it, so _latest_date() keeps reporting the
+# same old date forever even though n8n is still appending correctly beyond
+# the cap. Ferry Details accumulates ~18 rows/day and exhausted a 2000-row
+# cap after ~110 days, which is what caused that false-stale report.
 SHEET_RANGES = {
-    'daily_metrics': ('Daily Metrics', 'A1:N1001'),
-    'ferry_details': ('Ferry Details', 'A1:W2000'),
-    'flight_details': ('Flight Details', 'A1:AC1001'),
-    'alerts': ('Alerts', 'A1:G1001'),
+    'daily_metrics': ('Daily Metrics', 'A:N'),
+    'ferry_details': ('Ferry Details', 'A:W'),
+    'flight_details': ('Flight Details', 'A:AC'),
+    'alerts': ('Alerts', 'A:G'),
 }
 
 
