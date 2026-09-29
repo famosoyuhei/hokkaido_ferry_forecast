@@ -14,6 +14,7 @@ import requests
 import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
+import pytz
 from bs4 import BeautifulSoup
 import re
 import time
@@ -22,6 +23,8 @@ from pathlib import Path
 import os
 import warnings
 warnings.filterwarnings('ignore', category=requests.packages.urllib3.exceptions.InsecureRequestWarning)
+
+JST = pytz.timezone('Asia/Tokyo')
 
 class ImprovedFerryCollector:
     """Improved ferry data collector with weather integration"""
@@ -93,8 +96,8 @@ class ImprovedFerryCollector:
                 raise Exception(f"HTTP {response.status_code}")
 
             soup = BeautifulSoup(response.text, 'html.parser')
-            current_date = datetime.now().strftime('%Y-%m-%d')
-            current_time = datetime.now().strftime('%H:%M:%S')
+            current_date = datetime.now(JST).strftime('%Y-%m-%d')
+            current_time = datetime.now(JST).strftime('%H:%M:%S')
 
             # --- Overall status (for logging only) ---
             joukyou = soup.find('p', class_='joukyou')
@@ -157,7 +160,7 @@ class ImprovedFerryCollector:
                         'operational_status': status,
                         'is_cancelled': is_cancelled,
                         'is_delayed':   is_delayed,
-                        'collection_timestamp': datetime.now().isoformat()
+                        'collection_timestamp': datetime.now(JST).isoformat()
                     }
                     ferry_records.append(record)
                     mark = '[CANCEL]' if is_cancelled else '[OK]'
@@ -199,7 +202,7 @@ class ImprovedFerryCollector:
                     'wind_direction': current.get('winddirection_10m', 0),
                     'visibility': current.get('visibility', 10000) / 1000,  # Convert to km
                     'wave_height': None,  # Not available from this API
-                    'timestamp': datetime.now().isoformat()
+                    'timestamp': datetime.now(JST).isoformat()
                 }
 
                 print(f"[OK] Weather data: Temp {weather['temperature']}°C, Wind {weather['wind_speed']}m/s, Visibility {weather['visibility']}km")
@@ -215,7 +218,7 @@ class ImprovedFerryCollector:
             'wind_direction': 0,
             'visibility': 10.0,
             'wave_height': 2.0,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now(JST).isoformat()
         }
 
     def save_to_database(self, ferry_records, weather_data):
@@ -312,12 +315,12 @@ class ImprovedFerryCollector:
                     '運航状況': record['operational_status'],
                     '欠航理由': '' if record['is_cancelled'] == 0 else 'Weather Conditions',
                     '便名': f"{record['route_jp']}",
-                    '検知時刻': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    '検知時刻': datetime.now(JST).strftime('%Y-%m-%d %H:%M:%S'),
                     '風速_ms': weather_data['wind_speed'],
                     '波高_m': weather_data.get('wave_height', 2.0),
                     '視界_km': weather_data['visibility'],
                     '気温_c': weather_data['temperature'],
-                    '備考': f"船舶: {record['vessel_name']}, データ収集日: {datetime.now().strftime('%Y-%m-%d')}",
+                    '備考': f"船舶: {record['vessel_name']}, データ収集日: {datetime.now(JST).strftime('%Y-%m-%d')}",
                     'timestamp': record['collection_timestamp'],
                     'route': record['route'],
                     'scheduled_departure': record['departure_time'],
@@ -350,7 +353,7 @@ class ImprovedFerryCollector:
 
         print("=" * 70)
         print("IMPROVED FERRY DATA COLLECTION WITH WEATHER INTEGRATION")
-        print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"Time: {datetime.now(JST).strftime('%Y-%m-%d %H:%M:%S')}")
         print("=" * 70)
 
         # Scrape ferry schedules
