@@ -961,6 +961,47 @@ grep -rn "rishiri_flight_20[0-9][0-9]_timetable"            *.py
 
 ## ✅ 最近の変更
 
+### 2026-11-18: 冬季リスク判定の再有効化（11月の風速8-12m/s帯のFalse Negative対策）
+
+#### **背景**
+AI社員総動員のレビューで `/admin/analyze-threshold-accuracy`（直近14日間）を実行したところ、
+風速8-12m/s帯の精度が58.3%（他帯は83-92%）と低く、2026-11-06/11-08/11-16の3日間で
+風速7.0-10.2m/s・波高2.0-2.5mの条件下で欠航を見逃すFalse Negativeが18件発生していた
+（False Positiveは2件のみ）ことが判明した。
+
+#### **発見した事実**
+- `weather_forecast_collector.py` の `calculate_cancellation_risk()` には、2026年2月に
+  データ検証済みの冬季用閾値テーブル（風速8m/s起点、波高1.5m起点、×1.2倍率、
+  HIGH/MEDIUM/LOW判定を60/35/15に引き下げ）が実装済みで**残っていた**。
+- しかし `is_winter` の判定が「12月〜3月」のみで、11月は対象外だったため、
+  11月の予報はすべて非冬季（風速10m/s起点）の閾値で計算されていた。
+- `unified_accuracy_tracker.py` の `_calc_risk()` には冬季枝が存在せず、
+  AGENTS.mdが要求する「両者は常に同期する」に違反していた
+  （実際の予報には使われていない関数だが、将来再利用された場合に備えて同期した）。
+
+#### **対応**
+- `is_winter` の判定月を「12-3月」から「11-3月」に拡張（フェリー会社自身の
+  冬ダイヤ切替日が11/1であることと整合）。
+- `unified_accuracy_tracker.py._calc_risk()` に同一の冬季枝を追加し、同期した。
+- 閾値の数値自体は新規に作らず、2026年2月に実データで検証済みの値をそのまま再利用した
+  （2026年2月の教訓「誤ったデータで閾値調整しても意味がない」を踏まえ、今回は
+  12項目のSpreadsheet Audit等でデータが健全であることを確認した上で適用）。
+- 実測の既知FNケース（風速7.0-13.8m/s、波高2.0-3.0m）で再計算し、MINIMAL/LOW→LOW/MEDIUM/HIGHへの
+  改善を確認。既知のFPケース（風速18.8m/s・波高3.1m、実際は運航）はMEDIUM→HIGHとより強く
+  間違えるが、元々誤判定だった件数自体は増えない。
+
+#### **今後の確認事項**
+- 12月以降、`/admin/analyze-threshold-accuracy` を定期的に再実行し、風速8-12m/s帯の精度と
+  False Positive件数の変化を追跡する。
+- False Positiveが大きく増えた場合は、冬季の波高加点（特に1.5m起点の+10点）を見直す。
+
+#### **修正ファイル**
+- [weather_forecast_collector.py](weather_forecast_collector.py) — `calculate_cancellation_risk()`
+- [unified_accuracy_tracker.py](unified_accuracy_tracker.py) — `_calc_risk()`
+- [AGENTS.md](AGENTS.md) — Ferry Risk Logic セクションに冬季テーブルを明記
+
+---
+
 ### 2026-02-18: 季節調整機能の実装（冬季リスク判定の改善）
 
 #### **背景**

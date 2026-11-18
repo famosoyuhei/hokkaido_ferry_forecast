@@ -52,8 +52,11 @@
 ## Ferry Risk Logic
 
 `weather_forecast_collector.py` の `calculate_cancellation_risk()` と
-`unified_accuracy_tracker.py` の `_calc_risk()` は常に同期する。
+`unified_accuracy_tracker.py` の `_calc_risk()` は常に同期する。どちらも
+`forecast_date`/`date`（`YYYY-MM-DD`）で冬季判定（11〜3月、フェリー会社自身の
+冬ダイヤ切替日である11/1に合わせている）を行い、冬季は別の閾値テーブルを使う。
 
+**非冬季（4〜10月）**:
 ```python
 if wind >= 35:   score += 70
 elif wind >= 30: score += 60
@@ -69,8 +72,36 @@ elif wave >= 2.0: score += 15
 if vis < 1.0:   score += 20
 elif vis < 3.0: score += 10
 ```
-
 判定: `score >= 70` HIGH, `>= 40` MEDIUM, `>= 20` LOW, otherwise MINIMAL.
+
+**冬季（11〜3月）**: 風速・波高の加算後に `score = int(score * 1.2)` を適用し、
+視程はその後に加算する。判定しきい値も下げる。
+```python
+if wind >= 35:   score += 70
+elif wind >= 30: score += 60
+elif wind >= 25: score += 50
+elif wind >= 20: score += 35
+elif wind >= 15: score += 20
+elif wind >= 12: score += 15
+elif wind >= 8:  score += 10
+
+if wave >= 4.0:   score += 40
+elif wave >= 3.0: score += 35
+elif wave >= 2.0: score += 20
+elif wave >= 1.5: score += 10
+
+score = int(score * 1.2)
+
+if vis < 1.0:   score += 20
+elif vis < 3.0: score += 10
+```
+判定: `score >= 60` HIGH, `>= 35` MEDIUM, `>= 15` LOW, otherwise MINIMAL.
+
+**変更履歴**: 2026-11-18、`/admin/analyze-threshold-accuracy`（直近14日間）で
+風速8-12m/s帯の精度が58.3%（False Negative 18件 vs False Positive 2件）と
+判明。冬季判定を「12-3月」から「11-3月」へ拡張し、`unified_accuracy_tracker.py`
+が冬季枝を持っていなかった同期漏れも修正した。閾値の数値自体は2026年2月の
+データ検証済みの値を再利用しており、新規の数値は追加していない。
 
 ## Flight Forecast Rules
 
