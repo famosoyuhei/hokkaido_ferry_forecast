@@ -1,0 +1,49 @@
+name: Full System Review
+
+on:
+  workflow_dispatch:
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: DB health (public)
+        run: |
+          echo "=== /api/db-health ==="
+          curl -sS --max-time 30 "https://web-production-a628.up.railway.app/api/db-health" \
+            | python3 -m json.tool || echo '{"error":"unreachable"}'
+
+      - name: DB coverage
+        run: |
+          echo "=== /admin/db-coverage ==="
+          curl -sS --max-time 60 -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+            "https://web-production-a628.up.railway.app/admin/db-coverage" \
+            | python3 -m json.tool
+
+      - name: UI monitor AI employee
+        run: |
+          echo "=== /admin/run-ui-monitor ==="
+          curl -sS --max-time 90 -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+            "https://web-production-a628.up.railway.app/admin/run-ui-monitor" \
+            | python3 -m json.tool
+
+      - name: LINE audit AI employee
+        run: |
+          echo "=== /admin/run-line-audit ==="
+          curl -sS --max-time 90 -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+            "https://web-production-a628.up.railway.app/admin/run-line-audit" \
+            | python3 -m json.tool
+
+      - name: Analyze accuracy
+        run: |
+          echo "=== /admin/analyze-accuracy ==="
+          curl -sS --max-time 60 -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+            "https://web-production-a628.up.railway.app/admin/analyze-accuracy" \
+            | python3 -m json.tool
+
+      - name: Analyze threshold accuracy (last 14 days)
+        run: |
+          echo "=== /admin/analyze-threshold-accuracy ==="
+          curl -sS --max-time 60 -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+            "https://web-production-a628.up.railway.app/admin/analyze-threshold-accuracy" \
+            | python3 -m json.tool
