@@ -162,29 +162,68 @@ class UnifiedAccuracyTracker:
         print("Accuracy tables initialized")
 
     # ------------------------------------------------------------------
-    def _calc_risk(self, wind: float, wave: Optional[float], vis: Optional[float]):
-        """Risk calculation (mirrors weather_forecast_collector logic)."""
+    def _calc_risk(self, wind: float, wave: Optional[float], vis: Optional[float],
+                   date: Optional[str] = None):
+        """Risk calculation (mirrors weather_forecast_collector.calculate_cancellation_risk).
+
+        `date` (YYYY-MM-DD) selects the winter (Nov-Mar) branch, matching the
+        ferry operator's own winter-schedule switch on 11/1. Keep this in sync
+        with weather_forecast_collector.py — see AGENTS.md.
+        """
+        is_winter = False
+        if date:
+            try:
+                is_winter = int(date[5:7]) in (11, 12, 1, 2, 3)
+            except (ValueError, IndexError):
+                pass
+
         score = 0
-        if wind >= 35:   score += 70
-        elif wind >= 30: score += 60
-        elif wind >= 25: score += 50
-        elif wind >= 20: score += 35
-        elif wind >= 15: score += 20
-        elif wind >= 10: score += 10
+        if is_winter:
+            if wind >= 35:   score += 70
+            elif wind >= 30: score += 60
+            elif wind >= 25: score += 50
+            elif wind >= 20: score += 35
+            elif wind >= 15: score += 20
+            elif wind >= 12: score += 15
+            elif wind >= 8:  score += 10
 
-        if wave is not None:
-            if wave >= 4.0:   score += 40
-            elif wave >= 3.0: score += 30
-            elif wave >= 2.0: score += 15
+            if wave is not None:
+                if wave >= 4.0:   score += 40
+                elif wave >= 3.0: score += 35
+                elif wave >= 2.0: score += 20
+                elif wave >= 1.5: score += 10
 
-        if vis is not None:
-            if vis < 1.0:   score += 20
-            elif vis < 3.0: score += 10
+            score = int(score * 1.2)
 
-        if score >= 70:   risk = 'HIGH'
-        elif score >= 40: risk = 'MEDIUM'
-        elif score >= 20: risk = 'LOW'
-        else:             risk = 'MINIMAL'
+            if vis is not None:
+                if vis < 1.0:   score += 20
+                elif vis < 3.0: score += 10
+
+            if score >= 60:   risk = 'HIGH'
+            elif score >= 35: risk = 'MEDIUM'
+            elif score >= 15: risk = 'LOW'
+            else:             risk = 'MINIMAL'
+        else:
+            if wind >= 35:   score += 70
+            elif wind >= 30: score += 60
+            elif wind >= 25: score += 50
+            elif wind >= 20: score += 35
+            elif wind >= 15: score += 20
+            elif wind >= 10: score += 10
+
+            if wave is not None:
+                if wave >= 4.0:   score += 40
+                elif wave >= 3.0: score += 30
+                elif wave >= 2.0: score += 15
+
+            if vis is not None:
+                if vis < 1.0:   score += 20
+                elif vis < 3.0: score += 10
+
+            if score >= 70:   risk = 'HIGH'
+            elif score >= 40: risk = 'MEDIUM'
+            elif score >= 20: risk = 'LOW'
+            else:             risk = 'MINIMAL'
         return risk, score
 
     def _get_sailing_weather(self, cursor, date: str, port: str, dep_hour: int):

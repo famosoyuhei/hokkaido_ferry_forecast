@@ -648,11 +648,15 @@ class WeatherForecastCollector:
         risk_score = 0
         risk_factors = []
 
-        # Determine season (winter = Dec-Mar)
+        # Determine season (winter = Nov-Mar, matching the ferry operator's own
+        # winter-schedule switch on 11/1 — see AGENTS.md timetable switch dates).
+        # 2026-11-18 threshold audit (/admin/analyze-threshold-accuracy) found
+        # 18 false negatives in the 7-10 m/s wind / 2.0-2.5 m wave band during
+        # November, all scored MINIMAL/LOW by the non-winter branch below.
         is_winter = False
         if forecast_date:
             try:
-                is_winter = int(forecast_date[5:7]) in (12, 1, 2, 3)
+                is_winter = int(forecast_date[5:7]) in (11, 12, 1, 2, 3)
             except (ValueError, IndexError):
                 pass
 
