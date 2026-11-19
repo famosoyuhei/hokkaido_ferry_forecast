@@ -1166,6 +1166,38 @@ def admin_run_backfill():
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
+@app.route('/admin/fix-ferry-wind-units')
+@require_admin
+def admin_fix_ferry_wind_units():
+    """One-off: convert historical ferry_status_enhanced wind_speed from km/h to m/s.
+
+    Default is dry-run (report only). Pass ?apply=1 to write the correction.
+    The script refuses to run twice (marker table) and writes backups first.
+    """
+    import subprocess
+    from flask import request as flask_request
+    cmd = ['python', 'fix_ferry_wind_units.py']
+    if flask_request.args.get('apply', '') == '1':
+        cmd.append('--apply')
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=600
+        )
+        return jsonify({
+            'status': 'success' if result.returncode == 0 else 'error',
+            'returncode': result.returncode,
+            'mode': 'apply' if '--apply' in cmd else 'dry_run',
+            'stdout': result.stdout[-4000:] if len(result.stdout) > 4000 else result.stdout,
+            'stderr': result.stderr[-2000:] if len(result.stderr) > 2000 else result.stderr,
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({'status': 'timeout', 'message': 'Correction is still running (>10min)'}), 202
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
 @app.route('/admin/generate-sailing-forecasts')
 @require_admin
 def admin_generate_sailing_forecasts():
