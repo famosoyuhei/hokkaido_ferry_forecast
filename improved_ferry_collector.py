@@ -187,6 +187,7 @@ class ImprovedFerryCollector:
                 'latitude': self.wakkanai_lat,
                 'longitude': self.wakkanai_lon,
                 'current': 'temperature_2m,windspeed_10m,winddirection_10m,visibility',
+                'wind_speed_unit': 'ms',
                 'timezone': 'Asia/Tokyo'
             }
 
