@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger bulk ferry accuracy recalculation
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         run: |
           set -euo pipefail
           start="${{ inputs.start }}"
@@ -26,7 +28,7 @@ jobs:
             url="${url}&end=${end}"
           fi
           response=$(curl -sS -w "\n%{http_code}" --max-time 900 \
-            -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+            -H "X-Admin-Token: ${ADMIN_TOKEN}" \
             "$url")
           http_code=$(echo "$response" | tail -n 1)
           body=$(echo "$response" | head -n -1)
@@ -35,10 +37,12 @@ jobs:
           test "$http_code" = "200"
 
       - name: Trigger latest accuracy run
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         run: |
           set -euo pipefail
           response=$(curl -sS -w "\n%{http_code}" --max-time 180 \
-            -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+            -H "X-Admin-Token: ${ADMIN_TOKEN}" \
             "https://web-production-a628.up.railway.app/admin/run-accuracy-only")
           http_code=$(echo "$response" | tail -n 1)
           body=$(echo "$response" | head -n -1)
@@ -47,10 +51,12 @@ jobs:
           test "$http_code" = "200"
 
       - name: Export accuracy payload
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         run: |
           set -euo pipefail
           response=$(curl -sS -w "\n%{http_code}" --max-time 180 \
-            -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+            -H "X-Admin-Token: ${ADMIN_TOKEN}" \
             "https://web-production-a628.up.railway.app/admin/export-accuracy-data?days=90")
           http_code=$(echo "$response" | tail -n 1)
           body=$(echo "$response" | head -n -1)

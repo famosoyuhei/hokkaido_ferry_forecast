@@ -22,10 +22,12 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: Export accuracy payload from permanent DB
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         run: |
           set -euo pipefail
           response=$(curl -sS -w "\n%{http_code}" --max-time 180 \
-            -H "X-Admin-Token: ${{ secrets.ADMIN_TOKEN }}" \
+            -H "X-Admin-Token: ${ADMIN_TOKEN}" \
             "https://web-production-a628.up.railway.app/admin/export-accuracy-data?days=90")
           http_code=$(echo "$response" | tail -n 1)
           body=$(echo "$response" | head -n -1)
