@@ -95,15 +95,18 @@ def init_table(db_path):
 
 
 def already_collected(db_path, date_str, loc_name):
-    """Return True only if date+location has 20+ records WITH wind_speed data.
-    Wave-height-only records (wind_speed IS NULL) are NOT considered complete.
+    """Return True only if date+location has 20+ records with BOTH wind_speed
+    and wave_height populated. A record missing either one is not complete
+    (the Marine API has sometimes lagged the Archive/Forecast API, leaving
+    wave_height null while wind_speed was already filled in).
     """
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     try:
         cur.execute(
             '''SELECT COUNT(*) FROM actual_weather
-               WHERE date = ? AND location = ? AND wind_speed IS NOT NULL''',
+               WHERE date = ? AND location = ?
+                 AND wind_speed IS NOT NULL AND wave_height IS NOT NULL''',
             (date_str, loc_name)
         )
         count = cur.fetchone()[0]

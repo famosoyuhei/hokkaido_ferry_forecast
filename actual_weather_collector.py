@@ -562,8 +562,23 @@ class ActualWeatherCollector:
         return total_saved
 
 
+# When the daily cron calls this with no date argument, re-check this many
+# recent days (not just yesterday). The Archive/Marine APIs are sometimes
+# missing hours for a day the first time we ask (~31h after it ends), and
+# nothing used to retry those dates again, leaving actual_wind/actual_wave
+# permanently null for a handful of sailings. INSERT OR REPLACE makes
+# re-fetching already-collected days safe.
+BACKFILL_WINDOW_DAYS = 3
+
 if __name__ == '__main__':
     collector = ActualWeatherCollector()
-    target = sys.argv[1] if len(sys.argv) > 1 else None
-    n = collector.collect(target)
-    print(f"\nDone: {n} records saved.")
+    if len(sys.argv) > 1:
+        n = collector.collect(sys.argv[1])
+        print(f"\nDone: {n} records saved.")
+    else:
+        today = datetime.now(collector.jst).date()
+        total = 0
+        for days_ago in range(1, BACKFILL_WINDOW_DAYS + 1):
+            target_date = (today - timedelta(days=days_ago)).strftime('%Y-%m-%d')
+            total += collector.collect(target_date)
+        print(f"\nDone: {total} records saved across last {BACKFILL_WINDOW_DAYS} days.")
