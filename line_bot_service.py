@@ -990,31 +990,31 @@ class LineBotService:
         ).fetchall()
         conn.close()
 
+        sent = skipped = errors = 0
         if not users:
             print('[LINE] No active users to notify')
-            return {'sent': 0, 'skipped': 0, 'errors': 0}
+        else:
+            for user_id, routes_json, min_risk in users:
+                routes = json.loads(routes_json or '[]') or None
+                msg = self._format_notification(
+                    route_filter=routes,
+                    min_risk=min_risk or 'HIGH'
+                )
+                if msg is None:
+                    skipped += 1
+                    continue
+                try:
+                    self._push(user_id, msg)
+                    sent += 1
+                    print(f'[LINE] Sent to {user_id[:12]}...')
+                except Exception as e:
+                    errors += 1
+                    print(f'[LINE] Error sending to {user_id[:12]}...: {e}')
 
-        sent = skipped = errors = 0
-        for user_id, routes_json, min_risk in users:
-            routes = json.loads(routes_json or '[]') or None
-            msg = self._format_notification(
-                route_filter=routes,
-                min_risk=min_risk or 'HIGH'
-            )
-            if msg is None:
-                skipped += 1
-                continue
-            try:
-                self._push(user_id, msg)
-                sent += 1
-                print(f'[LINE] Sent to {user_id[:12]}...')
-            except Exception as e:
-                errors += 1
-                print(f'[LINE] Error sending to {user_id[:12]}...: {e}')
+            print(f'[LINE] Morning notifications done: sent={sent} skipped={skipped} errors={errors}')
 
-        print(f'[LINE] Morning notifications done: sent={sent} skipped={skipped} errors={errors}')
-
-        # 実行ログを notification_log に保存
+        # 実行ログを notification_log に保存（アクティブユーザーが0人の日も必ず記録する。
+        # そうしないと line_audit.py の「本日の朝通知」チェックが常に未実行扱いになる）
         try:
             now = datetime.now(jst).isoformat()
             today_str = datetime.now(jst).strftime('%Y-%m-%d')
